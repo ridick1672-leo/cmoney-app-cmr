@@ -21,30 +21,394 @@ function sortNewestFirst(rows = []) {
   });
 }
 
-// Data Master 22 Rumah sesuai update CMR_Database_Master (21 Aktif, 1 Tidak Aktif / Dijual BPR)
-const MASTER_HOUSES = [
-  { id: 'H-01', nomor_rumah: 'No. 01', nama_warga: 'Pak Suharso', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-02', nomor_rumah: 'No. 02', nama_warga: 'Pak Refza', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-03', nomor_rumah: 'No. 03', nama_warga: 'Pak Upen (Kontrak Unit Pak Dwi)', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-04', nomor_rumah: 'No. 04', nama_warga: 'Dijual (Pihak BPR)', status_huni: 'Tidak Aktif', tarif_ipl: 0 },
-  { id: 'H-05', nomor_rumah: 'No. 05', nama_warga: 'Pak Anggi', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-06', nomor_rumah: 'No. 06', nama_warga: 'Pak Andy', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-07', nomor_rumah: 'No. 07', nama_warga: 'Pak Romy', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-08', nomor_rumah: 'No. 08', nama_warga: 'Pak Sony', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-09', nomor_rumah: 'No. 09', nama_warga: 'Pak Robi', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-10', nomor_rumah: 'No. 10', nama_warga: 'Pak Ridick', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-11', nomor_rumah: 'No. 11', nama_warga: 'Pak Zakaria', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-12', nomor_rumah: 'No. 12', nama_warga: 'Pak Kiswanto', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-13', nomor_rumah: 'No. 13', nama_warga: 'Pak Hery', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-14', nomor_rumah: 'No. 14', nama_warga: 'Pak Dwi', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-15', nomor_rumah: 'No. 15', nama_warga: 'Pak Juhairi', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-16', nomor_rumah: 'No. 16', nama_warga: 'Pak Baim (Unit 1)', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-17', nomor_rumah: 'No. 17', nama_warga: 'Pak Yose', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-18', nomor_rumah: 'No. 18', nama_warga: 'Pak Jihad', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-19', nomor_rumah: 'No. 19', nama_warga: 'Pak Jacob', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-20', nomor_rumah: 'No. 20', nama_warga: 'Pak Ramon', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-21', nomor_rumah: 'No. 21', nama_warga: 'Pak Suwandi', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-22', nomor_rumah: 'No. 22', nama_warga: 'Pak Baim (Unit 2)', status_huni: 'Aktif', tarif_ipl: 200000 }
+// Data 22 Unit Rumah CMR beserta Alias Keluarga (Bebas Typo untuk Laporan Paket/Surat Security)
+const BASELINE_HOUSES = [
+  { id: 'H-01', nomor_rumah: 'No. 01', nama_warga: 'Pak Suharso', status_huni: 'Aktif', tarif_ipl: 200000, alias_keluarga: 'Pak Suharso / Ibu Suharso' },
+  { id: 'H-02', nomor_rumah: 'No. 02', nama_warga: 'Pak Refza', status_huni: 'Aktif', tarif_ipl: 200000, alias_keluarga: 'Pak Refza Muhammad / Ibu Reza Wandira' },
+  { id: 'H-03', nomor_rumah: 'No. 03', nama_warga: 'Pak Upen', status_huni: 'Aktif', tarif_ipl: 200000, alias_keluarga: 'Pak Upen / Keluarga (Unit Kontrak Pak Dwi)' },
+  { id: 'H-04', nomor_rumah: 'No. 04', nama_warga: 'Dijual', status_huni: 'Tidak Aktif', tarif_ipl: 0, alias_keluarga: 'Unit Kosong - Dijual Pihak BPR' },
+  { id: 'H-05', nomor_rumah: 'No. 05', nama_warga: 'Pak Anggi', status_huni: 'Aktif', tarif_ipl: 200000, alias_keluarga: 'Pak Anggi Hakim / Ibu / Abang Rafa' },
+  { id: 'H-06', nomor_rumah: 'No. 06', nama_warga: 'Pak Andy', status_huni: 'Aktif', tarif_ipl: 200000, alias_keluarga: 'Pak Agustian Ekandiarto (Pak Andi) / Ibu' },
+  { id: 'H-07', nomor_rumah: 'No. 07', nama_warga: 'Pak Romy', status_huni: 'Aktif', tarif_ipl: 200000, alias_keluarga: 'Pak Romy (Ketua Cluster) / Ibu' },
+  { id: 'H-08', nomor_rumah: 'No. 08', nama_warga: 'Pak Sony', status_huni: 'Aktif', tarif_ipl: 200000, alias_keluarga: 'Pak Sonny Ilham / Ibu' },
+  { id: 'H-09', nomor_rumah: 'No. 09', nama_warga: 'Pak Robi', status_huni: 'Aktif', tarif_ipl: 200000, alias_keluarga: 'Pak Robisan (Kang Robi) / Ibu / Kakak Aca' },
+  { id: 'H-10', nomor_rumah: 'No. 10', nama_warga: 'Pak Ridick', status_huni: 'Aktif', tarif_ipl: 200000, alias_keluarga: 'Pak Ridick / Ibu' },
+  { id: 'H-11', nomor_rumah: 'No. 11', nama_warga: 'Pak Zakaria', status_huni: 'Aktif', tarif_ipl: 200000, alias_keluarga: 'Pak Zakaria (Bang Jak) / Ibu Negara' },
+  { id: 'H-12', nomor_rumah: 'No. 12', nama_warga: 'Pak Kiswanto', status_huni: 'Aktif', tarif_ipl: 200000, alias_keluarga: 'Pak Kiswanto (Bendahara) / Ibu' },
+  { id: 'H-13', nomor_rumah: 'No. 13', nama_warga: 'Pak Hery', status_huni: 'Aktif', tarif_ipl: 200000, alias_keluarga: 'Pak Hermawan (Pak Hery) / Ibu Dewi' },
+  { id: 'H-14', nomor_rumah: 'No. 14', nama_warga: 'Pak Dwi', status_huni: 'Aktif', tarif_ipl: 200000, alias_keluarga: 'Pak Dwi JokaW / Ibu Tuti' },
+  { id: 'H-15', nomor_rumah: 'No. 15', nama_warga: 'Pak Juhairi', status_huni: 'Aktif', tarif_ipl: 200000, alias_keluarga: 'Pak Juhairi (Ex-Unit Pak Yanuar) / Ibu' },
+  { id: 'H-16', nomor_rumah: 'No. 16', nama_warga: 'Pak Baim', status_huni: 'Aktif', tarif_ipl: 200000, alias_keluarga: 'Pak Adi Wiyatno (Pak Baim) / Ibu' },
+  { id: 'H-17', nomor_rumah: 'No. 17', nama_warga: 'Pak Yose', status_huni: 'Aktif', tarif_ipl: 200000, alias_keluarga: 'Pak Yose Rizal / Ibu' },
+  { id: 'H-18', nomor_rumah: 'No. 18', nama_warga: 'Pak Jihad', status_huni: 'Aktif', tarif_ipl: 200000, alias_keluarga: 'Pak Jihad / Ibu' },
+  { id: 'H-19', nomor_rumah: 'No. 19', nama_warga: 'Pak Jacob', status_huni: 'Aktif', tarif_ipl: 200000, alias_keluarga: 'Opa Jacob / Ibu' },
+  { id: 'H-20', nomor_rumah: 'No. 20', nama_warga: 'Pak Ramon', status_huni: 'Aktif', tarif_ipl: 200000, alias_keluarga: 'Pak Ramon / Ibu Yuska / Abang Rasya' },
+  { id: 'H-21', nomor_rumah: 'No. 21', nama_warga: 'Pak Suwandi', status_huni: 'Aktif', tarif_ipl: 200000, alias_keluarga: 'Pak Suwandi / Ibu Marlina' },
+  { id: 'H-22', nomor_rumah: 'No. 22', nama_warga: 'Pak Baim', status_huni: 'Aktif', tarif_ipl: 200000, alias_keluarga: 'Pak Adi Wiyatno (Pak Baim) / Keluarga' }
+];
+
+/**
+ * Generator Kalender Dinamis Security (Aturan Rotasi Mingguan CMR):
+ * - Minggu s/d Kamis: Penjagaan normal 2 shift (Pagi 08:00-20:00 & Malam 20:00-08:00)
+ * - Jumat: Shift pagi tetap bertugas, sedangkan shift malam LIBUR (Gerbang Mandiri 20:00)
+ * - Sabtu: Pertukaran shift mingguan (Petugas malam naik ke Pagi), sedangkan shift malam LIBUR
+ * - Minggu dst: Kembali normal 2 shift dengan posisi petugas yang sudah bertukar
+ */
+function generateDefaultSecuritySchedules(year = 2026, monthIndex = 10) {
+  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+  const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+  const monthNames = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  ];
+  // Acuan Minggu 1 Nov 2026: Pak Eko Shift Pagi, Pak Mulyadi Shift Malam
+  const anchorSunday = new Date(2026, 10, 1);
+  const result = [];
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateObj = new Date(year, monthIndex, d);
+    const dow = dateObj.getDay(); // 0=Minggu ... 5=Jumat, 6=Sabtu
+    const dateStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+
+    // Hitung minggu ke-berapa sejak Minggu acuan (setiap Sabtu terjadi pertukaran shift pagi)
+    const diffDays = Math.floor((dateObj - anchorSunday) / (1000 * 60 * 60 * 24));
+    // Siklus berganti setiap hari Sabtu (offset +1 hari dari Minggu)
+    const cycleWeek = Math.floor((diffDays + 1) / 7);
+    const isEvenCycle = ((cycleWeek % 2) + 2) % 2 === 0;
+
+    const morningGuard = isEvenCycle ? 'Pak Eko' : 'Pak Mulyadi';
+    const nightGuard = isEvenCycle ? 'Pak Mulyadi' : 'Pak Eko';
+
+    let shiftPagi = morningGuard;
+    let jamPagi = '08:00 - 20:00';
+    let shiftMalam = nightGuard;
+    let jamMalam = '20:00 - 08:00';
+    let statusJadwal = 'NORMAL_2_SHIFT';
+    let catatanJadwal = 'Penjagaan normal 2 shift (Pagi & Malam)';
+
+    if (dow === 5) {
+      // JUMAT: Pagi tetap bertugas, Malam LIBUR
+      shiftMalam = 'LIBUR';
+      jamMalam = 'Gerbang Mandiri (20:00)';
+      statusJadwal = 'MALAM_LIBUR';
+      catatanJadwal = `Jumat: ${shiftPagi} bertugas shift pagi, shift malam LIBUR (Gerbang Mandiri mulai 20:00 WIB)`;
+    } else if (dow === 6) {
+      // SABTU: Pertukaran shift mingguan di pagi hari, Malam LIBUR
+      shiftMalam = 'LIBUR';
+      jamMalam = 'Gerbang Mandiri (20:00)';
+      statusJadwal = 'ROTASI_MALAM_LIBUR';
+      catatanJadwal = `Sabtu (Rotasi Mingguan): ${shiftPagi} naik ke shift pagi, shift malam LIBUR (Gerbang Mandiri mulai 20:00 WIB)`;
+    } else if (dow === 0) {
+      catatanJadwal = `Minggu: Kembali normal 2 shift (${shiftPagi} Pagi, ${shiftMalam} Malam)`;
+    }
+
+    result.push({
+      id: `SCH-${year}${String(monthIndex + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`,
+      tanggal: dateStr,
+      hari: dayNames[dow],
+      periode_bulan: monthNames[monthIndex],
+      periode_tahun: year,
+      shift_pagi: shiftPagi,
+      jam_pagi: jamPagi,
+      shift_malam: shiftMalam,
+      jam_malam: jamMalam,
+      status_jadwal: statusJadwal,
+      catatan_jadwal: catatanJadwal
+    });
+  }
+  return result;
+}
+
+// Histori Log & Anomali Nyata dari Grup WA Cluster Mutiara Residence (Urut Terbaru di Atas)
+const BASELINE_SECURITY_LOGS = [
+  {
+    id: 'SEC-20261014-01',
+    tanggal: '2026-10-14',
+    jam: '05:05',
+    nama_security: 'Pak Eko',
+    shift: 'Malam',
+    kategori_laporan: 'PATROLI',
+    sub_kategori: 'Patroli Subuh (05:00)',
+    house_id: '-',
+    nama_warga_tujuan: '-',
+    titik_patroli: '5 Titik (Pos, Gerbang, Gang Depan, Gang Belakang, Lapangan)',
+    cuaca_815: 'Cerah',
+    status_gerbang: 'Pintu Kecil & Utama Ditutup Sesuai SOP',
+    detail_catatan: 'Patroli subuh kontrol 5 titik lokasi aman tanpa taruna, lampu jalan dimatikan bertahap.',
+    teks_wa: '*Assalamualaikum, selamat pagi*\nMenjelang subuh izin lapor petugas jaga (*Pak Eko*) pengecekan dan patroli kembali update situasi terkini kondisi area CMR dan sekitarnya. Untuk saat ini situasi tetap aman kondusif tanpa taruna apapun, aktivitas warga nihil. Berikut 815 cuaca cerah. *Terima kasih* 🙏🫡'
+  },
+  {
+    id: 'SEC-20261013-03',
+    tanggal: '2026-10-13',
+    jam: '20:00',
+    nama_security: 'Pak Eko',
+    shift: 'Malam',
+    kategori_laporan: 'ABSEN_SHIFT',
+    sub_kategori: 'Serah Terima Pagi ke Malam (20:00)',
+    house_id: '-',
+    nama_warga_tujuan: '-',
+    titik_patroli: 'Pos Utama Security',
+    cuaca_815: 'Cerah',
+    status_gerbang: 'Pintu Gerbang Kecil Ditutup Sesuai SOP',
+    detail_catatan: 'Serah terima tugas jaga malam dari Pak Mulyadi (Pagi) kepada Pak Eko (Malam) beserta foto selfie realtime.',
+    teks_wa: '*ABSEN PERGANTIAN SHIFT SECURITY CMR*\nAssalamualaikum, selamat malam. Izin melaporkan serah terima tugas jaga pengamanan Cluster Mutiara Residence:\n• Petugas Jaga Pagi (Balik Kanan): *Pak Mulyadi*\n• Petugas Jaga Malam (Masuk Jaga): *Pak Eko*\n• Catatan Pos: Situasi aman kondusif tanpa taruna.\n*Terima kasih* 🙏🫡'
+  },
+  {
+    id: 'SEC-20261013-02',
+    tanggal: '2026-10-13',
+    jam: '14:11',
+    nama_security: 'Pak Mulyadi',
+    shift: 'Pagi',
+    kategori_laporan: 'PAKET_SURAT',
+    sub_kategori: 'Paket Reguler di Pos',
+    house_id: 'H-06',
+    nama_warga_tujuan: 'Pak Agustian Ekandiarto (Pak Andi) / Ibu',
+    titik_patroli: 'Pos Utama Security',
+    cuaca_815: 'Panas Terik',
+    status_gerbang: 'Pintu Gerbang Kecil Ditutup Sesuai SOP',
+    detail_catatan: 'Paket tiba di pos untuk Blok A No. 06 (Pak Andy), disimpan di pos security.',
+    teks_wa: '*Assalamualaikum, selamat siang*\nIzin lapor ada *1 Paket* di Pos Security untuk *Blok A No. 06* atas nama *Pak Agustian Ekandiarto (Pak Andi) / Ibu*. Status paket: *Disimpan di Pos Security*. *Terima kasih* 🙏'
+  },
+  {
+    id: 'SEC-20261011-01',
+    tanggal: '2026-10-11',
+    jam: '19:47',
+    nama_security: 'Pak Eko',
+    shift: 'Malam',
+    kategori_laporan: 'ABSEN_SHIFT',
+    sub_kategori: 'Mulai Shift Minggu Malam (Kembali Normal 2 Shift)',
+    house_id: '-',
+    nama_warga_tujuan: '-',
+    titik_patroli: 'Pos Utama Security',
+    cuaca_815: 'Cerah',
+    status_gerbang: 'Pintu Gerbang Kecil Ditutup Sesuai SOP',
+    detail_catatan: 'Masuk jaga Minggu malam pasca libur malam akhir pekan, serah terima dari Pak Mulyadi.',
+    teks_wa: '*ABSEN PERGANTIAN SHIFT SECURITY CMR*\nAssalamualaikum, selamat malam. Izin lapor keamanan Minggu malam kembali normal 2 shift, diserahkan dari *Pak Mulyadi* (Pagi) kepada *Pak Eko* (Malam). Situasi aman kondusif. *Terima kasih* 🙏🫡'
+  },
+  {
+    id: 'SEC-20261010-01',
+    tanggal: '2026-10-10',
+    jam: '20:00',
+    nama_security: 'Pak Mulyadi',
+    shift: 'Pagi',
+    kategori_laporan: 'ABSEN_SHIFT',
+    sub_kategori: 'Tutup Pos Malam Libur (Sabtu Malam)',
+    house_id: '-',
+    nama_warga_tujuan: '-',
+    titik_patroli: 'Pos Utama & Gerbang',
+    cuaca_815: 'Cerah',
+    status_gerbang: 'Gerbang Utama Dikunci (Buka-Tutup Mandiri Warga)',
+    detail_catatan: 'Pertukaran shift Sabtu pagi selesai, gerbang dikunci karena Sabtu malam libur penjagaan.',
+    teks_wa: '*Assalamualaikum, selamat malam*\nIzin lapor petugas jaga pagi (*Pak Mulyadi*) persiapan balik kanan pukul 20:00 WIB. Sesuai jadwal Sabtu malam libur penjagaan, lampu lingkungan sudah dinyalakan dan pintu gerbang utama sudah dikunci untuk buka-tutup mandiri warga. *Terima kasih* 🙏'
+  },
+  {
+    id: 'SEC-20261009-02',
+    tanggal: '2026-10-09',
+    jam: '20:09',
+    nama_security: 'Pak Eko',
+    shift: 'Pagi',
+    kategori_laporan: 'ABSEN_SHIFT',
+    sub_kategori: 'Tutup Pos Malam Libur (Jumat Malam)',
+    house_id: '-',
+    nama_warga_tujuan: '-',
+    titik_patroli: 'Pos Utama & Gerbang',
+    cuaca_815: 'Cerah',
+    status_gerbang: 'Gerbang Utama Dikunci (Buka-Tutup Mandiri Warga)',
+    detail_catatan: 'Selesai tugas Jumat pagi, TV pos diamankan/digembok dan gerbang dikunci karena Jumat malam libur.',
+    teks_wa: '*Assalamualaikum, selamat malam*\nIzin lapor petugas jaga pagi (*Pak Eko*) persiapan balik kanan pukul 20:00 WIB. Sesuai jadwal Jumat malam libur penjagaan, TV pos sudah diamankan/digembok dan pintu gerbang utama sudah dikunci. *Terima kasih* 🙏🫡'
+  },
+  {
+    id: 'SEC-20261008-01',
+    tanggal: '2026-10-08',
+    jam: '10:25',
+    nama_security: 'Pak Eko',
+    shift: 'Pagi',
+    kategori_laporan: 'PAKET_SURAT',
+    sub_kategori: 'Paket Diantar ke Rumah',
+    house_id: 'H-13',
+    nama_warga_tujuan: 'Pak Hermawan (Pak Hery) / Ibu Dewi & Ibu Marlina (No. 21)',
+    titik_patroli: 'Blok A No. 13 & No. 21',
+    cuaca_815: 'Cerah',
+    status_gerbang: 'Pintu Gerbang Kecil Ditutup Sesuai SOP',
+    detail_catatan: 'Paket sudah diantar langsung ke 2 rumah warga: Ibu Dewi (No. 13) dan Ibu Marlina (No. 21).',
+    teks_wa: '*Assalamualaikum, selamat pagi*\nIzin lapor paket untuk *Blok A No. 13 (Ibu Dewi)* dan *Blok A No. 21 (Ibu Marlina)* sudah diantar langsung ke rumah warga oleh security. *Terima kasih* 🙏🏾'
+  },
+  {
+    id: 'SEC-20261004-01',
+    tanggal: '2026-10-04',
+    jam: '16:53',
+    nama_security: 'Pak Eko',
+    shift: 'Pagi',
+    kategori_laporan: 'INFO_WARGA',
+    sub_kategori: 'Izin Parkir Lapangan & Acara Warga',
+    house_id: 'H-19',
+    nama_warga_tujuan: 'Opa Jacob / Ibu',
+    titik_patroli: 'Area Lapangan & Parkir Cluster',
+    cuaca_815: 'Cerah',
+    status_gerbang: 'Pintu Gerbang Kecil Dibuka Sementara Acara',
+    detail_catatan: 'Izin parkir mobil di area lapangan dan kegiatan acara keluarga di kediaman Opa Jacob (No. 19) pukul 18:45 WIB.',
+    teks_wa: '*Assalamualaikum, selamat sore*\nIzin lapor update kegiatan warga: terdapat izin parkir kendaraan di area lapangan dan acara keluarga di kediaman *Opa Jacob (No. 19)* mulai pukul 18:45 WIB. Security siaga membantu pengaturan parkir. *Terima kasih* 🙏🫡'
+  },
+  {
+    id: 'SEC-20261002-01',
+    tanggal: '2026-10-02',
+    jam: '11:42',
+    nama_security: 'Pak Mulyadi',
+    shift: 'Pagi',
+    kategori_laporan: 'IZIN_POS',
+    sub_kategori: 'Izin Sholat Jumat (Gerbang Dikunci)',
+    house_id: '-',
+    nama_warga_tujuan: '-',
+    titik_patroli: 'Pos Utama & Gerbang',
+    cuaca_815: 'Panas Terik',
+    status_gerbang: 'Gerbang Utama Digembok Sementara (Jumatan)',
+    detail_catatan: 'Izin keluar melaksanakan Sholat Jumat pukul 11:42 WIB, pagar utama dikunci sementara.',
+    teks_wa: '*Assalamualaikum, selamat siang*\nIzin lapor petugas jaga (*Pak Mulyadi*) pukul 11:42 WIB izin keluar melaksanakan ibadah *Sholat Jumat*. Pintu pagar utama ditutup/dikunci sementara dan dibuka kembali selesai Jumatan. *Terima kasih* 🙏'
+  },
+  {
+    id: 'SEC-20260914-01',
+    tanggal: '2026-09-14',
+    jam: '12:05',
+    nama_security: 'Pak Mulyadi',
+    shift: 'Pagi',
+    kategori_laporan: 'ANOMALI_FASILITAS',
+    sub_kategori: 'Perbaikan Las Roda Pagar Utama',
+    house_id: '-',
+    nama_warga_tujuan: '-',
+    titik_patroli: 'Gerbang Utama Cluster',
+    cuaca_815: 'Panas Terik',
+    status_gerbang: 'Pagar Dalam Perbaikan Tukang Las',
+    detail_catatan: 'Anomali Fasilitas: Perbaikan pengelasan roda pagar utama yang seret/rusak bersama pengurus, security tetap siaga penuh di pos.',
+    teks_wa: '*Assalamualaikum, selamat siang*\nMenjelang adzan Dzuhur izin lapor petugas jaga (*Pak Mulyadi*) pengecekan dan patroli kembali update situasi terkini kondisi area CMR tetap aman tanpa taruna. Pagar utama sedang dalam perbaikan pengelasan, security tetap siaga di pos. Berikut 815 cuaca panas. *Terima kasih* 🙏'
+  },
+  {
+    id: 'SEC-20260829-01',
+    tanggal: '2026-08-29',
+    jam: '10:29',
+    nama_security: 'Pak Eko',
+    shift: 'Pagi',
+    kategori_laporan: 'INFO_WARGA',
+    sub_kategori: 'Pengerjaan Renovasi Rumah Warga',
+    house_id: 'H-08',
+    nama_warga_tujuan: 'Pak Sonny Ilham / Ibu',
+    titik_patroli: 'Blok A No. 08',
+    cuaca_815: 'Cerah',
+    status_gerbang: 'Pintu Gerbang Kecil Ditutup Sesuai SOP',
+    detail_catatan: 'Terdapat pengerjaan bangunan/renovasi di rumah Blok A No. 08 (Pak Sonny Ilham), keluar-masuk tukang terpantau aman.',
+    teks_wa: '*Assalamualaikum, selamat pagi*\nIzin lapor update aktivitas lingkungan: terdapat kegiatan pengerjaan bangunan/renovasi di kediaman *Pak Sonny Ilham (No. 08)*. Keluar-masuk material dan pekerja bangunan dalam pantauan pos security. *Terima kasih* 🙏🫡'
+  },
+  {
+    id: 'SEC-20260820-01',
+    tanggal: '2026-08-20',
+    jam: '10:04',
+    nama_security: 'Pak Eko',
+    shift: 'Pagi',
+    kategori_laporan: 'TAMU_COD',
+    sub_kategori: 'Antisipasi Kurir COD Saat Rumah Kosong',
+    house_id: '-',
+    nama_warga_tujuan: 'Seluruh Warga CMR',
+    titik_patroli: 'Pos Utama Security',
+    cuaca_815: 'Cerah',
+    status_gerbang: 'Pintu Gerbang Kecil Ditutup Sesuai SOP',
+    detail_catatan: 'Anomali Keamanan: Imbauan SOP penitipan uang paket COD di pos security disertai catatan nama & blok rumah guna mencegah orang asing masuk area cluster.',
+    teks_wa: '*Assalamualaikum, selamat pagi*\nIzin lapor update informasi keamanan oleh petugas jaga (*Pak Eko*): apabila Bapak/Ibu memesan paket dengan sistem *COD* saat sedang tidak ada di rumah, uang pembayaran dapat dititipkan di Pos Security (ditulis nama & nomor blok rumah) untuk mencegah orang luar masuk ke area cluster. *Terima kasih* 🙏🏾'
+  },
+  {
+    id: 'SEC-20260811-01',
+    tanggal: '2026-08-11',
+    jam: '11:10',
+    nama_security: 'Pak Eko',
+    shift: 'Pagi',
+    kategori_laporan: 'ANOMALI_FASILITAS',
+    sub_kategori: 'Listrik PLN Padam & Ledakan Kabel Belakang',
+    house_id: '-',
+    nama_warga_tujuan: '-',
+    titik_patroli: 'Area Belakang Kampung Cluster & Gardu',
+    cuaca_815: 'Panas Terik',
+    status_gerbang: 'Pintu Gerbang Kecil Ditutup Sesuai SOP',
+    detail_catatan: 'Anomali Utilitas: Listrik PLN padam disertai suara ledakan dari kabel semrawut di belakang kampung cluster pukul 11:10 WIB. Dicek langsung oleh Pak Eko dan menyala kembali pukul 11:27 WIB.',
+    teks_wa: '*Assalamualaikum, selamat siang*\nIzin lapor update darurat utilitas oleh petugas jaga (*Pak Eko*): terjadi *padam listrik dari PLN* setelah terdengar suara ledakan di area kabel belakang kampung cluster. Petugas sudah mengecek titik lokasi, alhamdulillah pukul 11:27 WIB listrik sudah menyala normal kembali. *Terima kasih* 🙏🏾'
+  },
+  {
+    id: 'SEC-20260806-01',
+    tanggal: '2026-08-06',
+    jam: '11:52',
+    nama_security: 'Pak Eko',
+    shift: 'Pagi',
+    kategori_laporan: 'TAMU_COD',
+    sub_kategori: 'Kunjungan Petugas Bank BSI / Survei Unit',
+    house_id: 'H-04',
+    nama_warga_tujuan: 'Unit Kosong - Dijual Pihak BPR / Pendampingan Pak Anggi',
+    titik_patroli: 'Blok A No. 04 & Pos Security',
+    cuaca_815: 'Panas Terik',
+    status_gerbang: 'Pintu Gerbang Kecil Ditutup Sesuai SOP',
+    detail_catatan: 'Kunjungan petugas Bank/BSI dan calon pembeli survei unit rumah didampingi pengurus (Pak Anggi), identitas name tag telah diperiksa.',
+    teks_wa: '*Assalamualaikum, selamat siang*\nIzin lapor tamu masuk area cluster: petugas Bank (name tag terverifikasi) beserta calon pembeli melakukan pengecekan/survei unit didampingi *Pak Anggi*. Situasi aman terkendali. *Terima kasih* 🙏🏾'
+  },
+  {
+    id: 'SEC-20260805-01',
+    tanggal: '2026-08-05',
+    jam: '17:45',
+    nama_security: 'Pak Eko',
+    shift: 'Pagi',
+    kategori_laporan: 'ANOMALI_FASILITAS',
+    sub_kategori: '3 Lampu Sorot Gerbang Mati (MCB Drop)',
+    house_id: '-',
+    nama_warga_tujuan: '-',
+    titik_patroli: 'Pos Utama & Tiang Lampu Sorot',
+    cuaca_815: 'Cerah',
+    status_gerbang: 'Pintu Gerbang Kecil Ditutup Sesuai SOP',
+    detail_catatan: 'Anomali Fasilitas: Ketiga lampu sorot area gerbang mati bersamaan saat hendak dinyalakan sore hari akibat kendala MCB.',
+    teks_wa: '*Assalamualaikum, selamat sore*\nIzin lapor kendala fasilitas pos oleh petugas jaga (*Pak Eko*): *3 lampu sorot utama mati semua* (indikasi MCB pos perlu pengecekan). Mohon arahan pengurus, *terima kasih* 🙏🏾'
+  },
+  {
+    id: 'SEC-20260723-01',
+    tanggal: '2026-07-23',
+    jam: '16:50',
+    nama_security: 'Pak Eko',
+    shift: 'Pagi',
+    kategori_laporan: 'OPERASIONAL_POS',
+    sub_kategori: 'Pengambilan Sampah Mingguan (Bang Adi)',
+    house_id: '-',
+    nama_warga_tujuan: 'Seluruh Warga CMR',
+    titik_patroli: 'Seluruh Blok A-01 s/d A-22',
+    cuaca_815: 'Cerah',
+    status_gerbang: 'Gerbang Utama Dibuka untuk Armada Sampah',
+    detail_catatan: 'Kegiatan rutin pengangkutan sampah mingguan cluster oleh Bang Adi berjalan lancar.',
+    teks_wa: '*Assalamualaikum, selamat sore*\nIzin lapor giat operasional lingkungan: pengambilan sampah warga mingguan oleh *Bang Adi* sedang berlangsung di area cluster. Bagi Bapak/Ibu yang masih ada sampah di dalam rumah silakan dikeluarkan. *Terima kasih* 🙏'
+  },
+  {
+    id: 'SEC-20260716-02',
+    tanggal: '2026-07-16',
+    jam: '17:16',
+    nama_security: 'Pak Eko',
+    shift: 'Pagi',
+    kategori_laporan: 'TAMU_COD',
+    sub_kategori: 'Tamu Ambil Barang Warga (Verifikasi KTP & No HP)',
+    house_id: '-',
+    nama_warga_tujuan: 'Kerabat Warga (Verifikasi KTP)',
+    titik_patroli: 'Pos Utama Security',
+    cuaca_815: 'Cerah',
+    status_gerbang: 'Pintu Gerbang Kecil Ditutup Sesuai SOP',
+    detail_catatan: 'Anomali Tamu: Tamu kerabat warga datang mengambil motor mainan anak. Sesuai instruksi Pak Andi, KTP tamu telah difoto dan nomor HP dicatat di pos.',
+    teks_wa: '*Assalamualaikum, selamat sore*\nIzin lapor giat pemeriksaan tamu oleh petugas jaga (*Pak Eko*): tamu kerabat warga yang mengambil barang (motor mainan anak) sudah *difoto KTP dan dicatat nomor HP-nya* di buku pos sesuai SOP keamanan. *Terima kasih* 🙏🏾'
+  },
+  {
+    id: 'SEC-20260716-01',
+    tanggal: '2026-07-16',
+    jam: '10:44',
+    nama_security: 'Pak Eko',
+    shift: 'Pagi',
+    kategori_laporan: 'OPERASIONAL_POS',
+    sub_kategori: 'Pengisian Air Galon Pos Security',
+    house_id: '-',
+    nama_warga_tujuan: 'Pos Security CMR',
+    titik_patroli: 'Pos Utama Security',
+    cuaca_815: 'Cerah',
+    status_gerbang: 'Pintu Gerbang Kecil Ditutup Sesuai SOP',
+    detail_catatan: 'Pembelian isi ulang air minum galon pos security dicatat untuk rekap penggantian (reimburse) bulanan bendahara Pak Kiswanto.',
+    teks_wa: '*Assalamualaikum, selamat pagi*\nIzin lapor pencatatan operasional pos (*Pak Eko*): pengisian *1 Galon Air Minum Pos Security* hari ini sudah dicatat pada rekap bulanan pos sesuai arahan Bendahara (Pak Kiswanto). *Terima kasih* 🙏🏾'
+  }
 ];
 
 const INITIAL_FALLBACK_DATA = {
@@ -58,167 +422,101 @@ const INITIAL_FALLBACK_DATA = {
   qris_merchant_name: 'Cluster Mutiara Residence',
   qris_nmid: 'ID1026000000CMR',
   qris_image_url: '/assets/qris-cmr-statis.png',
-  houses: MASTER_HOUSES,
-  ipl_status: MASTER_HOUSES.map((h, i) => {
-    const num = String(i + 1).padStart(2, '0');
-    const isNonAktif = h.status_huni === 'Tidak Aktif';
-    return {
-      id: `IPL-202611-H${num}`,
-      house_id: h.id,
-      periode_bulan: 'November',
-      periode_tahun: 2026,
-      nominal: isNonAktif ? 0 : 200000,
-      status_bayar: isNonAktif ? 'Tidak Aktif' : 'Belum Lunas',
-      tanggal_bayar: '',
-      catatan: isNonAktif
-        ? 'Unit Dijual oleh Pihak BPR (Non-Aktif)'
-        : 'Tagihan IPL November 2026'
-    };
-  }),
-  // 55 Rincian Transaksi Lengkap (Urut Terbaru Oktober -> Terlama Juni 2026)
-  cash_ledger: [
-    // OKTOBER 2026 (10 Transaksi)
-    { id: 'TX-202610-10', tanggal: '2026-10-31', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Air', is_proyek: false, nama_proyek: '', nominal: 60000, keterangan: 'Air Minum Galon' },
-    { id: 'TX-202610-09', tanggal: '2026-10-31', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Listrik', is_proyek: false, nama_proyek: '', nominal: 100000, keterangan: 'Token Listrik' },
-    { id: 'TX-202610-08', tanggal: '2026-10-31', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 350000, keterangan: 'Kasbon pak eko' },
-    { id: 'TX-202610-07', tanggal: '2026-10-31', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 100000, keterangan: 'Lampu jalan + jasa pasang' },
-    { id: 'TX-202610-06', tanggal: '2026-10-31', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 1300000, keterangan: 'Gaji pak eko' },
-    { id: 'TX-202610-05', tanggal: '2026-10-31', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 1650000, keterangan: 'Gaji pak mulyadi' },
-    { id: 'TX-202610-04', tanggal: '2026-10-31', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Sampah', is_proyek: false, nama_proyek: '', nominal: 700000, keterangan: 'Uang sampah' },
-    { id: 'TX-202610-03', tanggal: '2026-10-31', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 50000, keterangan: 'Ganti Fitting lampu dan jasa pasang' },
-    { id: 'TX-202610-02', tanggal: '2026-10-31', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 8000, keterangan: 'Beli batrei jam' },
-    { id: 'TX-202610-01', tanggal: '2026-10-31', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'IN', kategori: 'Iuran Warga', is_proyek: false, nama_proyek: '', nominal: 4200000, keterangan: 'Iuran Warga Oktober' },
-
-    // SEPTEMBER 2026 (12 Transaksi)
-    { id: 'TX-202609-12', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 210000, keterangan: 'Perbaikan Pagar' },
-    { id: 'TX-202609-11', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 500000, keterangan: 'Kasbon pak Eko 2x' },
-    { id: 'TX-202609-10', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 47000, keterangan: 'Alat kebersihan' },
-    { id: 'TX-202609-09', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 100000, keterangan: 'Ganti dinamo kipas pos' },
-    { id: 'TX-202609-08', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Konsumsi', is_proyek: false, nama_proyek: '', nominal: 57300, keterangan: 'Kopi dan Gula' },
-    { id: 'TX-202609-07', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Sosial', is_proyek: false, nama_proyek: '', nominal: 300000, keterangan: 'Dana Sosial' },
-    { id: 'TX-202609-06', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 240000, keterangan: 'Plang Nama CMR + Rokok' },
-    { id: 'TX-202609-05', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 50000, keterangan: 'Lampu dan laminating' },
-    { id: 'TX-202609-04', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 1100000, keterangan: 'Gaji pak Eko' },
-    { id: 'TX-202609-03', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 1600000, keterangan: 'Gaji pak Mulyadi' },
-    { id: 'TX-202609-02', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Sampah', is_proyek: false, nama_proyek: '', nominal: 700000, keterangan: 'Uang Sampah' },
-    { id: 'TX-202609-01', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'IN', kategori: 'Iuran Warga', is_proyek: false, nama_proyek: '', nominal: 4100000, keterangan: 'Iuran Warga September' },
-
-    // AGUSTUS 2026 (14 Transaksi)
-    { id: 'TX-202608-14', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'OUT', kategori: 'Sosial', is_proyek: false, nama_proyek: '', nominal: 250000, keterangan: 'Uang Ambulance' },
-    { id: 'TX-202608-13', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 120000, keterangan: 'Uang Lembur Satpam' },
-    { id: 'TX-202608-12', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'OUT', kategori: 'Konsumsi', is_proyek: false, nama_proyek: '', nominal: 132700, keterangan: 'Kopi' },
-    { id: 'TX-202608-11', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'OUT', kategori: 'Air', is_proyek: false, nama_proyek: '', nominal: 42000, keterangan: 'Uang Galon 7' },
-    { id: 'TX-202608-10', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'OUT', kategori: 'Listrik', is_proyek: false, nama_proyek: '', nominal: 100000, keterangan: 'Listrik Pos' },
-    { id: 'TX-202608-09', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'OUT', kategori: 'Sosial', is_proyek: false, nama_proyek: '', nominal: 400000, keterangan: 'Sewa Tenda' },
-    { id: 'TX-202608-08', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 195000, keterangan: 'Jasa Ganti MCB Dan Beli Lampu' },
-    { id: 'TX-202608-07', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'OUT', kategori: 'Sosial', is_proyek: false, nama_proyek: '', nominal: 190000, keterangan: 'Perlengkapan Bendera' },
-    { id: 'TX-202608-06', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'OUT', kategori: 'Konsumsi', is_proyek: false, nama_proyek: '', nominal: 500000, keterangan: 'Konsumsi Agustus' },
-    { id: 'TX-202608-05', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 45000, keterangan: 'Duplikat Kunci' },
-    { id: 'TX-202608-04', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'OUT', kategori: 'Konsumsi', is_proyek: false, nama_proyek: '', nominal: 123800, keterangan: 'Kopi Dan Gula' },
-    { id: 'TX-202608-03', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'OUT', kategori: 'Sampah', is_proyek: false, nama_proyek: '', nominal: 700000, keterangan: 'Uang Sampah' },
-    { id: 'TX-202608-02', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 1600000, keterangan: 'Gaji Pak Eko' },
-    { id: 'TX-202608-01', tanggal: '2026-08-05', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'IN', kategori: 'Iuran Warga', is_proyek: false, nama_proyek: '', nominal: 4300000, keterangan: 'Iuran Warga Agustus' },
-
-    // JULI 2026 (9 Transaksi)
-    { id: 'TX-202607-09', tanggal: '2026-07-31', periode_bulan: 'Juli', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 150000, keterangan: 'Perbaikan CCTV' },
-    { id: 'TX-202607-08', tanggal: '2026-07-31', periode_bulan: 'Juli', periode_tahun: 2026, tipe: 'OUT', kategori: 'Konsumsi', is_proyek: false, nama_proyek: '', nominal: 85800, keterangan: 'Kopi, Gula, Teh & Susu' },
-    { id: 'TX-202607-07', tanggal: '2026-07-31', periode_bulan: 'Juli', periode_tahun: 2026, tipe: 'OUT', kategori: 'Sosial', is_proyek: false, nama_proyek: '', nominal: 600000, keterangan: 'Dana Sosial (A1 dan A9)' },
-    { id: 'TX-202607-06', tanggal: '2026-07-31', periode_bulan: 'Juli', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 150000, keterangan: 'Kasbon Pak Eko' },
-    { id: 'TX-202607-05', tanggal: '2026-07-31', periode_bulan: 'Juli', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 1450000, keterangan: 'Gaji Pak Eko' },
-    { id: 'TX-202607-04', tanggal: '2026-07-31', periode_bulan: 'Juli', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 1500000, keterangan: 'Gaji Pak Rizki' },
-    { id: 'TX-202607-03', tanggal: '2026-07-31', periode_bulan: 'Juli', periode_tahun: 2026, tipe: 'OUT', kategori: 'Sampah', is_proyek: false, nama_proyek: '', nominal: 700000, keterangan: 'Uang Sampah' },
-    { id: 'TX-202607-02', tanggal: '2026-07-15', periode_bulan: 'Juli', periode_tahun: 2026, tipe: 'OUT', kategori: 'Proyek', is_proyek: true, nama_proyek: 'fogging', nominal: 500000, keterangan: 'fogging' },
-    { id: 'TX-202607-01', tanggal: '2026-07-05', periode_bulan: 'Juli', periode_tahun: 2026, tipe: 'IN', kategori: 'Iuran Warga', is_proyek: false, nama_proyek: '', nominal: 4100000, keterangan: 'Iuran Warga Juli' },
-
-    // JUNI 2026 (10 Transaksi)
-    { id: 'TX-202606-10', tanggal: '2026-06-28', periode_bulan: 'Juni', periode_tahun: 2026, tipe: 'OUT', kategori: 'Air', is_proyek: false, nama_proyek: '', nominal: 30000, keterangan: 'Galon Pos 5' },
-    { id: 'TX-202606-09', tanggal: '2026-06-25', periode_bulan: 'Juni', periode_tahun: 2026, tipe: 'OUT', kategori: 'Listrik', is_proyek: false, nama_proyek: '', nominal: 100000, keterangan: 'Listrik Pos' },
-    { id: 'TX-202606-05', tanggal: '2026-06-25', periode_bulan: 'Juni', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 585000, keterangan: 'Gaji + Uang Makan Pak Rizki Juni' },
-    { id: 'TX-202606-08', tanggal: '2026-06-22', periode_bulan: 'Juni', periode_tahun: 2026, tipe: 'OUT', kategori: 'Konsumsi', is_proyek: false, nama_proyek: '', nominal: 111600, keterangan: 'Kopi, Teh, Gula, Susu' },
-    { id: 'TX-202606-07', tanggal: '2026-06-20', periode_bulan: 'Juni', periode_tahun: 2026, tipe: 'OUT', kategori: 'Sosial', is_proyek: false, nama_proyek: '', nominal: 300000, keterangan: 'Dana Sosial' },
-    { id: 'TX-202606-06', tanggal: '2026-06-18', periode_bulan: 'Juni', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 350000, keterangan: 'bibit tanaman pos dan jasa cat pagar' },
-    { id: 'TX-202606-04', tanggal: '2026-06-15', periode_bulan: 'Juni', periode_tahun: 2026, tipe: 'OUT', kategori: 'Sampah', is_proyek: false, nama_proyek: '', nominal: 700000, keterangan: 'Periode Juni' },
-    { id: 'TX-202606-03', tanggal: '2026-06-12', periode_bulan: 'Juni', periode_tahun: 2026, tipe: 'OUT', kategori: 'Proyek', is_proyek: true, nama_proyek: 'Pemasangan Lampu 2 dan Kebersihan', nominal: 1179000, keterangan: 'pengeluaran proyek' },
-    { id: 'TX-202606-02', tanggal: '2026-06-10', periode_bulan: 'Juni', periode_tahun: 2026, tipe: 'OUT', kategori: 'Proyek', is_proyek: true, nama_proyek: 'Perbaikan Pagar dan Jembatan', nominal: 1695600, keterangan: 'pengeluaran proyek' },
-    { id: 'TX-202606-01', tanggal: '2026-06-05', periode_bulan: 'Juni', periode_tahun: 2026, tipe: 'IN', kategori: 'Iuran Warga', is_proyek: false, nama_proyek: '', nominal: 3800000, keterangan: 'Iuran Warga Periode Juni 2026' }
-  ],
-  // Urut Terbaru (November -> Juni 2026)
-  monthly_closings: [
-    { id: 'CLS-2026-11', periode_bulan: 'November', periode_tahun: 2026, saldo_awal: 1394200, uang_masuk: 0, total_pengeluaran: 0, pengeluaran_proyek: 0, sisa_saldo: 1394200, status_tutup_buku: 'OPEN' },
-    { id: 'CLS-2026-10', periode_bulan: 'Oktober', periode_tahun: 2026, saldo_awal: 1512200, uang_masuk: 4200000, total_pengeluaran: 4318000, pengeluaran_proyek: 0, sisa_saldo: 1394200, status_tutup_buku: 'CLOSED' },
-    { id: 'CLS-2026-09', periode_bulan: 'September', periode_tahun: 2026, saldo_awal: 2316500, uang_masuk: 4100000, total_pengeluaran: 4904300, pengeluaran_proyek: 0, sisa_saldo: 1512200, status_tutup_buku: 'CLOSED' },
-    { id: 'CLS-2026-08', periode_bulan: 'Agustus', periode_tahun: 2026, saldo_awal: 2816000, uang_masuk: 4300000, total_pengeluaran: 4398500, pengeluaran_proyek: 0, sisa_saldo: 2717500, status_tutup_buku: 'CLOSED' },
-    { id: 'CLS-2026-07', periode_bulan: 'Juli', periode_tahun: 2026, saldo_awal: 2850800, uang_masuk: 4100000, total_pengeluaran: 5135800, pengeluaran_proyek: 500000, sisa_saldo: 1815000, status_tutup_buku: 'CLOSED' },
-    { id: 'CLS-2026-06', periode_bulan: 'Juni', periode_tahun: 2026, saldo_awal: 3702000, uang_masuk: 3800000, total_pengeluaran: 5051200, pengeluaran_proyek: 2874600, sisa_saldo: 2450800, status_tutup_buku: 'CLOSED' }
-  ],
-  // Urut Terbaru (Oktober -> September 2026)
+  security_config: {
+    active_1: 'Pak Eko',
+    active_2: 'Pak Mulyadi',
+    shift_pagi_jam: '08:00 - 20:00 WIB',
+    shift_malam_jam: '20:00 - 08:00 WIB',
+    libur_malam_hari: 'Jumat,Sabtu',
+    galon_count_bulan_ini: 4,
+    anchor_sunday_date: '2026-11-01'
+  },
+  summary_periode: { bulan: 'November', tahun: 2026 },
+  houses: BASELINE_HOUSES,
+  ipl_status: BASELINE_HOUSES.map((h, i) => ({
+    id: `IPL-202611-${h.id.replace('-', '')}`,
+    house_id: h.id,
+    periode_bulan: 'November',
+    periode_tahun: 2026,
+    nominal: h.status_huni === 'Tidak Aktif' ? 0 : 200000,
+    status_bayar: h.status_huni === 'Tidak Aktif' ? 'Tidak Aktif' : (i < 14 ? 'Lunas' : 'Belum Lunas'),
+    tanggal_bayar: h.status_huni === 'Tidak Aktif' ? '' : (i < 14 ? '2026-11-05' : ''),
+    catatan: h.status_huni === 'Tidak Aktif' ? 'Unit Dijual oleh Pihak BPR (Non-Aktif)' : 'Tagihan IPL November 2026'
+  })),
+  security_schedules: generateDefaultSecuritySchedules(2026, 10),
+  security_logs: BASELINE_SECURITY_LOGS,
   security_payroll: [
-    { id: 'PAY-202610-01', nama_security: 'Pak Mulyadi', periode_bulan: 'Oktober', periode_tahun: 2026, gaji_pokok: 1650000, uang_konsumsi: 0, potongan_kasbon: 0, gaji_bersih: 1650000, status_pembayaran: 'Ditransfer' },
-    { id: 'PAY-202610-02', nama_security: 'Pak Eko', periode_bulan: 'Oktober', periode_tahun: 2026, gaji_pokok: 1650000, uang_konsumsi: 0, potongan_kasbon: 350000, gaji_bersih: 1300000, status_pembayaran: 'Ditransfer' },
-    { id: 'PAY-202609-01', nama_security: 'Pak Mulyadi', periode_bulan: 'September', periode_tahun: 2026, gaji_pokok: 1600000, uang_konsumsi: 0, potongan_kasbon: 0, gaji_bersih: 1600000, status_pembayaran: 'Ditransfer' },
-    { id: 'PAY-202609-02', nama_security: 'Pak Eko', periode_bulan: 'September', periode_tahun: 2026, gaji_pokok: 1600000, uang_konsumsi: 0, potongan_kasbon: 500000, gaji_bersih: 1100000, status_pembayaran: 'Ditransfer' }
+    { id: 'PAY-202610-01', nama_security: 'Pak Mulyadi', periode_bulan: 'Oktober', periode_tahun: 2026, gaji_pokok: 1650000, uang_konsumsi: 0, potongan_kasbon: 0, gaji_bersih: 1650000, status_pembayaran: 'Ditransfer', catatan: 'Gaji Oktober 2026 full' },
+    { id: 'PAY-202610-02', nama_security: 'Pak Eko', periode_bulan: 'Oktober', periode_tahun: 2026, gaji_pokok: 1650000, uang_konsumsi: 0, potongan_kasbon: 350000, gaji_bersih: 1300000, status_pembayaran: 'Ditransfer', catatan: 'Potongan kasbon Rp 350.000' },
+    { id: 'PAY-202609-01', nama_security: 'Pak Mulyadi', periode_bulan: 'September', periode_tahun: 2026, gaji_pokok: 1600000, uang_konsumsi: 0, potongan_kasbon: 0, gaji_bersih: 1600000, status_pembayaran: 'Ditransfer', catatan: 'Gaji September 2026 full' },
+    { id: 'PAY-202609-02', nama_security: 'Pak Eko', periode_bulan: 'September', periode_tahun: 2026, gaji_pokok: 1600000, uang_konsumsi: 0, potongan_kasbon: 500000, gaji_bersih: 1100000, status_pembayaran: 'Ditransfer', catatan: 'Potongan kasbon Rp 500.000 (Gaji pokok Rp 1.600.000)' }
   ]
 };
 
 export default function App() {
   const [dashboardData, setDashboardData] = useState(INITIAL_FALLBACK_DATA);
+  const [loading, setLoading] = useState(false);
+
+  // State Mode Pengurus (1 Akun Tunggal Tanpa Gmail)
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(
     Boolean(localStorage.getItem('cmoney_pengurus_token'))
   );
-  const [adminTab, setAdminTab] = useState('kas');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState('');
-  const [actionStatus, setActionStatus] = useState('');
 
-  // Form State 1: Input Transaksi Kas
+  // State Form Input Transaksi Pengurus
   const [txForm, setTxForm] = useState({
     tanggal: new Date().toISOString().slice(0, 10),
     periode_bulan: 'November',
     periode_tahun: 2026,
     tipe: 'OUT',
-    kategori: 'Sampah',
+    kategori: 'Perawatan Pos',
     is_proyek: false,
     nama_proyek: '',
     nominal: '',
     keterangan: ''
   });
 
-  // Form State 2: Gaji & Kasbon Security
-  const [payrollForm, setPayrollForm] = useState({
-    nama_security: 'Pak Eko',
+  // State Update Status IPL Warga oleh Pengurus
+  const [iplUpdateForm, setIplUpdateForm] = useState({
+    house_id: 'H-01',
     periode_bulan: 'November',
     periode_tahun: 2026,
-    gaji_pokok: 1650000,
-    uang_konsumsi: 50000,
-    potongan_kasbon: 0
+    status_bayar: 'Lunas',
+    catatan: 'Lunas via Transfer / QRIS'
   });
 
-  // Form State 3: Tutup Buku & WA Fonnte (Default ke Oktober 2026)
+  // State Tutup Buku & Trigger Fonnte WA
   const [closingPeriod, setClosingPeriod] = useState({
-    bulan: 'Oktober',
+    bulan: 'November',
     tahun: 2026,
     target_wa: ''
   });
-
-  const formatRp = (num) => Number(num || 0).toLocaleString('id-ID');
+  const [actionStatus, setActionStatus] = useState('');
 
   const fetchDashboard = async () => {
     try {
+      setLoading(true);
       const res = await CMoneyAPI.getPublicDashboard('November', 2026);
       if (res && res.status === 'success') {
         setDashboardData((prev) => ({
           ...prev,
           ...res,
-          cash_ledger: sortNewestFirst(res.cash_ledger || prev.cash_ledger),
-          monthly_closings: sortNewestFirst(res.monthly_closings || prev.monthly_closings),
-          security_payroll: sortNewestFirst(res.security_payroll || prev.security_payroll)
+          houses: res.houses?.length ? res.houses : prev.houses,
+          security_schedules: res.security_schedules?.length
+            ? res.security_schedules
+            : prev.security_schedules,
+          security_logs: res.security_logs?.length
+            ? res.security_logs
+            : prev.security_logs
         }));
       }
-    } catch {
-      // Tetap gunakan baseline data jika GAS belum dihubungkan
+    } catch (err) {
+      console.warn('Menggunakan data baseline C-Money:', err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -226,75 +524,6 @@ export default function App() {
     fetchDashboard();
   }, []);
 
-  // Generator Live Preview Laporan WA (Format Identik C-Money Fonnte)
-  const generateWaPreviewText = (bulan, tahun) => {
-    const closingRow = (dashboardData.monthly_closings || []).find(
-      (c) => c.periode_bulan === bulan && Number(c.periode_tahun) === Number(tahun)
-    );
-    const saldoAwal = closingRow ? Number(closingRow.saldo_awal || 0) : 1394200;
-    const ledger = (dashboardData.cash_ledger || []).filter(
-      (r) => r.periode_bulan === bulan && Number(r.periode_tahun) === Number(tahun)
-    );
-
-    let uangMasuk = 0;
-    let totalPengeluaran = 0;
-    let pengeluaranProyek = 0;
-    const pemasukanMap = {};
-    const pengeluaranMap = {};
-    const proyekList = [];
-
-    ledger.forEach((item) => {
-      const nom = Number(item.nominal || 0);
-      const kat = item.kategori || 'Lainnya';
-      const ket = item.keterangan || '-';
-      const isProyek = Boolean(item.is_proyek) && String(item.is_proyek).toUpperCase() !== 'FALSE';
-
-      if (item.tipe === 'IN') {
-        uangMasuk += nom;
-        pemasukanMap[kat] = (pemasukanMap[kat] || 0) + nom;
-      } else {
-        totalPengeluaran += nom;
-        if (isProyek) {
-          pengeluaranProyek += nom;
-          proyekList.push({ nama: item.nama_proyek || ket, nominal: nom });
-        }
-        if (!pengeluaranMap[kat]) pengeluaranMap[kat] = { total: 0, details: [] };
-        pengeluaranMap[kat].total += nom;
-        pengeluaranMap[kat].details.push(`${ket} (Rp ${formatRp(nom)})`);
-      }
-    });
-
-    const sisaSaldo = saldoAwal + uangMasuk - totalPengeluaran;
-    const lines = [
-      `*C-Money | Laporan Bulanan Cluster Mutiara Residence Sumberjaya*`,
-      `Periode: ${bulan} ${tahun}`,
-      ``,
-      `Halo warga Mutiara Residence Sumberjaya, berikut rekap kas bulanan kita:`,
-      ``,
-      `Saldo Awal: Rp ${formatRp(saldoAwal)}`,
-      `Uang Masuk: Rp ${formatRp(uangMasuk)}`,
-      `Total Pengeluaran: Rp ${formatRp(totalPengeluaran)}`,
-      `Pengeluaran Proyek: Rp ${formatRp(pengeluaranProyek)}`,
-      `Sisa Saldo: Rp ${formatRp(sisaSaldo)}`,
-      ``,
-      `*Breakdown Pemasukan per Kategori*`
-    ];
-    Object.keys(pemasukanMap).forEach((k) =>
-      lines.push(`• ${k}: Rp ${formatRp(pemasukanMap[k])}`)
-    );
-    lines.push(``, `*Breakdown Pengeluaran per Kategori*`);
-    Object.keys(pengeluaranMap).forEach((k) => {
-      const item = pengeluaranMap[k];
-      lines.push(`• ${k}: Rp ${formatRp(item.total)} | detail: ${item.details.join(', ')}`);
-    });
-    if (proyekList.length > 0) {
-      lines.push(``, `*Detail Proyek:*`);
-      proyekList.forEach((p) => lines.push(`• ${p.nama} - Rp ${formatRp(p.nominal)}`));
-    }
-    return lines.join('\n');
-  };
-
-  // Login Pengurus
   const handleAdminLogin = async (e) => {
     e.preventDefault();
     setAuthError('');
@@ -303,133 +532,131 @@ export default function App() {
       if (res.status === 'success') {
         setIsAdminLoggedIn(true);
         setIsLoginModalOpen(false);
-        setIsAdminModalOpen(true);
+        setUsername('');
+        setPassword('');
       } else {
-        setAuthError(res.message || 'Username atau password salah.');
+        setAuthError(res.message || 'Username atau password pengurus salah.');
       }
-    } catch {
+    } catch (err) {
       if (username === 'pengurus_cmr' && password === 'cmr_admin_2026') {
         localStorage.setItem('cmoney_pengurus_token', 'LOCAL_DEV_TOKEN');
         setIsAdminLoggedIn(true);
         setIsLoginModalOpen(false);
-        setIsAdminModalOpen(true);
       } else {
-        setAuthError('Username atau password pengurus salah.');
+        setAuthError('Gagal terhubung ke server atau kredensial salah.');
       }
     }
   };
 
-  // Simpan Mutasi Kas Baru (Otomatis ditaruh di urutan paling atas / terbaru)
+  const handleLogoutAdmin = () => {
+    localStorage.removeItem('cmoney_pengurus_token');
+    setIsAdminLoggedIn(false);
+  };
+
   const handleSaveTransaction = async (e) => {
     e.preventDefault();
-    const nominalNum = Number(txForm.nominal || 0);
-    const newTx = {
-      id: `TX-${Date.now().toString().slice(-6)}`,
-      ...txForm,
-      nominal: nominalNum,
-      created_at: new Date().toISOString()
-    };
-
-    const newBalance =
-      txForm.tipe === 'IN'
-        ? dashboardData.current_balance + nominalNum
-        : dashboardData.current_balance - nominalNum;
-
-    setDashboardData((prev) => ({
-      ...prev,
-      current_balance: newBalance,
-      cash_ledger: sortNewestFirst([newTx, ...prev.cash_ledger])
-    }));
-
-    setActionStatus(`✅ Transaksi disimpan di urutan teratas! Saldo Kas: Rp ${formatRp(newBalance)}`);
-    setTxForm({ ...txForm, nominal: '', keterangan: '', nama_proyek: '' });
-
+    setActionStatus('Menyimpan transaksi ke Spreadsheet...');
     try {
-      await CMoneyAPI.inputTransaction(newTx);
-    } catch {
-      // Tersimpan di state lokal jika GAS belum aktif
-    }
-  };
-
-  // Toggle Status Lunas / Belum Lunas 21 Rumah Aktif oleh Pengurus
-  const handleToggleHouseIpl = async (houseId, currentStatus) => {
-    if (currentStatus === 'Tidak Aktif') return;
-    const nextStatus = currentStatus === 'Lunas' ? 'Belum Lunas' : 'Lunas';
-    const today = new Date().toISOString().slice(0, 10);
-
-    setDashboardData((prev) => {
-      const updatedIpl = prev.ipl_status.map((item) =>
-        item.house_id === houseId
-          ? { ...item, status_bayar: nextStatus, tanggal_bayar: nextStatus === 'Lunas' ? today : '' }
-          : item
-      );
-      const balanceDiff = nextStatus === 'Lunas' ? 200000 : -200000;
-      return {
-        ...prev,
-        current_balance: prev.current_balance + balanceDiff,
-        ipl_status: updatedIpl
-      };
-    });
-
-    setActionStatus(`✅ Status IPL ${houseId} diubah menjadi ${nextStatus}.`);
-    try {
-      await CMoneyAPI.updateIplStatus({
-        house_id: houseId,
-        periode_bulan: 'November',
-        periode_tahun: 2026,
-        status_bayar: nextStatus,
-        tanggal_bayar: today
+      const res = await CMoneyAPI.inputTransaction({
+        ...txForm,
+        nominal: Number(txForm.nominal)
       });
-    } catch {
-      // State lokal sudah diperbarui
+      if (res.status === 'success') {
+        setActionStatus(
+          `✅ Transaksi berhasil disimpan di urutan teratas! Saldo baru: Rp ${Number(res.new_balance).toLocaleString('id-ID')}`
+        );
+        setTxForm({ ...txForm, nominal: '', keterangan: '', nama_proyek: '' });
+        fetchDashboard();
+      } else {
+        setActionStatus(`❌ Gagal: ${res.message}`);
+      }
+    } catch (err) {
+      setActionStatus(`❌ Error koneksi: ${err.message}`);
     }
   };
 
-  // Simpan Gaji & Kasbon Security (Urut Terbaru di Atas)
-  const handleSavePayroll = async (e) => {
+  const handleSaveIplStatus = async (e) => {
     e.preventDefault();
-    const bersih =
-      Number(payrollForm.gaji_pokok) +
-      Number(payrollForm.uang_konsumsi) -
-      Number(payrollForm.potongan_kasbon);
-
-    const newPay = {
-      id: `PAY-${Date.now().toString().slice(-5)}`,
-      ...payrollForm,
-      gaji_bersih: bersih,
-      status_pembayaran: 'Ditransfer',
-      created_at: new Date().toISOString()
-    };
-
-    setDashboardData((prev) => ({
-      ...prev,
-      security_payroll: sortNewestFirst([newPay, ...prev.security_payroll])
-    }));
-    setActionStatus(
-      `✅ Gaji ${payrollForm.nama_security} (${payrollForm.periode_bulan}) tercatat: Bersih Rp ${formatRp(bersih)}`
-    );
-
+    setActionStatus('Memperbarui status IPL warga...');
     try {
-      await CMoneyAPI.inputSecurityPayroll(newPay);
-    } catch {
-      // State lokal sudah diperbarui
+      const res = await CMoneyAPI.updateIplStatus(iplUpdateForm);
+      if (res.status === 'success') {
+        setActionStatus(`✅ ${res.message}`);
+        fetchDashboard();
+      } else {
+        setActionStatus(`❌ Gagal: ${res.message}`);
+      }
+    } catch (err) {
+      setActionStatus(`❌ Error koneksi: ${err.message}`);
     }
   };
 
-  // Trigger Kirim Laporan WA via Fonnte
-  const handleSendWaClosing = async () => {
-    setActionStatus('📲 Mengirim laporan tutup buku ke Grup WA via Fonnte...');
+  const handleTriggerClosingWa = async () => {
+    setActionStatus('Memproses Tutup Buku & Mengirim Laporan WA via Fonnte...');
     try {
       const res = await CMoneyAPI.closeMonthAndSendWa(
         closingPeriod.bulan,
         closingPeriod.tahun,
         closingPeriod.target_wa
       );
-      setActionStatus(`✅ Tutup Buku Selesai! Status Fonnte: ${res.fonnte_status}`);
-    } catch {
-      setActionStatus(
-        '✅ Simulasi Tutup Buku selesai! (Pasang URL GAS & Token Fonnte di app_settings untuk pengiriman live ke WA).'
-      );
+      if (res.status === 'success') {
+        setActionStatus(`✅ Tutup Buku Selesai! Status WA Fonnte: ${res.fonnte_status}`);
+      } else {
+        setActionStatus(`❌ Gagal: ${res.message}`);
+      }
+    } catch (err) {
+      setActionStatus(`❌ Error koneksi: ${err.message}`);
+    }
+  };
+
+  // Handler Simpan Laporan WA & Log Security (Otomatis Urut Paling Atas)
+  const handleInputSecurityLog = async (newLogPayload) => {
+    const optimisticLog = {
+      id: `SEC-${Date.now()}`,
+      ...newLogPayload,
+      created_at: new Date().toISOString()
+    };
+
+    const isGalon =
+      String(newLogPayload.sub_kategori || '').toLowerCase().includes('galon') ||
+      String(newLogPayload.detail_catatan || '').toLowerCase().includes('galon');
+
+    setDashboardData((prev) => ({
+      ...prev,
+      security_logs: [optimisticLog, ...(prev.security_logs || [])],
+      security_config: {
+        ...(prev.security_config || {}),
+        galon_count_bulan_ini:
+          Number(prev.security_config?.galon_count_bulan_ini || 0) + (isGalon ? 1 : 0)
+      }
+    }));
+
+    try {
+      await CMoneyAPI.inputSecurityLog(newLogPayload);
+    } catch (err) {
+      console.warn('Log security tersimpan di state lokal:', err.message);
+    }
+  };
+
+  // Handler Update Jadwal Kalender Security (Tukar Shift / Izin Sakit)
+  const handleUpdateSecuritySchedule = async (updatedItem) => {
+    setDashboardData((prev) => {
+      const existing = prev.security_schedules || [];
+      const idx = existing.findIndex((s) => s.tanggal === updatedItem.tanggal);
+      let nextSchedules;
+      if (idx !== -1) {
+        nextSchedules = [...existing];
+        nextSchedules[idx] = { ...nextSchedules[idx], ...updatedItem };
+      } else {
+        nextSchedules = [...existing, updatedItem];
+      }
+      return { ...prev, security_schedules: nextSchedules };
+    });
+
+    try {
+      await CMoneyAPI.updateSecuritySchedule(updatedItem);
+    } catch (err) {
+      console.warn('Jadwal kalender diperbarui secara lokal:', err.message);
     }
   };
 
@@ -437,99 +664,69 @@ export default function App() {
     <div className="relative">
       <PublicDashboard
         dashboardData={dashboardData}
+        loading={loading}
         isAdminLoggedIn={isAdminLoggedIn}
         onOpenAdminLogin={() => {
-          if (isAdminLoggedIn) {
-            setIsAdminModalOpen(true);
-          } else {
-            setIsLoginModalOpen(true);
-          }
+          if (!isAdminLoggedIn) setIsLoginModalOpen(true);
         }}
-        onUploadIplProof={(proof) => {
-          handleToggleHouseIpl(proof.house_id, 'Belum Lunas');
+        onInputSecurityLog={handleInputSecurityLog}
+        onUpdateSecuritySchedule={handleUpdateSecuritySchedule}
+        onConfirmQrisProof={async (proof) => {
+          try {
+            await CMoneyAPI.uploadIplProof(proof);
+            fetchDashboard();
+          } catch (e) {
+            console.warn(e.message);
+          }
         }}
       />
 
-      {/* PANEL PENGURUS (4 MODUL) */}
-      {isAdminLoggedIn && isAdminModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-          <div className="bg-white w-full max-w-4xl rounded-3xl p-5 sm:p-6 shadow-2xl max-h-[92vh] overflow-y-auto space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+      {/* PANEL KHUSUS PENGURUS (HIDDEN VIEW) */}
+      {isAdminLoggedIn && (
+        <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex justify-center overflow-y-auto p-4">
+          <div className="bg-white w-full max-w-md rounded-3xl p-5 my-auto shadow-2xl space-y-5 max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div>
-                <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 bg-amber-100 text-amber-800 rounded-md">
-                  Hidden View • Mode Pengurus CMR (1 Akun Tanpa Gmail)
+                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 bg-amber-100 text-amber-800 rounded-md">
+                  Hidden View • Mode Pengurus
                 </span>
-                <h2 className="text-base sm:text-lg font-extrabold text-slate-800 mt-1">
-                  Panel Kendali Bendahara & Pengurus C-Money
+                <h2 className="text-base font-extrabold text-slate-800 mt-1">
+                  Panel Kendali Pengurus C-Money
                 </h2>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setIsAdminModalOpen(false)}
-                  className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-xl"
-                >
-                  Tutup Panel
-                </button>
-                <button
-                  onClick={() => {
-                    localStorage.removeItem('cmoney_pengurus_token');
-                    setIsAdminLoggedIn(false);
-                    setIsAdminModalOpen(false);
-                  }}
-                  className="text-xs bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold px-3 py-1.5 rounded-xl border border-rose-200"
-                >
-                  Logout
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-              {[
-                { id: 'kas', label: '1. Input Mutasi Kas' },
-                { id: 'ipl', label: '2. Validasi 22 Rumah' },
-                { id: 'gaji', label: '3. Gaji & Kasbon Satpam' },
-                { id: 'fonnte', label: '4. Tutup Buku & WA Fonnte' }
-              ].map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => {
-                    setAdminTab(t.id);
-                    setActionStatus('');
-                  }}
-                  className={`py-2.5 px-3 rounded-xl font-extrabold border transition ${
-                    adminTab === t.id
-                      ? 'bg-teal-700 text-white border-teal-700 shadow-sm'
-                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
+              <button
+                onClick={handleLogoutAdmin}
+                className="text-xs bg-rose-50 text-rose-700 font-bold px-3 py-1.5 rounded-xl border border-rose-200"
+              >
+                Keluar
+              </button>
             </div>
 
             {actionStatus && (
-              <div className="p-3 rounded-xl bg-teal-50 border border-teal-200 text-xs font-bold text-teal-900">
+              <div className="p-3 rounded-xl bg-teal-50 border border-teal-200 text-xs font-semibold text-teal-900">
                 {actionStatus}
               </div>
             )}
 
-            {/* MODUL 1: INPUT MUTASI KAS & PROYEK */}
-            {adminTab === 'kas' && (
-              <form onSubmit={handleSaveTransaction} className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs pt-2">
+            {/* FORM 1: INPUT MUTASI KAS */}
+            <form onSubmit={handleSaveTransaction} className="space-y-3 text-xs">
+              <h3 className="font-extrabold text-slate-700 uppercase tracking-wider">
+                1. Input Mutasi Kas (Terbaru di Atas)
+              </h3>
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="font-bold text-slate-600 block mb-1">Tipe Transaksi</label>
+                  <label className="block text-slate-500 mb-1">Tipe Transaksi</label>
                   <select
                     value={txForm.tipe}
                     onChange={(e) => setTxForm({ ...txForm, tipe: e.target.value })}
-                    className="w-full border rounded-xl px-3 py-2.5 font-bold bg-slate-50"
+                    className="w-full border rounded-xl px-3 py-2 font-bold bg-slate-50"
                   >
-                    <option value="OUT">Pengeluaran Kas (OUT)</option>
-                    <option value="IN">Pemasukan Kas (IN)</option>
+                    <option value="OUT">Pengeluaran (OUT)</option>
+                    <option value="IN">Pemasukan (IN)</option>
                   </select>
                 </div>
-
                 <div>
-                  <label className="font-bold text-slate-600 block mb-1">Kategori Sesuai Laporan WA</label>
+                  <label className="block text-slate-500 mb-1">Kategori</label>
                   <select
                     value={txForm.kategori}
                     onChange={(e) =>
@@ -539,296 +736,155 @@ export default function App() {
                         is_proyek: e.target.value === 'Proyek'
                       })
                     }
-                    className="w-full border rounded-xl px-3 py-2.5 font-bold bg-slate-50"
+                    className="w-full border rounded-xl px-3 py-2 font-bold bg-slate-50"
                   >
                     <option value="Iuran Warga">Iuran Warga</option>
-                    <option value="Gaji">Gaji Security</option>
+                    <option value="Gaji">Gaji / Kasbon Security</option>
                     <option value="Sampah">Sampah</option>
-                    <option value="Perawatan Pos">Perawatan Pos</option>
-                    <option value="Konsumsi">Konsumsi Pos</option>
                     <option value="Listrik">Listrik Pos</option>
                     <option value="Air">Air Galon Pos</option>
-                    <option value="Sosial">Dana Sosial</option>
+                    <option value="Konsumsi">Konsumsi Pos</option>
+                    <option value="Perawatan Pos">Perawatan Pos</option>
+                    <option value="Sosial">Sosial</option>
                     <option value="Proyek">Proyek Cluster</option>
                   </select>
                 </div>
+              </div>
 
-                {txForm.is_proyek && (
-                  <div className="sm:col-span-2">
-                    <label className="font-bold text-amber-800 block mb-1">
-                      Nama Proyek (Muncul di Bagian Detail Proyek Laporan WA)
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Contoh: Perbaikan Pagar dan Jembatan"
-                      value={txForm.nama_proyek}
-                      onChange={(e) => setTxForm({ ...txForm, nama_proyek: e.target.value })}
-                      className="w-full border border-amber-300 rounded-xl px-3 py-2.5 bg-amber-50/40"
-                    />
-                  </div>
-                )}
-
+              {txForm.is_proyek && (
                 <div>
-                  <label className="font-bold text-slate-600 block mb-1">Nominal (Rp)</label>
+                  <label className="block text-slate-500 mb-1">Nama Proyek Cluster</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Contoh: Perbaikan Las Roda Pagar"
+                    value={txForm.nama_proyek}
+                    onChange={(e) => setTxForm({ ...txForm, nama_proyek: e.target.value })}
+                    className="w-full border rounded-xl px-3 py-2"
+                  />
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-slate-500 mb-1">Nominal (Rp)</label>
                   <input
                     type="number"
                     required
-                    placeholder="Contoh: 700000"
+                    placeholder="200000"
                     value={txForm.nominal}
                     onChange={(e) => setTxForm({ ...txForm, nominal: e.target.value })}
-                    className="w-full border rounded-xl px-3 py-2.5 font-bold"
+                    className="w-full border rounded-xl px-3 py-2 font-bold"
                   />
                 </div>
-
                 <div>
-                  <label className="font-bold text-slate-600 block mb-1">Periode Bulan Buku</label>
+                  <label className="block text-slate-500 mb-1">Bulan Buku</label>
                   <select
                     value={txForm.periode_bulan}
                     onChange={(e) => setTxForm({ ...txForm, periode_bulan: e.target.value })}
-                    className="w-full border rounded-xl px-3 py-2.5 font-bold bg-slate-50"
+                    className="w-full border rounded-xl px-3 py-2 bg-slate-50"
                   >
-                    {['November', 'Oktober', 'September', 'Agustus', 'Juli', 'Juni'].map((b) => (
-                      <option key={b} value={b}>
-                        {b} 2026
-                      </option>
+                    {['Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'].map((b) => (
+                      <option key={b} value={b}>{b}</option>
                     ))}
                   </select>
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="font-bold text-slate-600 block mb-1">
-                    Rincian Keterangan (Muncul di Detail Kategori WA)
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Contoh: Gaji pak mulyadi / Token Listrik / Air Minum Galon"
-                    value={txForm.keterangan}
-                    onChange={(e) => setTxForm({ ...txForm, keterangan: e.target.value })}
-                    className="w-full border rounded-xl px-3 py-2.5"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <button
-                    type="submit"
-                    className="w-full py-3 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-extrabold shadow-md"
-                  >
-                    💾 Simpan Transaksi (Urutan Terbaru di Atas)
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* MODUL 2: VALIDASI CEPAT IPL 22 RUMAH (21 AKTIF + 1 NON-AKTIF BPR) */}
-            {adminTab === 'ipl' && (
-              <div className="space-y-3 pt-2 text-xs">
-                <p className="text-slate-500">
-                  Total 22 Unit Rumah (21 Aktif wajib IPL, 1 Tidak Aktif / Dijual Pihak BPR pada No. 04):
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 max-h-96 overflow-y-auto pr-1">
-                  {dashboardData.houses.map((h) => {
-                    const row = dashboardData.ipl_status.find((r) => r.house_id === h.id);
-                    const isNonAktif = h.status_huni === 'Tidak Aktif' || row?.status_bayar === 'Tidak Aktif';
-                    const status = isNonAktif ? 'Tidak Aktif' : (row?.status_bayar || 'Belum Lunas');
-                    const isLunas = status === 'Lunas';
-
-                    return (
-                      <div
-                        key={h.id}
-                        className={`p-3 rounded-2xl border flex items-center justify-between ${
-                          isNonAktif
-                            ? 'bg-slate-100 border-slate-200 opacity-75'
-                            : 'bg-slate-50 border-slate-200'
-                        }`}
-                      >
-                        <div>
-                          <p className="font-extrabold text-slate-800">{h.nomor_rumah}</p>
-                          <p className="text-[11px] text-slate-500">{h.nama_warga}</p>
-                        </div>
-                        {isNonAktif ? (
-                          <span className="px-2.5 py-1 rounded-xl font-bold text-[10px] bg-slate-200 text-slate-600">
-                            Non-Aktif (BPR)
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleToggleHouseIpl(h.id, status)}
-                            className={`px-3 py-1.5 rounded-xl font-extrabold text-[11px] transition ${
-                              isLunas
-                                ? 'bg-emerald-600 text-white'
-                                : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
-                            }`}
-                          >
-                            {isLunas ? '✓ Lunas' : 'Set Lunas'}
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
                 </div>
               </div>
-            )}
 
-            {/* MODUL 3: INPUT GAJI & POTONGAN KASBON SECURITY */}
-            {adminTab === 'gaji' && (
-              <form onSubmit={handleSavePayroll} className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs pt-2">
-                <div>
-                  <label className="font-bold text-slate-600 block mb-1">Pilih Petugas Security</label>
-                  <select
-                    value={payrollForm.nama_security}
-                    onChange={(e) => setPayrollForm({ ...payrollForm, nama_security: e.target.value })}
-                    className="w-full border rounded-xl px-3 py-2.5 font-bold bg-slate-50"
-                  >
-                    <option value="Pak Mulyadi">Pak Mulyadi</option>
-                    <option value="Pak Eko">Pak Eko</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="font-bold text-slate-600 block mb-1">Periode Gaji</label>
-                  <select
-                    value={payrollForm.periode_bulan}
-                    onChange={(e) => setPayrollForm({ ...payrollForm, periode_bulan: e.target.value })}
-                    className="w-full border rounded-xl px-3 py-2.5 font-bold bg-slate-50"
-                  >
-                    {['November', 'Oktober', 'September'].map((b) => (
-                      <option key={b} value={b}>
-                        {b} 2026
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="font-bold text-slate-600 block mb-1">Gaji Pokok (Rp)</label>
-                  <input
-                    type="number"
-                    value={payrollForm.gaji_pokok}
-                    onChange={(e) => setPayrollForm({ ...payrollForm, gaji_pokok: e.target.value })}
-                    className="w-full border rounded-xl px-3 py-2.5 font-bold"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-bold text-slate-600 block mb-1">
-                    Tambahan Uang Konsumsi Tunai (Rp)
-                  </label>
-                  <input
-                    type="number"
-                    value={payrollForm.uang_konsumsi}
-                    onChange={(e) => setPayrollForm({ ...payrollForm, uang_konsumsi: e.target.value })}
-                    className="w-full border rounded-xl px-3 py-2.5 font-bold"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="font-bold text-rose-700 block mb-1">
-                    Potongan Kasbon Bulan Berjalan (Rp)
-                  </label>
-                  <input
-                    type="number"
-                    value={payrollForm.potongan_kasbon}
-                    onChange={(e) =>
-                      setPayrollForm({ ...payrollForm, potongan_kasbon: e.target.value })
-                    }
-                    className="w-full border border-rose-200 rounded-xl px-3 py-2.5 font-bold bg-rose-50/30"
-                  />
-                </div>
-
-                <div className="sm:col-span-2 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-between">
-                  <span className="font-bold text-emerald-900">
-                    Total Gaji Bersih Diterima (Otomatis):
-                  </span>
-                  <span className="text-base font-black text-emerald-800">
-                    Rp{' '}
-                    {formatRp(
-                      Number(payrollForm.gaji_pokok) +
-                        Number(payrollForm.uang_konsumsi) -
-                        Number(payrollForm.potongan_kasbon)
-                    )}
-                  </span>
-                </div>
-
-                <div className="sm:col-span-2">
-                  <button
-                    type="submit"
-                    className="w-full py-3 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-extrabold shadow-md"
-                  >
-                    💾 Simpan Slip Gaji & Potongan Kasbon
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* MODUL 4: TUTUP BUKU & LIVE PREVIEW LAPORAN WA FONNTE */}
-            {adminTab === 'fonnte' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 text-xs">
-                <div className="space-y-3">
-                  <label className="font-bold text-slate-700 block">
-                    Pilih Periode Laporan Bulanan (Urut Terbaru ke Terlama)
-                  </label>
-                  <select
-                    value={closingPeriod.bulan}
-                    onChange={(e) => setClosingPeriod({ ...closingPeriod, bulan: e.target.value })}
-                    className="w-full border rounded-xl px-3 py-2.5 font-bold bg-slate-50"
-                  >
-                    {['November', 'Oktober', 'September', 'Agustus', 'Juli', 'Juni'].map((b) => (
-                      <option key={b} value={b}>
-                        Periode {b} 2026
-                      </option>
-                    ))}
-                  </select>
-
-                  <label className="font-bold text-slate-700 block">
-                    Target ID Grup WA / Nomor WA Fonnte (Opsional)
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Kosongkan untuk memakai default app_settings"
-                    value={closingPeriod.target_wa}
-                    onChange={(e) =>
-                      setClosingPeriod({ ...closingPeriod, target_wa: e.target.value })
-                    }
-                    className="w-full border rounded-xl px-3 py-2.5"
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(
-                        generateWaPreviewText(closingPeriod.bulan, closingPeriod.tahun)
-                      );
-                      setActionStatus('✅ Teks laporan WhatsApp berhasil disalin ke clipboard!');
-                    }}
-                    className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold"
-                  >
-                    📋 Salin Teks Laporan WA Manual
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleSendWaClosing}
-                    className="w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold shadow-md"
-                  >
-                    📲 Tutup Buku & Auto-Send ke Grup WA (Fonnte)
-                  </button>
-                </div>
-
-                {/* Live Preview Kotak Hijau WhatsApp */}
-                <div className="bg-[#075E54] text-white rounded-2xl p-4 font-mono text-[11px] whitespace-pre-wrap leading-relaxed max-h-80 overflow-y-auto shadow-inner">
-                  {generateWaPreviewText(closingPeriod.bulan, closingPeriod.tahun)}
-                </div>
+              <div>
+                <label className="block text-slate-500 mb-1">Detail Keterangan</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Contoh: Gaji Pak Eko / Token Listrik"
+                  value={txForm.keterangan}
+                  onChange={(e) => setTxForm({ ...txForm, keterangan: e.target.value })}
+                  className="w-full border rounded-xl px-3 py-2"
+                />
               </div>
-            )}
+
+              <button
+                type="submit"
+                className="w-full py-2.5 rounded-xl bg-teal-700 text-white font-extrabold shadow"
+              >
+                💾 Simpan Transaksi ke Database
+              </button>
+            </form>
+
+            {/* FORM 2: VALIDASI STATUS IPL WARGA */}
+            <form onSubmit={handleSaveIplStatus} className="pt-4 border-t border-slate-200 space-y-2.5 text-xs">
+              <h3 className="font-extrabold text-slate-700 uppercase tracking-wider">
+                2. Update Status Lunas IPL Warga
+              </h3>
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  value={iplUpdateForm.house_id}
+                  onChange={(e) => setIplUpdateForm({ ...iplUpdateForm, house_id: e.target.value })}
+                  className="border rounded-xl px-3 py-2 font-bold bg-slate-50"
+                >
+                  {dashboardData.houses
+                    .filter((h) => h.status_huni !== 'Tidak Aktif')
+                    .map((h) => (
+                      <option key={h.id} value={h.id}>
+                        {h.nomor_rumah} - {h.nama_warga}
+                      </option>
+                    ))}
+                </select>
+                <select
+                  value={iplUpdateForm.status_bayar}
+                  onChange={(e) => setIplUpdateForm({ ...iplUpdateForm, status_bayar: e.target.value })}
+                  className="border rounded-xl px-3 py-2 font-bold bg-slate-50"
+                >
+                  <option value="Lunas">✅ Lunas</option>
+                  <option value="Belum Lunas">⏳ Belum Lunas</option>
+                </select>
+              </div>
+              <button
+                type="submit"
+                className="w-full py-2 rounded-xl bg-slate-800 text-white font-bold"
+              >
+                Perbarui Status IPL Rumah
+              </button>
+            </form>
+
+            {/* FORM 3: TUTUP BUKU & AUTO-SEND WA */}
+            <div className="pt-4 border-t border-slate-200 space-y-3 text-xs">
+              <h3 className="font-extrabold text-slate-700 uppercase tracking-wider">
+                3. Tutup Buku & Kirim Laporan WA (Fonnte)
+              </h3>
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  value={closingPeriod.bulan}
+                  onChange={(e) => setClosingPeriod({ ...closingPeriod, bulan: e.target.value })}
+                  className="border rounded-xl px-3 py-2 font-bold bg-slate-50"
+                >
+                  {['Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'].map((b) => (
+                    <option key={b} value={b}>Periode {b}</option>
+                  ))}
+                </select>
+                <input
+                  type="text"
+                  placeholder="ID Grup WA (Opsional)"
+                  value={closingPeriod.target_wa}
+                  onChange={(e) => setClosingPeriod({ ...closingPeriod, target_wa: e.target.value })}
+                  className="border rounded-xl px-3 py-2"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleTriggerClosingWa}
+                className="w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold shadow-md"
+              >
+                📲 Tutup Buku & Kirim WA via Fonnte
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* MODAL LOGIN 1 USER PENGURUS */}
+      {/* MODAL LOGIN PENGURUS */}
       {isLoginModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl">
             <div className="flex justify-between items-center pb-3 border-b border-slate-100">
               <h3 className="font-extrabold text-slate-800 text-sm">
@@ -841,7 +897,6 @@ export default function App() {
                 ✕
               </button>
             </div>
-
             <form onSubmit={handleAdminLogin} className="mt-4 space-y-3 text-xs">
               {authError && (
                 <div className="p-2.5 rounded-xl bg-rose-50 text-rose-700 font-semibold">
@@ -864,7 +919,7 @@ export default function App() {
                 <input
                   type="password"
                   required
-                  placeholder="cmr_admin_2026"
+                  placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full border border-slate-200 rounded-xl px-3 py-2.5"
