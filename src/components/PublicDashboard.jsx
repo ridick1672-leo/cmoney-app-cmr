@@ -12,10 +12,14 @@ export default function PublicDashboard({
   const [isQrisOpen, setIsQrisOpen] = useState(false);
   const [qrisHouseId, setQrisHouseId] = useState('H-01');
   const [secretTapCount, setSecretTapCount] = useState(0);
+  const [logoError, setLogoError] = useState(false);
 
-  // Filter State untuk Tab Mutasi Kas & Tab 21 Rumah
+  // State Buka-Tutup Rincian Laporan Bulanan di Beranda (Default buka Oktober)
+  const [expandedMonth, setExpandedMonth] = useState('Oktober');
+
+  // Filter State untuk Tab Mutasi Kas & Tab 22 Rumah
   const [filterBulanKas, setFilterBulanKas] = useState('Semua');
-  const [filterTipeKas, setFilterTipeKas] = useState('ALL');
+  const [filterKategoriKas, setFilterKategoriKas] = useState('ALL');
   const [searchRumah, setSearchRumah] = useState('');
   const [filterStatusIpl, setFilterStatusIpl] = useState('ALL');
 
@@ -60,13 +64,49 @@ export default function PublicDashboard({
     setSosProgress(0);
   };
 
-  // Data Olahan untuk Tab Mutasi Kas
+  // Fungsi Pembentuk Rincian Kategori Bulanan (Persis Template Laporan Bulanan WA)
+  const getMonthlyBreakdown = (bulan, tahun = 2026) => {
+    const items = (data.cash_ledger || []).filter(
+      (tx) => tx.periode_bulan === bulan && Number(tx.periode_tahun) === Number(tahun)
+    );
+    const pemasukanMap = {};
+    const pengeluaranMap = {};
+    const proyekList = [];
+
+    items.forEach((tx) => {
+      const nom = Number(tx.nominal || 0);
+      const kat = tx.kategori || 'Lainnya';
+      const ket = tx.keterangan || '-';
+      const isProyek = Boolean(tx.is_proyek) && String(tx.is_proyek).toUpperCase() !== 'FALSE';
+
+      if (tx.tipe === 'IN') {
+        pemasukanMap[kat] = (pemasukanMap[kat] || 0) + nom;
+      } else {
+        if (isProyek) {
+          proyekList.push({ nama: tx.nama_proyek || ket, nominal: nom });
+        }
+        if (!pengeluaranMap[kat]) {
+          pengeluaranMap[kat] = { total: 0, details: [] };
+        }
+        pengeluaranMap[kat].total += nom;
+        pengeluaranMap[kat].details.push(
+          `${ket} (Rp ${Number(nom).toLocaleString('id-ID')})`
+        );
+      }
+    });
+
+    return { pemasukanMap, pengeluaranMap, proyekList };
+  };
+
+  // Data Olahan Tab Mutasi Kas (Sudah Urut Terbaru di Atas dari App.jsx)
   const ledgerList = (data.cash_ledger || []).filter((item) => {
     const matchBulan = filterBulanKas === 'Semua' || item.periode_bulan === filterBulanKas;
-    const matchTipe =
-      filterTipeKas === 'ALL' ||
-      (filterTipeKas === 'PROYEK' ? Boolean(item.is_proyek) : item.tipe === filterTipeKas);
-    return matchBulan && matchTipe;
+    const matchKat =
+      filterKategoriKas === 'ALL' ||
+      (filterKategoriKas === 'PROYEK'
+        ? Boolean(item.is_proyek) && String(item.is_proyek).toUpperCase() !== 'FALSE'
+        : item.kategori === filterKategoriKas);
+    return matchBulan && matchKat;
   });
 
   const totalMasukFilter = ledgerList
@@ -76,42 +116,60 @@ export default function PublicDashboard({
     .filter((i) => i.tipe === 'OUT')
     .reduce((acc, cur) => acc + Number(cur.nominal || 0), 0);
 
-  // Data Olahan untuk Tab 21 Rumah
+  // Data Olahan Tab 22 Rumah (21 Aktif + 1 Tidak Aktif BPR)
   const housesWithIpl = (data.houses || []).map((h) => {
     const iplRow = (data.ipl_status || []).find((r) => r.house_id === h.id);
+    const isNonAktif = h.status_huni === 'Tidak Aktif' || iplRow?.status_bayar === 'Tidak Aktif';
     return {
       ...h,
-      status_bayar: iplRow?.status_bayar || 'Belum Lunas',
+      is_non_aktif: isNonAktif,
+      status_bayar: isNonAktif ? 'Tidak Aktif' : (iplRow?.status_bayar || 'Belum Lunas'),
       tanggal_bayar: iplRow?.tanggal_bayar || '-',
-      catatan: iplRow?.catatan || 'Tagihan IPL November 2026'
+      catatan:
+        iplRow?.catatan ||
+        (isNonAktif ? 'Unit Dijual oleh Pihak BPR (Non-Aktif)' : 'Tagihan IPL November 2026')
     };
   });
+
+  const activeHousesCount = housesWithIpl.filter((h) => !h.is_non_aktif).length;
+  const totalLunasCount = housesWithIpl.filter((h) => h.status_bayar === 'Lunas').length;
+  const totalBelumLunasCount = housesWithIpl.filter((h) => h.status_bayar === 'Belum Lunas').length;
 
   const filteredHouses = housesWithIpl.filter((h) => {
     const matchSearch =
       h.nomor_rumah.toLowerCase().includes(searchRumah.toLowerCase()) ||
       h.nama_warga.toLowerCase().includes(searchRumah.toLowerCase());
-    const matchStatus = filterStatusIpl === 'ALL' || h.status_bayar === filterStatusIpl;
+    const matchStatus =
+      filterStatusIpl === 'ALL' ||
+      (filterStatusIpl === 'AKTIF' ? !h.is_non_aktif : h.status_bayar === filterStatusIpl);
     return matchSearch && matchStatus;
   });
-
-  const totalLunasCount = housesWithIpl.filter((h) => h.status_bayar === 'Lunas').length;
 
   const navItems = [
     { id: 'beranda', label: 'Beranda', icon: '🏠' },
     { id: 'mutasi', label: 'Mutasi Kas', icon: '📑' },
-    { id: 'warga', label: '21 Rumah', icon: '🏘️' },
+    { id: 'warga', label: '22 Rumah', icon: '🏘️' },
     { id: 'keamanan', label: 'Keamanan & SOS', icon: '🛡️' }
   ];
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 pb-24 md:pb-12">
-      {/* TOP NAVBAR RESPONSIVE (Tampil Penuh di Tablet & Desktop) */}
+      {/* TOP NAVBAR RESPONSIVE */}
       <header className="bg-gradient-to-r from-teal-800 via-teal-700 to-emerald-800 text-white shadow-md sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
           <div onClick={handleLogoTap} className="cursor-pointer select-none flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-white/15 border border-white/25 flex items-center justify-center font-black text-lg shadow-inner">
-              C
+            {/* Slot Logo Kustom 512x512 px (/assets/logo-cmoney.png) */}
+            <div className="w-10 h-10 rounded-2xl bg-white/15 border border-white/25 flex items-center justify-center font-black text-lg shadow-inner overflow-hidden shrink-0">
+              {!logoError && data.logo_url ? (
+                <img
+                  src={data.logo_url}
+                  alt="Logo C-Money"
+                  className="w-full h-full object-cover"
+                  onError={() => setLogoError(true)}
+                />
+              ) : (
+                <span>C</span>
+              )}
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -160,9 +218,9 @@ export default function PublicDashboard({
         </div>
       </header>
 
-      {/* MAIN CONTAINER (1 Kolom di HP, 12 Kolom Grid Proporsional di Desktop/Tablet) */}
+      {/* MAIN CONTAINER */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-5 grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* KOLOM KIRI (SIDEBAR STATIS DI DESKTOP): KARTU SALDO M-BANKING & QUICK ACTIONS */}
+        {/* KOLOM KIRI: KARTU SALDO M-BANKING & QUICK ACTIONS */}
         <div className="lg:col-span-4 space-y-4">
           {/* Kartu Saldo Utama m-Banking */}
           <div className="bg-gradient-to-br from-teal-800 via-teal-900 to-slate-900 text-white rounded-3xl p-5 shadow-lg relative overflow-hidden">
@@ -184,7 +242,9 @@ export default function PublicDashboard({
 
             <div className="mt-3 inline-flex items-center gap-1.5 text-[11px] bg-white/10 px-2.5 py-1 rounded-full text-emerald-300">
               <span>●</span>
-              <span>Status Periode November 2026: {totalLunasCount}/21 Rumah Lunas</span>
+              <span>
+                Status IPL Nov 2026: {totalLunasCount}/{activeHousesCount} Rumah Aktif Lunas
+              </span>
             </div>
 
             <div className="grid grid-cols-2 gap-3 mt-4 pt-3.5 border-t border-white/15 text-xs">
@@ -195,9 +255,9 @@ export default function PublicDashboard({
                 </p>
               </div>
               <div>
-                <p className="text-teal-200 text-[11px]">Total Hunian Aktif</p>
+                <p className="text-teal-200 text-[11px]">Total Unit Hunian</p>
                 <p className="font-extrabold text-white mt-0.5">
-                  {data.total_active_houses} Rumah (H-01–H-21)
+                  22 Unit (21 Aktif • 1 BPR)
                 </p>
               </div>
             </div>
@@ -228,7 +288,7 @@ export default function PublicDashboard({
               >
                 🏘️
               </div>
-              <span className="text-[11px] font-semibold text-slate-700 mt-1.5">21 Rumah</span>
+              <span className="text-[11px] font-semibold text-slate-700 mt-1.5">22 Rumah</span>
             </button>
 
             <button
@@ -284,78 +344,205 @@ export default function PublicDashboard({
           </div>
         </div>
 
-        {/* KOLOM KANAN (AREA KONTEN DINAMIS 4 TAB) */}
+        {/* KOLOM KANAN: AREA KONTEN DINAMIS 4 TAB */}
         <div className="lg:col-span-8 space-y-5">
-          {/* ================= TAB 1: BERANDA ================= */}
+          {/* ================= TAB 1: BERANDA (URUT TERBARU OKTOBER -> JUNI + RINCIAN LENGKAP) ================= */}
           {activeTab === 'beranda' && (
             <>
-              {/* Kartu Grafik & Tabel Tren Kas 5 Bulan Terakhir */}
               <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/70">
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                   <div>
                     <h4 className="font-extrabold text-slate-800 text-base">
-                      Tren Arus Kas 5 Bulan Terakhir (Juni – Oktober 2026)
+                      Laporan & Rincian Kas 5 Bulan Terakhir (Oktober – Juni 2026)
                     </h4>
                     <p className="text-xs text-slate-500">
-                      Rekapitulasi buku kas tertutup yang telah dikirim ke WhatsApp grup warga
+                      Diurutkan dari yang terbaru ke terlama • Klik bulan untuk melihat rincian per
+                      kategori & proyek
                     </p>
                   </div>
                   <span className="text-xs bg-teal-50 text-teal-800 border border-teal-200 px-3 py-1 rounded-full font-bold">
-                    100% Transparan
+                    Terbaru di Atas ↓
                   </span>
                 </div>
 
-                {/* Visualisasi Bar Perbandingan */}
+                {/* Daftar Laporan Bulanan (Urut Oktober -> Juni) */}
                 <div className="space-y-3">
                   {(data.monthly_closings || [])
                     .filter((c) => c.status_tutup_buku === 'CLOSED')
-                    .map((item, idx) => {
+                    .map((item) => {
                       const maxVal = 5200000;
                       const inPct = Math.min(100, Math.round((item.uang_masuk / maxVal) * 100));
                       const outPct = Math.min(
                         100,
                         Math.round((item.total_pengeluaran / maxVal) * 100)
                       );
+                      const isExpanded = expandedMonth === item.periode_bulan;
+                      const breakdown = getMonthlyBreakdown(item.periode_bulan, item.periode_tahun);
+
                       return (
                         <div
-                          key={idx}
-                          className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 space-y-2"
+                          key={item.id}
+                          className="rounded-2xl bg-slate-50 border border-slate-200/80 overflow-hidden transition"
                         >
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-extrabold text-slate-800 text-sm">
-                              {item.periode_bulan} {item.periode_tahun}
-                            </span>
-                            <span className="font-extrabold text-teal-700 bg-teal-50 px-2.5 py-0.5 rounded-lg border border-teal-200">
-                              Sisa Saldo: {formatRp(item.sisa_saldo)}
-                            </span>
+                          {/* Header Kartu Bulan (Bisa Diklik untuk Buka/Tutup Detail) */}
+                          <div
+                            onClick={() =>
+                              setExpandedMonth(isExpanded ? '' : item.periode_bulan)
+                            }
+                            className="p-4 cursor-pointer hover:bg-slate-100/70 transition space-y-2.5"
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                              <div className="flex items-center gap-2">
+                                <span className="font-extrabold text-slate-900 text-sm">
+                                  {item.periode_bulan} {item.periode_tahun}
+                                </span>
+                                <span className="text-[11px] text-slate-500">
+                                  (Saldo Awal: {formatRp(item.saldo_awal)})
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-extrabold text-teal-800 bg-teal-50 px-2.5 py-0.5 rounded-lg border border-teal-200">
+                                  Sisa Saldo: {formatRp(item.sisa_saldo)}
+                                </span>
+                                <span className="text-xs font-bold text-teal-700">
+                                  {isExpanded ? '▲ Tutup Rincian' : '▼ Lihat Rincian'}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px]">
+                              <div>
+                                <div className="flex justify-between text-emerald-700 font-semibold mb-1">
+                                  <span>Uang Masuk</span>
+                                  <span>{formatRp(item.uang_masuk)}</span>
+                                </div>
+                                <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-emerald-500 rounded-full"
+                                    style={{ width: `${inPct}%` }}
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <div className="flex justify-between text-rose-600 font-semibold mb-1">
+                                  <span>
+                                    Total Pengeluaran
+                                    {item.pengeluaran_proyek > 0
+                                      ? ` (Termasuk Proyek ${formatRp(item.pengeluaran_proyek)})`
+                                      : ''}
+                                  </span>
+                                  <span>{formatRp(item.total_pengeluaran)}</span>
+                                </div>
+                                <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-rose-500 rounded-full"
+                                    style={{ width: `${outPct}%` }}
+                                  />
+                                </div>
+                              </div>
+                            </div>
                           </div>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
-                            <div>
-                              <div className="flex justify-between text-emerald-700 font-semibold mb-1">
-                                <span>Uang Masuk</span>
-                                <span>{formatRp(item.uang_masuk)}</span>
+                          {/* Panel Rincian Lengkap Sesuai Template Laporan Bulanan WA */}
+                          {isExpanded && (
+                            <div className="px-4 pb-4 pt-3 border-t border-slate-200/80 bg-white text-xs space-y-3">
+                              {/* Ringkasan 5 Angka Utama */}
+                              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-[11px]">
+                                <div>
+                                  <span className="text-slate-400 block">Saldo Awal</span>
+                                  <span className="font-bold text-slate-800">
+                                    {formatRp(item.saldo_awal)}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-slate-400 block">Uang Masuk</span>
+                                  <span className="font-bold text-emerald-700">
+                                    {formatRp(item.uang_masuk)}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-slate-400 block">Total Keluar</span>
+                                  <span className="font-bold text-rose-600">
+                                    {formatRp(item.total_pengeluaran)}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-slate-400 block">Khusus Proyek</span>
+                                  <span className="font-bold text-amber-700">
+                                    {formatRp(item.pengeluaran_proyek)}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-slate-400 block">Sisa Saldo</span>
+                                  <span className="font-extrabold text-teal-700">
+                                    {formatRp(item.sisa_saldo)}
+                                  </span>
+                                </div>
                               </div>
-                              <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-                                <div
-                                  className="h-full bg-emerald-500 rounded-full"
-                                  style={{ width: `${inPct}%` }}
-                                />
+
+                              {/* Breakdown Pemasukan per Kategori */}
+                              <div>
+                                <p className="font-extrabold text-slate-700 mb-1">
+                                  Breakdown Pemasukan per Kategori:
+                                </p>
+                                <ul className="space-y-1 pl-2">
+                                  {Object.keys(breakdown.pemasukanMap).map((kat) => (
+                                    <li key={kat} className="text-emerald-800 font-semibold">
+                                      • {kat}: {formatRp(breakdown.pemasukanMap[kat])}
+                                    </li>
+                                  ))}
+                                </ul>
                               </div>
+
+                              {/* Breakdown Pengeluaran per Kategori + Detail Rincian */}
+                              <div>
+                                <p className="font-extrabold text-slate-700 mb-1.5">
+                                  Breakdown Pengeluaran per Kategori (Beserta Rincian):
+                                </p>
+                                <div className="space-y-1.5">
+                                  {Object.keys(breakdown.pengeluaranMap).map((kat) => {
+                                    const group = breakdown.pengeluaranMap[kat];
+                                    return (
+                                      <div
+                                        key={kat}
+                                        className="p-2.5 rounded-xl bg-slate-50 border border-slate-100"
+                                      >
+                                        <div className="flex items-center justify-between font-bold text-slate-800">
+                                          <span>• {kat}</span>
+                                          <span className="text-rose-600">
+                                            {formatRp(group.total)}
+                                          </span>
+                                        </div>
+                                        <p className="text-[11px] text-slate-500 mt-0.5">
+                                          <span className="font-semibold text-slate-600">
+                                            detail:
+                                          </span>{' '}
+                                          {group.details.join(', ')}
+                                        </p>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+
+                              {/* Detail Proyek (Jika ada proyek di bulan tersebut) */}
+                              {breakdown.proyekList.length > 0 && (
+                                <div className="p-3 rounded-xl bg-amber-50/60 border border-amber-200">
+                                  <p className="font-extrabold text-amber-900 mb-1">
+                                    Detail Proyek Bulan {item.periode_bulan}:
+                                  </p>
+                                  <ul className="space-y-1 text-amber-900 font-medium">
+                                    {breakdown.proyekList.map((p, i) => (
+                                      <li key={i}>
+                                        • {p.nama} —{' '}
+                                        <span className="font-bold">{formatRp(p.nominal)}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
                             </div>
-                            <div>
-                              <div className="flex justify-between text-rose-600 font-semibold mb-1">
-                                <span>Total Pengeluaran</span>
-                                <span>{formatRp(item.total_pengeluaran)}</span>
-                              </div>
-                              <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
-                                <div
-                                  className="h-full bg-rose-500 rounded-full"
-                                  style={{ width: `${outPct}%` }}
-                                />
-                              </div>
-                            </div>
-                          </div>
+                          )}
                         </div>
                       );
                     })}
@@ -366,7 +553,7 @@ export default function PublicDashboard({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/70">
                   <h4 className="font-extrabold text-slate-800 text-sm mb-3">
-                    👮 Transparansi Gaji Security (Oktober)
+                    👮 Transparansi Gaji Security (Terbaru: Oktober)
                   </h4>
                   <div className="space-y-2.5 text-xs">
                     {(data.security_payroll || [])
@@ -395,24 +582,24 @@ export default function PublicDashboard({
 
                 <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/70">
                   <h4 className="font-extrabold text-slate-800 text-sm mb-3">
-                    📌 Struktur Beban Wajib Bulanan CMR
+                    📌 Struktur Hunian & Beban Wajib Bulanan CMR
                   </h4>
                   <div className="space-y-2 text-xs">
                     <div className="flex justify-between py-1.5 border-b border-slate-100">
-                      <span className="text-slate-500">Maksimal IPL (21 Rumah)</span>
+                      <span className="text-slate-500">Total Hunian (21 Aktif + 1 Non-Aktif)</span>
+                      <span className="font-bold text-slate-800">22 Rumah</span>
+                    </div>
+                    <div className="flex justify-between py-1.5 border-b border-slate-100">
+                      <span className="text-slate-500">Potensi Maksimal IPL (21 x Rp 200rb)</span>
                       <span className="font-bold text-emerald-700">Rp 4.200.000</span>
                     </div>
                     <div className="flex justify-between py-1.5 border-b border-slate-100">
                       <span className="text-slate-500">Gaji 2 Security (@1,65 Jt)</span>
                       <span className="font-bold text-slate-800">Rp 3.300.000</span>
                     </div>
-                    <div className="flex justify-between py-1.5 border-b border-slate-100">
-                      <span className="text-slate-500">Retribusi Sampah & Listrik Pos</span>
-                      <span className="font-bold text-slate-800">Rp 800.000</span>
-                    </div>
                     <div className="flex justify-between pt-1">
-                      <span className="font-bold text-teal-800">Margin Bebas Kas / Bulan</span>
-                      <span className="font-extrabold text-teal-700">Rp 100.000</span>
+                      <span className="text-slate-500">Retribusi Sampah & Listrik Pos</span>
+                      <span className="font-extrabold text-teal-700">Rp 800.000</span>
                     </div>
                   </div>
                 </div>
@@ -420,44 +607,50 @@ export default function PublicDashboard({
             </>
           )}
 
-          {/* ================= TAB 2: MUTASI KAS (BUKU KAS) ================= */}
+          {/* ================= TAB 2: MUTASI KAS (RINCIAN 55 ITEM TERBARU KE TERLAMA) ================= */}
           {activeTab === 'mutasi' && (
             <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/70 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h4 className="font-extrabold text-slate-800 text-base">
-                    📑 Buku Besar Mutasi Kas Cluster
+                    📑 Rincian Buku Kas Cluster (Urut Terbaru ke Terlama)
                   </h4>
                   <p className="text-xs text-slate-500">
-                    Catatan rinci uang masuk, operasional rutin, dan pengeluaran proyek
+                    Menampilkan seluruh rincian transaksi per item sesuai laporan bulanan
                   </p>
                 </div>
 
-                {/* Filter Bulan & Tipe */}
-                <div className="flex items-center gap-2 text-xs">
+                {/* Filter Bulan (Urut Terbaru -> Terlama) & Filter Kategori */}
+                <div className="flex flex-wrap items-center gap-2 text-xs">
                   <select
                     value={filterBulanKas}
                     onChange={(e) => setFilterBulanKas(e.target.value)}
                     className="border border-slate-200 rounded-xl px-3 py-2 font-bold bg-slate-50"
                   >
-                    {['Semua', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November'].map(
+                    {['Semua', 'November', 'Oktober', 'September', 'Agustus', 'Juli', 'Juni'].map(
                       (b) => (
                         <option key={b} value={b}>
-                          {b === 'Semua' ? 'Semua Bulan' : `Bulan ${b}`}
+                          {b === 'Semua' ? 'Semua Bulan' : `Periode ${b}`}
                         </option>
                       )
                     )}
                   </select>
 
                   <select
-                    value={filterTipeKas}
-                    onChange={(e) => setFilterTipeKas(e.target.value)}
+                    value={filterKategoriKas}
+                    onChange={(e) => setFilterKategoriKas(e.target.value)}
                     className="border border-slate-200 rounded-xl px-3 py-2 font-bold bg-slate-50"
                   >
-                    <option value="ALL">Semua Tipe</option>
-                    <option value="IN">Uang Masuk (IN)</option>
-                    <option value="OUT">Pengeluaran (OUT)</option>
-                    <option value="PROYEK">Khusus Proyek</option>
+                    <option value="ALL">Semua Kategori ({ledgerList.length})</option>
+                    <option value="Iuran Warga">Iuran Warga (IN)</option>
+                    <option value="Gaji">Gaji & Kasbon Security</option>
+                    <option value="Sampah">Uang Sampah</option>
+                    <option value="Perawatan Pos">Perawatan Pos & Lingkungan</option>
+                    <option value="Konsumsi">Konsumsi Pos</option>
+                    <option value="Sosial">Dana Sosial</option>
+                    <option value="Listrik">Listrik Pos</option>
+                    <option value="Air">Air Galon Pos</option>
+                    <option value="PROYEK">Khusus Proyek Cluster</option>
                   </select>
                 </div>
               </div>
@@ -478,64 +671,72 @@ export default function PublicDashboard({
                 </div>
               </div>
 
-              {/* Daftar Transaksi */}
+              {/* Daftar Transaksi Rinci (Terbaru di Atas -> Terlama di Bawah) */}
               <div className="space-y-2.5">
-                {ledgerList.map((tx) => (
-                  <div
-                    key={tx.id}
-                    className="p-3.5 rounded-2xl border border-slate-100 hover:bg-slate-50 transition flex items-center justify-between gap-3 text-xs"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div
-                        className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold shrink-0 ${
-                          tx.tipe === 'IN'
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : 'bg-rose-100 text-rose-700'
-                        }`}
-                      >
-                        {tx.tipe === 'IN' ? '↓' : '↑'}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-extrabold text-slate-800">{tx.kategori}</span>
-                          {Boolean(tx.is_proyek) && (
-                            <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md font-bold">
-                              Proyek: {tx.nama_proyek}
-                            </span>
-                          )}
+                {ledgerList.map((tx) => {
+                  const isProyek =
+                    Boolean(tx.is_proyek) && String(tx.is_proyek).toUpperCase() !== 'FALSE';
+                  return (
+                    <div
+                      key={tx.id}
+                      className="p-3.5 rounded-2xl border border-slate-100 hover:bg-slate-50 transition flex items-center justify-between gap-3 text-xs"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold shrink-0 ${
+                            tx.tipe === 'IN'
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : 'bg-rose-100 text-rose-700'
+                          }`}
+                        >
+                          {tx.tipe === 'IN' ? '↓' : '↑'}
                         </div>
-                        <p className="text-slate-600 mt-0.5">{tx.keterangan}</p>
-                        <p className="text-[10px] text-slate-400 mt-0.5">
-                          {tx.tanggal} • Periode {tx.periode_bulan} {tx.periode_tahun} • ID: {tx.id}
-                        </p>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-extrabold text-slate-800">{tx.kategori}</span>
+                            <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-semibold">
+                              {tx.periode_bulan} {tx.periode_tahun}
+                            </span>
+                            {isProyek && (
+                              <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md font-bold">
+                                Proyek: {tx.nama_proyek}
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-slate-700 font-medium mt-0.5">{tx.keterangan}</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">
+                            Tanggal: {tx.tanggal} • Kode: {tx.id}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="text-right shrink-0">
+                        <span
+                          className={`font-extrabold text-sm ${
+                            tx.tipe === 'IN' ? 'text-emerald-700' : 'text-rose-600'
+                          }`}
+                        >
+                          {tx.tipe === 'IN' ? '+' : '-'} {formatRp(tx.nominal)}
+                        </span>
                       </div>
                     </div>
-
-                    <div className="text-right shrink-0">
-                      <span
-                        className={`font-extrabold text-sm ${
-                          tx.tipe === 'IN' ? 'text-emerald-700' : 'text-rose-600'
-                        }`}
-                      >
-                        {tx.tipe === 'IN' ? '+' : '-'} {formatRp(tx.nominal)}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
 
-          {/* ================= TAB 3: STATUS 21 RUMAH ================= */}
+          {/* ================= TAB 3: STATUS 22 RUMAH (21 AKTIF + 1 TIDAK AKTIF BPR) ================= */}
           {activeTab === 'warga' && (
             <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/70 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h4 className="font-extrabold text-slate-800 text-base">
-                    🏘️ Status Iuran IPL 21 Rumah Aktif (November 2026)
+                    🏘️ Daftar 22 Unit Rumah CMR (21 Aktif • 1 Non-Aktif BPR)
                   </h4>
                   <p className="text-xs text-slate-500">
-                    Klik tombol Bayar QRIS pada nomor rumah Anda untuk mengunggah bukti transfer
+                    Pak Baim 2 Unit (No. 16 & No. 22) • Pak Dwi 2 Unit (No. 14 & No. 03 Kontrak Pak
+                    Upen) • No. 04 Dijual Pihak BPR
                   </p>
                 </div>
 
@@ -552,24 +753,28 @@ export default function PublicDashboard({
                     onChange={(e) => setFilterStatusIpl(e.target.value)}
                     className="border border-slate-200 rounded-xl px-3 py-2 font-bold bg-slate-50"
                   >
-                    <option value="ALL">Semua ({housesWithIpl.length})</option>
+                    <option value="ALL">Semua Unit (22)</option>
+                    <option value="AKTIF">Hunian Aktif ({activeHousesCount})</option>
                     <option value="Lunas">Lunas ({totalLunasCount})</option>
-                    <option value="Belum Lunas">
-                      Belum Lunas ({housesWithIpl.length - totalLunasCount})
-                    </option>
+                    <option value="Belum Lunas">Belum Lunas ({totalBelumLunasCount})</option>
+                    <option value="Tidak Aktif">Tidak Aktif / BPR (1)</option>
                   </select>
                 </div>
               </div>
 
-              {/* Grid 21 Rumah (1 Kolom di HP, 2-3 Kolom di Tablet/Desktop) */}
+              {/* Grid 22 Rumah */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                 {filteredHouses.map((h) => {
                   const isLunas = h.status_bayar === 'Lunas';
+                  const isNonAktif = h.is_non_aktif;
+
                   return (
                     <div
                       key={h.id}
                       className={`p-3.5 rounded-2xl border transition flex flex-col justify-between ${
-                        isLunas
+                        isNonAktif
+                          ? 'bg-slate-100/80 border-slate-300 opacity-80'
+                          : isLunas
                           ? 'bg-emerald-50/40 border-emerald-200'
                           : 'bg-white border-slate-200'
                       }`}
@@ -579,25 +784,33 @@ export default function PublicDashboard({
                           <span className="font-black text-slate-800 text-sm">{h.nomor_rumah}</span>
                           <span
                             className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
-                              isLunas
+                              isNonAktif
+                                ? 'bg-slate-200 text-slate-700'
+                                : isLunas
                                 ? 'bg-emerald-100 text-emerald-800'
                                 : 'bg-amber-100 text-amber-800'
                             }`}
                           >
-                            {h.status_bayar}
+                            {isNonAktif ? 'Tidak Aktif (BPR)' : h.status_bayar}
                           </span>
                         </div>
-                        <p className="font-bold text-slate-700 text-xs mt-1">{h.nama_warga}</p>
-                        <p className="text-[11px] text-slate-400 mt-0.5">
-                          Tarif IPL: {formatRp(h.tarif_ipl)}
+                        <p className="font-bold text-slate-800 text-xs mt-1">{h.nama_warga}</p>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          {isNonAktif
+                            ? 'Dijual oleh Pihak BPR (Bebas IPL)'
+                            : `Tarif IPL: ${formatRp(h.tarif_ipl)}`}
                         </p>
                       </div>
 
-                      <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                      <div className="mt-3 pt-2.5 border-t border-slate-200/60 flex items-center justify-between text-[11px]">
                         <span className="text-slate-400">
-                          {isLunas ? `Tgl: ${h.tanggal_bayar}` : 'Periode Nov 2026'}
+                          {isNonAktif
+                            ? 'Non-Aktif'
+                            : isLunas
+                            ? `Tgl: ${h.tanggal_bayar}`
+                            : 'Periode Nov 2026'}
                         </span>
-                        {!isLunas && (
+                        {!isNonAktif && !isLunas && (
                           <button
                             onClick={() => openQrisForHouse(h.id)}
                             className="bg-teal-700 hover:bg-teal-800 text-white font-bold px-2.5 py-1 rounded-lg shadow-sm transition"
@@ -613,10 +826,10 @@ export default function PublicDashboard({
             </div>
           )}
 
-          {/* ================= TAB 4: KEAMANAN, GAJI SECURITY, CCTV & SOS ================= */}
+          {/* ================= TAB 4: KEAMANAN, GAJI SECURITY (TERBARU DI ATAS), CCTV & SOS ================= */}
           {activeTab === 'keamanan' && (
             <div className="space-y-4">
-              {/* Kartu Panic Button SOS (Tahan 3 Detik) */}
+              {/* Kartu Panic Button SOS */}
               <div className="bg-gradient-to-br from-rose-600 to-red-800 text-white rounded-3xl p-5 shadow-md">
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div>
@@ -649,11 +862,14 @@ export default function PublicDashboard({
                 </div>
               </div>
 
-              {/* Petugas Security Aktif & Histori Kasbon */}
+              {/* Petugas Security Aktif & Riwayat Penggajian (Urut Oktober -> September) */}
               <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/70">
-                <h4 className="font-extrabold text-slate-800 text-base mb-3">
-                  🛡️ Petugas Security Aktif & Riwayat Penggajian
-                </h4>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-extrabold text-slate-800 text-base">
+                    🛡️ Petugas Security Aktif & Riwayat Gaji (Terbaru di Atas)
+                  </h4>
+                  <span className="text-[11px] text-teal-700 font-bold">Oktober → September</span>
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                   {(data.security_payroll || []).map((item) => (
                     <div
@@ -742,7 +958,7 @@ export default function PublicDashboard({
         </div>
       </main>
 
-      {/* BOTTOM NAVIGATION BAR (Hanya tampil di layar Mobile < 768px) */}
+      {/* BOTTOM NAVIGATION BAR (Mobile < 768px) */}
       <div className="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 px-5 py-2 flex justify-between items-center text-xs z-30 shadow-lg">
         <button
           onClick={() => setActiveTab('beranda')}
@@ -781,7 +997,7 @@ export default function PublicDashboard({
           }`}
         >
           <span className="text-lg">🏘️</span>
-          <span>21 Rumah</span>
+          <span>22 Rumah</span>
         </button>
 
         <button

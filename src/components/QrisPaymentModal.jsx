@@ -16,19 +16,33 @@ export default function QrisPaymentModal({
   const [proofFile, setProofFile] = useState(null);
   const [copied, setCopied] = useState(false);
 
+  // Saring hanya rumah yang berstatus Aktif (21 dari 22 rumah, kecualikan H-04 BPR)
+  const activeHousesList = (
+    houses.length > 0
+      ? houses
+      : Array.from({ length: 22 }, (_, i) => {
+          const num = String(i + 1).padStart(2, '0');
+          return {
+            id: `H-${num}`,
+            nomor_rumah: `No. ${num}`,
+            nama_warga: num === '04' ? 'Dijual (Pihak BPR)' : `Warga No. ${num}`,
+            status_huni: num === '04' ? 'Tidak Aktif' : 'Aktif'
+          };
+        })
+  ).filter((h) => h.status_huni !== 'Tidak Aktif');
+
   useEffect(() => {
-    if (initialHouse) setSelectedHouse(initialHouse);
+    if (!initialHouse || initialHouse === 'H-04') {
+      setSelectedHouse('H-01');
+    } else {
+      setSelectedHouse(initialHouse);
+    }
   }, [initialHouse]);
 
   if (!isOpen) return null;
 
-  const housesList =
-    houses.length > 0
-      ? houses
-      : Array.from({ length: 21 }, (_, i) => {
-          const num = String(i + 1).padStart(2, '0');
-          return { id: `H-${num}`, nomor_rumah: `No. ${num}`, nama_warga: `Warga No. ${num}` };
-        });
+  const currentHouseObj =
+    activeHousesList.find((h) => h.id === selectedHouse) || activeHousesList[0];
 
   const handleCopyNominal = () => {
     navigator.clipboard.writeText(String(defaultAmount));
@@ -46,22 +60,23 @@ export default function QrisPaymentModal({
       });
     }
     alert(
-      `✅ Bukti pembayaran ${selectedHouse} (${selectedMonth} 2026) berhasil tercatat dan siap divalidasi Pengurus.`
+      `✅ Bukti pembayaran ${currentHouseObj?.nomor_rumah} (${currentHouseObj?.nama_warga}) periode ${selectedMonth} 2026 berhasil dikirim dan siap divalidasi Pengurus.`
     );
+    setProofFile(null);
     onClose();
   };
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
       <div className="bg-white w-full max-w-md md:max-w-2xl rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl">
-        {/* Header Modal */}
+        {/* Header Modal QRIS */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <div>
             <span className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 bg-teal-50 text-teal-700 rounded-md border border-teal-200">
               QRIS Nasional • Bebas Biaya Admin (MDR 0%)
             </span>
             <h3 className="text-base sm:text-lg font-extrabold text-slate-800 mt-1">
-              Bayar Iuran IPL Warga
+              Bayar Iuran IPL Warga (21 Hunian Aktif)
             </h3>
           </div>
           <button
@@ -74,7 +89,7 @@ export default function QrisPaymentModal({
 
         {/* Konten Responsif: 1 Kolom di HP, 2 Kolom di Tablet/Desktop */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-4 items-center">
-          {/* Kolom Kiri: Kartu QRIS */}
+          {/* Kolom Kiri: Bingkai Gambar QRIS */}
           <div className="bg-gradient-to-b from-slate-50 to-white border-2 border-slate-200 rounded-2xl p-4 text-center">
             <div className="flex items-center justify-between text-xs font-bold text-slate-700 mb-1.5 px-1">
               <span className="bg-slate-200 px-2 py-0.5 rounded text-slate-800">QRIS</span>
@@ -102,20 +117,22 @@ export default function QrisPaymentModal({
               download={`QRIS_${merchantName}_${selectedHouse}.png`}
               className="mt-3 inline-block w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold transition"
             >
-              ⬇️ Simpan Gambar QRIS
+              ⬇️ Simpan Gambar QRIS ke HP
             </a>
           </div>
 
-          {/* Kolom Kanan: Pilih Rumah, Salin Nominal, & Upload Bukti */}
+          {/* Kolom Kanan: Pilih Rumah Aktif, Salin Nominal, & Unggah Bukti */}
           <div className="space-y-3.5 text-xs">
             <div>
-              <label className="font-bold text-slate-700 block mb-1">Pilih Nomor Rumah</label>
+              <label className="font-bold text-slate-700 block mb-1">
+                Pilih Nomor Rumah & Nama Warga (21 Aktif)
+              </label>
               <select
                 value={selectedHouse}
                 onChange={(e) => setSelectedHouse(e.target.value)}
                 className="w-full border border-slate-200 rounded-xl px-3 py-2.5 font-bold text-slate-800 bg-slate-50"
               >
-                {housesList.map((h) => (
+                {activeHousesList.map((h) => (
                   <option key={h.id} value={h.id}>
                     {h.nomor_rumah} — {h.nama_warga}
                   </option>
@@ -130,7 +147,7 @@ export default function QrisPaymentModal({
                 onChange={(e) => setSelectedMonth(e.target.value)}
                 className="w-full border border-slate-200 rounded-xl px-3 py-2.5 font-bold text-slate-800 bg-slate-50"
               >
-                {['November', 'Desember', 'Januari'].map((m) => (
+                {['November', 'Desember', 'Oktober'].map((m) => (
                   <option key={m} value={m}>
                     {m} 2026
                   </option>
@@ -142,7 +159,7 @@ export default function QrisPaymentModal({
             <div className="bg-teal-50 border border-teal-200 rounded-xl p-3 flex items-center justify-between">
               <div>
                 <span className="text-[11px] text-teal-700 block font-medium">
-                  Nominal Iuran ({selectedHouse} • {selectedMonth})
+                  Tagihan {currentHouseObj?.nomor_rumah} ({currentHouseObj?.nama_warga})
                 </span>
                 <span className="text-lg font-extrabold text-teal-900">
                   Rp {Number(defaultAmount).toLocaleString('id-ID')}
@@ -151,7 +168,7 @@ export default function QrisPaymentModal({
               <button
                 type="button"
                 onClick={handleCopyNominal}
-                className="text-xs bg-white hover:bg-teal-100 text-teal-800 border border-teal-300 px-3 py-1.5 rounded-lg font-bold shadow-sm transition"
+                className="text-xs bg-white hover:bg-teal-100 text-teal-800 border border-teal-300 px-3 py-1.5 rounded-lg font-bold shadow-sm transition shrink-0"
               >
                 {copied ? '✓ Tersalin' : 'Salin Angka'}
               </button>
@@ -160,7 +177,7 @@ export default function QrisPaymentModal({
             {/* Unggah Bukti Transfer */}
             <div className="pt-2 border-t border-slate-100">
               <label className="font-bold text-slate-700 block mb-1.5">
-                Unggah Screenshot Bukti Transfer:
+                Sudah Bayar? Unggah Screenshot Bukti Transfer:
               </label>
               <input
                 type="file"
