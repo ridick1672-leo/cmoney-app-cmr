@@ -1,27 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import PublicDashboard from './components/PublicDashboard';
-import { CMoneyAPI } from './services/apiService';
+import { CMoneyAPI, compressImageToBase64 } from './services/apiService';
 
-const MONTH_ORDER = {
-  Januari: 1, Februari: 2, Maret: 3, April: 4, Mei: 5, Juni: 6,
-  Juli: 7, Agustus: 8, September: 9, Oktober: 10, November: 11, Desember: 12
-};
-
-// Fungsi pengurut otomatis: Terbaru di atas -> Terlama di bawah
-function sortNewestFirst(rows = []) {
-  return [...rows].sort((a, b) => {
-    const yearDiff = Number(b.periode_tahun || 2026) - Number(a.periode_tahun || 2026);
-    if (yearDiff !== 0) return yearDiff;
-    const monthDiff = (MONTH_ORDER[b.periode_bulan] || 0) - (MONTH_ORDER[a.periode_bulan] || 0);
-    if (monthDiff !== 0) return monthDiff;
-    const dateA = String(a.tanggal || a.created_at || a.closed_at || '');
-    const dateB = String(b.tanggal || b.created_at || b.closed_at || '');
-    if (dateA !== dateB) return dateB.localeCompare(dateA);
-    return String(b.id || '').localeCompare(String(a.id || ''));
-  });
-}
-
-// Data 22 Unit Rumah CMR beserta Alias Keluarga (Bebas Typo untuk Laporan Paket/Surat Security)
+// Data 22 Unit Rumah CMR beserta Alias Keluarga (Terkunci V2 & V3)
 const BASELINE_HOUSES = [
   { id: 'H-01', nomor_rumah: 'No. 01', nama_warga: 'Pak Suharso', status_huni: 'Aktif', tarif_ipl: 200000, alias_keluarga: 'Pak Suharso / Ibu Suharso' },
   { id: 'H-02', nomor_rumah: 'No. 02', nama_warga: 'Pak Refza', status_huni: 'Aktif', tarif_ipl: 200000, alias_keluarga: 'Pak Refza Muhammad / Ibu Reza Wandira' },
@@ -48,7 +29,7 @@ const BASELINE_HOUSES = [
 ];
 
 /**
- * Generator Kalender Dinamis Security (Aturan Rotasi Mingguan CMR):
+ * Generator Kalender Dinamis Security (Terkunci V3):
  * - Minggu s/d Kamis: Penjagaan normal 2 shift (Pagi 08:00-20:00 & Malam 20:00-08:00)
  * - Jumat: Shift pagi tetap bertugas, sedangkan shift malam LIBUR (Gerbang Mandiri 20:00)
  * - Sabtu: Pertukaran shift mingguan (Petugas malam naik ke Pagi), sedangkan shift malam LIBUR
@@ -61,18 +42,15 @@ function generateDefaultSecuritySchedules(year = 2026, monthIndex = 10) {
     'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
     'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
   ];
-  // Acuan Minggu 1 Nov 2026: Pak Eko Shift Pagi, Pak Mulyadi Shift Malam
   const anchorSunday = new Date(2026, 10, 1);
   const result = [];
 
   for (let d = 1; d <= daysInMonth; d++) {
     const dateObj = new Date(year, monthIndex, d);
-    const dow = dateObj.getDay(); // 0=Minggu ... 5=Jumat, 6=Sabtu
+    const dow = dateObj.getDay();
     const dateStr = `${year}-${String(monthIndex + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 
-    // Hitung minggu ke-berapa sejak Minggu acuan (setiap Sabtu terjadi pertukaran shift pagi)
     const diffDays = Math.floor((dateObj - anchorSunday) / (1000 * 60 * 60 * 24));
-    // Siklus berganti setiap hari Sabtu (offset +1 hari dari Minggu)
     const cycleWeek = Math.floor((diffDays + 1) / 7);
     const isEvenCycle = ((cycleWeek % 2) + 2) % 2 === 0;
 
@@ -87,13 +65,11 @@ function generateDefaultSecuritySchedules(year = 2026, monthIndex = 10) {
     let catatanJadwal = 'Penjagaan normal 2 shift (Pagi & Malam)';
 
     if (dow === 5) {
-      // JUMAT: Pagi tetap bertugas, Malam LIBUR
       shiftMalam = 'LIBUR';
       jamMalam = 'Gerbang Mandiri (20:00)';
       statusJadwal = 'MALAM_LIBUR';
       catatanJadwal = `Jumat: ${shiftPagi} bertugas shift pagi, shift malam LIBUR (Gerbang Mandiri mulai 20:00 WIB)`;
     } else if (dow === 6) {
-      // SABTU: Pertukaran shift mingguan di pagi hari, Malam LIBUR
       shiftMalam = 'LIBUR';
       jamMalam = 'Gerbang Mandiri (20:00)';
       statusJadwal = 'ROTASI_MALAM_LIBUR';
@@ -119,7 +95,7 @@ function generateDefaultSecuritySchedules(year = 2026, monthIndex = 10) {
   return result;
 }
 
-// Histori Log & Anomali Nyata dari Grup WA Cluster Mutiara Residence (Urut Terbaru di Atas)
+// Histori Log & Anomali Nyata dari Grup WA Cluster Mutiara Residence (Terkunci V3)
 const BASELINE_SECURITY_LOGS = [
   {
     id: 'SEC-20261014-01',
@@ -441,6 +417,7 @@ const INITIAL_FALLBACK_DATA = {
     nominal: h.status_huni === 'Tidak Aktif' ? 0 : 200000,
     status_bayar: h.status_huni === 'Tidak Aktif' ? 'Tidak Aktif' : (i < 14 ? 'Lunas' : 'Belum Lunas'),
     tanggal_bayar: h.status_huni === 'Tidak Aktif' ? '' : (i < 14 ? '2026-11-05' : ''),
+    url_bukti: '',
     catatan: h.status_huni === 'Tidak Aktif' ? 'Unit Dijual oleh Pihak BPR (Non-Aktif)' : 'Tagihan IPL November 2026'
   })),
   security_schedules: generateDefaultSecuritySchedules(2026, 10),
@@ -456,6 +433,7 @@ const INITIAL_FALLBACK_DATA = {
 export default function App() {
   const [dashboardData, setDashboardData] = useState(INITIAL_FALLBACK_DATA);
   const [loading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // State Mode Pengurus (1 Akun Tunggal Tanpa Gmail)
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
@@ -466,7 +444,7 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState('');
 
-  // State Form Input Transaksi Pengurus
+  // State Form 1: Input Transaksi Pengurus + Upload Foto Nota V4
   const [txForm, setTxForm] = useState({
     tanggal: new Date().toISOString().slice(0, 10),
     periode_bulan: 'November',
@@ -476,25 +454,30 @@ export default function App() {
     is_proyek: false,
     nama_proyek: '',
     nominal: '',
-    keterangan: ''
+    keterangan: '',
+    file_base64: '',
+    file_name: ''
   });
 
-  // State Update Status IPL Warga oleh Pengurus
+  // State Form 2: Update Status IPL Warga oleh Pengurus + Upload Bukti V4
   const [iplUpdateForm, setIplUpdateForm] = useState({
     house_id: 'H-01',
     periode_bulan: 'November',
     periode_tahun: 2026,
     status_bayar: 'Lunas',
-    catatan: 'Lunas via Transfer / QRIS'
+    catatan: 'Lunas via Transfer / QRIS',
+    file_base64: '',
+    file_name: ''
   });
 
-  // State Tutup Buku & Trigger Fonnte WA
+  // State Form 3: Tutup Buku & Trigger Fonnte WA
   const [closingPeriod, setClosingPeriod] = useState({
     bulan: 'November',
     tahun: 2026,
     target_wa: ''
   });
   const [actionStatus, setActionStatus] = useState('');
+  const [lastUploadedDriveUrl, setLastUploadedDriveUrl] = useState('');
 
   const fetchDashboard = async () => {
     try {
@@ -553,46 +536,121 @@ export default function App() {
     setIsAdminLoggedIn(false);
   };
 
+  // Handler Pilih Foto Nota / Struk pada Form 1 (Otomatis Kompresi ke Base64)
+  const handleSelectTxPhoto = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setActionStatus('Mengompresi foto bukti transaksi...');
+      const base64Str = await compressImageToBase64(file, 1000, 0.82);
+      setTxForm((prev) => ({
+        ...prev,
+        file_base64: base64Str,
+        file_name: file.name
+      }));
+      setActionStatus(`📷 Foto "${file.name}" siap diunggah ke folder Drive Struk_Pengeluaran_Kas.`);
+    } catch (err) {
+      setActionStatus(`❌ Gagal membaca file foto: ${err.message}`);
+    }
+  };
+
+  // Handler Pilih Foto Bukti IPL pada Form 2 (Otomatis Kompresi ke Base64)
+  const handleSelectIplPhoto = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const base64Str = await compressImageToBase64(file, 1000, 0.82);
+      setIplUpdateForm((prev) => ({
+        ...prev,
+        file_base64: base64Str,
+        file_name: file.name
+      }));
+      setActionStatus(`📷 Bukti IPL "${file.name}" siap disimpan ke folder Drive Bukti_Iuran_Warga.`);
+    } catch (err) {
+      setActionStatus(`❌ Gagal membaca file bukti IPL: ${err.message}`);
+    }
+  };
+
+  // Handler Simpan Transaksi Kas + Upload Foto ke Struk_Pengeluaran_Kas
   const handleSaveTransaction = async (e) => {
     e.preventDefault();
-    setActionStatus('Menyimpan transaksi ke Spreadsheet...');
+    setIsSubmitting(true);
+    setLastUploadedDriveUrl('');
+    setActionStatus(
+      txForm.file_base64
+        ? '⏳ Mengunggah foto bukti ke Google Drive (Struk_Pengeluaran_Kas) & menyimpan ke Spreadsheet...'
+        : '⏳ Menyimpan transaksi ke Spreadsheet...'
+    );
+
     try {
       const res = await CMoneyAPI.inputTransaction({
         ...txForm,
         nominal: Number(txForm.nominal)
       });
       if (res.status === 'success') {
+        const driveUrl = res.url_bukti && res.url_bukti !== '-' ? res.url_bukti : '';
+        if (driveUrl) setLastUploadedDriveUrl(driveUrl);
+
         setActionStatus(
-          `✅ Transaksi berhasil disimpan di urutan teratas! Saldo baru: Rp ${Number(res.new_balance).toLocaleString('id-ID')}`
+          `✅ Transaksi ${res.tx_id} berhasil disimpan di urutan teratas! Saldo baru: Rp ${Number(
+            res.new_balance
+          ).toLocaleString('id-ID')}${driveUrl ? ' • Foto Bukti tersimpan di Google Drive.' : ''}`
         );
-        setTxForm({ ...txForm, nominal: '', keterangan: '', nama_proyek: '' });
+        setTxForm({
+          ...txForm,
+          nominal: '',
+          keterangan: '',
+          nama_proyek: '',
+          file_base64: '',
+          file_name: ''
+        });
         fetchDashboard();
       } else {
         setActionStatus(`❌ Gagal: ${res.message}`);
       }
     } catch (err) {
       setActionStatus(`❌ Error koneksi: ${err.message}`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
+  // Handler Simpan Update Status IPL + Upload Bukti ke Bukti_Iuran_Warga
   const handleSaveIplStatus = async (e) => {
     e.preventDefault();
-    setActionStatus('Memperbarui status IPL warga...');
+    setIsSubmitting(true);
+    setLastUploadedDriveUrl('');
+    setActionStatus(
+      iplUpdateForm.file_base64
+        ? '⏳ Mengunggah bukti IPL ke Google Drive (Bukti_Iuran_Warga) & memperbarui status...'
+        : '⏳ Memperbarui status IPL warga...'
+    );
     try {
       const res = await CMoneyAPI.updateIplStatus(iplUpdateForm);
       if (res.status === 'success') {
-        setActionStatus(`✅ ${res.message}`);
+        if (res.url_bukti) setLastUploadedDriveUrl(res.url_bukti);
+        setActionStatus(
+          `✅ ${res.message}${res.url_bukti ? ' • Foto bukti tersimpan di Drive Bukti_Iuran_Warga.' : ''}`
+        );
+        setIplUpdateForm((prev) => ({
+          ...prev,
+          file_base64: '',
+          file_name: ''
+        }));
         fetchDashboard();
       } else {
         setActionStatus(`❌ Gagal: ${res.message}`);
       }
     } catch (err) {
       setActionStatus(`❌ Error koneksi: ${err.message}`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleTriggerClosingWa = async () => {
-    setActionStatus('Memproses Tutup Buku & Mengirim Laporan WA via Fonnte...');
+    setIsSubmitting(true);
+    setActionStatus('⏳ Memproses Tutup Buku & Mengirim Laporan WA via Fonnte...');
     try {
       const res = await CMoneyAPI.closeMonthAndSendWa(
         closingPeriod.bulan,
@@ -606,10 +664,12 @@ export default function App() {
       }
     } catch (err) {
       setActionStatus(`❌ Error koneksi: ${err.message}`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  // Handler Simpan Laporan WA & Log Security (Otomatis Urut Paling Atas)
+  // Handler Simpan Laporan WA & Log Security (Otomatis Urut Paling Atas + Foto Watermark ke Drive)
   const handleInputSecurityLog = async (newLogPayload) => {
     const optimisticLog = {
       id: `SEC-${Date.now()}`,
@@ -633,6 +693,7 @@ export default function App() {
 
     try {
       await CMoneyAPI.inputSecurityLog(newLogPayload);
+      fetchDashboard();
     } catch (err) {
       console.warn('Log security tersimpan di state lokal:', err.message);
     }
@@ -681,7 +742,7 @@ export default function App() {
         }}
       />
 
-      {/* PANEL KHUSUS PENGURUS (HIDDEN VIEW) */}
+      {/* PANEL KHUSUS PENGURUS (HIDDEN VIEW + FITUR UPLOAD EVIDENCE V4) */}
       {isAdminLoggedIn && (
         <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex justify-center overflow-y-auto p-4">
           <div className="bg-white w-full max-w-md rounded-3xl p-5 my-auto shadow-2xl space-y-5 max-h-[92vh] overflow-y-auto">
@@ -703,12 +764,22 @@ export default function App() {
             </div>
 
             {actionStatus && (
-              <div className="p-3 rounded-xl bg-teal-50 border border-teal-200 text-xs font-semibold text-teal-900">
-                {actionStatus}
+              <div className="p-3 rounded-xl bg-teal-50 border border-teal-200 text-xs font-semibold text-teal-900 space-y-1.5">
+                <p>{actionStatus}</p>
+                {lastUploadedDriveUrl && (
+                  <a
+                    href={lastUploadedDriveUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-[11px] font-extrabold text-teal-700 underline"
+                  >
+                    📎 Buka Foto Bukti di Google Drive →
+                  </a>
+                )}
               </div>
             )}
 
-            {/* FORM 1: INPUT MUTASI KAS */}
+            {/* FORM 1: INPUT MUTASI KAS + UPLOAD FOTO NOTA KE DRIVE Struk_Pengeluaran_Kas */}
             <form onSubmit={handleSaveTransaction} className="space-y-3 text-xs">
               <h3 className="font-extrabold text-slate-700 uppercase tracking-wider">
                 1. Input Mutasi Kas (Terbaru di Atas)
@@ -803,15 +874,64 @@ export default function App() {
                 />
               </div>
 
+              {/* INPUT BARU V4: UPLOAD FOTO NOTA / STRUK BUKTI TRANSAKSI KE GOOGLE DRIVE */}
+              <div className="p-3 rounded-2xl bg-slate-50 border border-dashed border-teal-300 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="block font-extrabold text-teal-900 text-[11px]">
+                      📷 Upload Foto Nota / Bukti Transaksi (Opsional)
+                    </label>
+                    <p className="text-[10px] text-slate-500">
+                      Otomatis masuk ke folder Drive: <strong>Struk_Pengeluaran_Kas</strong>
+                    </p>
+                  </div>
+                  {txForm.file_base64 && (
+                    <button
+                      type="button"
+                      onClick={() => setTxForm({ ...txForm, file_base64: '', file_name: '' })}
+                      className="text-[10px] font-bold text-rose-600 hover:underline"
+                    >
+                      ✕ Hapus Foto
+                    </button>
+                  )}
+                </div>
+
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleSelectTxPhoto}
+                  className="w-full text-[11px] file:mr-2.5 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-[11px] file:font-extrabold file:bg-teal-700 file:text-white hover:file:bg-teal-800 cursor-pointer"
+                />
+
+                {txForm.file_base64 && (
+                  <div className="flex items-center gap-2.5 pt-1">
+                    <img
+                      src={txForm.file_base64}
+                      alt="Preview Bukti"
+                      className="w-14 h-14 object-cover rounded-xl border border-teal-300 shadow-sm"
+                    />
+                    <div className="text-[10px] text-slate-600">
+                      <p className="font-bold text-slate-800 truncate max-w-[200px]">
+                        {txForm.file_name}
+                      </p>
+                      <p className="text-emerald-700 font-semibold">
+                        ✓ Terkompresi & siap dikirim ke Google Drive
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <button
                 type="submit"
-                className="w-full py-2.5 rounded-xl bg-teal-700 text-white font-extrabold shadow"
+                disabled={isSubmitting}
+                className="w-full py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 disabled:bg-slate-400 text-white font-extrabold shadow transition"
               >
-                💾 Simpan Transaksi ke Database
+                {isSubmitting ? '⏳ Menyimpan ke Drive & Database...' : '💾 Simpan Transaksi ke Database'}
               </button>
             </form>
 
-            {/* FORM 2: VALIDASI STATUS IPL WARGA */}
+            {/* FORM 2: VALIDASI STATUS IPL WARGA + UPLOAD BUKTI KE Bukti_Iuran_Warga */}
             <form onSubmit={handleSaveIplStatus} className="pt-4 border-t border-slate-200 space-y-2.5 text-xs">
               <h3 className="font-extrabold text-slate-700 uppercase tracking-wider">
                 2. Update Status Lunas IPL Warga
@@ -839,11 +959,37 @@ export default function App() {
                   <option value="Belum Lunas">⏳ Belum Lunas</option>
                 </select>
               </div>
+
+              {/* Lampirkan Foto Bukti Transfer Warga (Masuk ke Folder Bukti_Iuran_Warga) */}
+              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-slate-600">
+                    📎 Lampirkan Bukti Transfer IPL (Folder Drive: <strong>Bukti_Iuran_Warga</strong>)
+                  </span>
+                  {iplUpdateForm.file_base64 && (
+                    <button
+                      type="button"
+                      onClick={() => setIplUpdateForm({ ...iplUpdateForm, file_base64: '', file_name: '' })}
+                      className="text-[10px] text-rose-600 font-bold"
+                    >
+                      ✕ Batal
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleSelectIplPhoto}
+                  className="w-full text-[11px] file:mr-2 file:py-1 file:px-2.5 file:rounded-lg file:border-0 file:text-[10px] file:font-bold file:bg-slate-800 file:text-white cursor-pointer"
+                />
+              </div>
+
               <button
                 type="submit"
-                className="w-full py-2 rounded-xl bg-slate-800 text-white font-bold"
+                disabled={isSubmitting}
+                className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-900 disabled:bg-slate-400 text-white font-bold transition"
               >
-                Perbarui Status IPL Rumah
+                {isSubmitting ? '⏳ Memperbarui...' : 'Perbarui Status IPL Rumah'}
               </button>
             </form>
 
@@ -872,8 +1018,9 @@ export default function App() {
               </div>
               <button
                 type="button"
+                disabled={isSubmitting}
                 onClick={handleTriggerClosingWa}
-                className="w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold shadow-md"
+                className="w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-400 text-white font-extrabold shadow-md transition"
               >
                 📲 Tutup Buku & Kirim WA via Fonnte
               </button>

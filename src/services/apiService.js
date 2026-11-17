@@ -1,10 +1,43 @@
 /**
- * C-MONEY API SERVICE ADAPTER v3.0
- * Mendukung Google Apps Script (GAS) & Siap Migrasi ke Supabase Free Tier
+ * C-MONEY API SERVICE ADAPTER v4.0
+ * Mendukung Google Apps Script (GAS) + Auto-Upload Evidence ke Google Drive CMR
  */
 
 const BACKEND_PROVIDER = import.meta.env.VITE_BACKEND_PROVIDER || 'gas';
 const GAS_WEBAPP_URL = import.meta.env.VITE_GAS_WEBAPP_URL || '';
+
+/**
+ * Helper V4: Kompresi Foto Nota / Bukti Transfer ke Base64 Ringan
+ * Agar unggahan ke Google Drive via GAS cepat (1-2 detik) dan bebas gagal payload
+ */
+export function compressImageToBase64(file, maxWidth = 1000, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    if (!file) {
+      resolve('');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const scale = img.width > maxWidth ? maxWidth / img.width : 1;
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(compressedDataUrl);
+      };
+      img.onerror = (err) => reject(err);
+      img.src = event.target.result;
+    };
+    reader.onerror = (err) => reject(err);
+    reader.readAsDataURL(file);
+  });
+}
 
 async function requestGasGet(params = {}) {
   if (!GAS_WEBAPP_URL) {
@@ -75,7 +108,7 @@ export const CMoneyAPI = {
     return res;
   },
 
-  // 3. Input Transaksi Kas Masuk / Keluar / Proyek (Pengurus)
+  // 3. Input Transaksi Kas Masuk / Keluar / Proyek + Foto Bukti ke Struk_Pengeluaran_Kas (Pengurus)
   async inputTransaction(txData) {
     return requestGasPost({
       action: 'input_ledger',
@@ -83,7 +116,7 @@ export const CMoneyAPI = {
     });
   },
 
-  // 4. Update Status Lunas IPL Warga (Pengurus)
+  // 4. Update Status Lunas IPL Warga + Foto Bukti ke Bukti_Iuran_Warga (Pengurus)
   async updateIplStatus(iplData) {
     return requestGasPost({
       action: 'update_ipl',
@@ -91,7 +124,7 @@ export const CMoneyAPI = {
     });
   },
 
-  // 5. Unggah Konfirmasi Bukti Bayar QRIS oleh Warga (Tanpa Login)
+  // 5. Unggah Konfirmasi Bukti Bayar QRIS oleh Warga ke Bukti_Iuran_Warga (Tanpa Login)
   async uploadIplProof(proofData) {
     return requestGasPost({
       action: 'upload_ipl_proof',
@@ -117,7 +150,7 @@ export const CMoneyAPI = {
     });
   },
 
-  // 8. BARU: Simpan Laporan WA & Log Aktivitas/Anomali Security (Tanpa Login untuk Pak Eko & Pak Mulyadi)
+  // 8. Simpan Laporan WA & Log Aktivitas/Anomali Security + Foto Watermark ke Log_Absensi_Security
   async inputSecurityLog(logData) {
     return requestGasPost({
       action: 'input_security_log',
@@ -125,7 +158,7 @@ export const CMoneyAPI = {
     });
   },
 
-  // 9. BARU: Update / Override Jadwal Kalender Security (Tukar Shift / Izin Sakit)
+  // 9. Update / Override Jadwal Kalender Security (Tukar Shift / Izin Sakit)
   async updateSecuritySchedule(scheduleData) {
     return requestGasPost({
       action: 'update_security_schedule',

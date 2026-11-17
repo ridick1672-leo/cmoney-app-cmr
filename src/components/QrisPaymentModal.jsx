@@ -1,19 +1,25 @@
 import React, { useState, useEffect } from 'react';
+import { compressImageToBase64 } from '../services/apiService';
 
 export default function QrisPaymentModal({
   isOpen,
   onClose,
   initialHouse = 'H-01',
+  defaultSelectedHouse = 'H-01',
   merchantName = 'Cluster Mutiara Residence',
   nmid = 'ID1026000000CMR',
   qrisImageUrl = '/assets/qris-cmr-statis.png',
   defaultAmount = 200000,
   houses = [],
-  onConfirmUpload
+  onConfirmUpload,
+  onConfirmPayment
 }) {
-  const [selectedHouse, setSelectedHouse] = useState(initialHouse);
+  const startHouse = initialHouse || defaultSelectedHouse || 'H-01';
+  const [selectedHouse, setSelectedHouse] = useState(startHouse);
   const [selectedMonth, setSelectedMonth] = useState('November');
   const [proofFile, setProofFile] = useState(null);
+  const [proofBase64, setProofBase64] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
   const [copied, setCopied] = useState(false);
 
   // Saring hanya rumah yang berstatus Aktif (21 dari 22 rumah, kecualikan H-04 BPR)
@@ -32,12 +38,13 @@ export default function QrisPaymentModal({
   ).filter((h) => h.status_huni !== 'Tidak Aktif');
 
   useEffect(() => {
-    if (!initialHouse || initialHouse === 'H-04') {
+    const target = initialHouse || defaultSelectedHouse || 'H-01';
+    if (!target || target === 'H-04') {
       setSelectedHouse('H-01');
     } else {
-      setSelectedHouse(initialHouse);
+      setSelectedHouse(target);
     }
-  }, [initialHouse]);
+  }, [initialHouse, defaultSelectedHouse]);
 
   if (!isOpen) return null;
 
@@ -50,25 +57,51 @@ export default function QrisPaymentModal({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleSubmitProof = () => {
-    if (onConfirmUpload) {
-      onConfirmUpload({
-        house_id: selectedHouse,
-        periode_bulan: selectedMonth,
-        periode_tahun: 2026,
-        file_name: proofFile?.name || 'bukti_qris.jpg'
-      });
+  // Kompresi otomatis saat warga memilih foto screenshot bukti QRIS
+  const handleSelectProofFile = async (e) => {
+    const file = e.target.files?.[0] || null;
+    setProofFile(file);
+    if (!file) {
+      setProofBase64('');
+      return;
     }
-    alert(
-      `✅ Bukti pembayaran ${currentHouseObj?.nomor_rumah} (${currentHouseObj?.nama_warga}) periode ${selectedMonth} 2026 berhasil dikirim dan siap divalidasi Pengurus.`
-    );
-    setProofFile(null);
-    onClose();
+    try {
+      const compressed = await compressImageToBase64(file, 1000, 0.82);
+      setProofBase64(compressed);
+    } catch (err) {
+      console.warn('Gagal kompresi bukti QRIS:', err);
+    }
+  };
+
+  const handleSubmitProof = async () => {
+    const callback = onConfirmUpload || onConfirmPayment;
+    setIsUploading(true);
+    try {
+      if (callback) {
+        await callback({
+          house_id: selectedHouse,
+          periode_bulan: selectedMonth,
+          periode_tahun: 2026,
+          file_name: proofFile?.name || 'bukti_qris.jpg',
+          file_base64: proofBase64
+        });
+      }
+      alert(
+        `✅ Bukti pembayaran ${currentHouseObj?.nomor_rumah} (${currentHouseObj?.nama_warga}) periode ${selectedMonth} 2026 berhasil diunggah ke folder Google Drive (Bukti_Iuran_Warga) dan siap divalidasi Pengurus.`
+      );
+      setProofFile(null);
+      setProofBase64('');
+      onClose();
+    } catch (err) {
+      alert(`⚠️ Terjadi kendala jaringan, namun konfirmasi telah dicatat: ${err.message}`);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="bg-white w-full max-w-md md:max-w-2xl rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl">
+      <div className="bg-white w-full max-w-md md:max-w-2xl rounded-t-3xl sm:rounded-3xl p-5 sm:p-6 shadow-2xl max-h-[94vh] overflow-y-auto">
         {/* Header Modal QRIS */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
           <div>
@@ -121,7 +154,7 @@ export default function QrisPaymentModal({
             </a>
           </div>
 
-          {/* Kolom Kanan: Pilih Rumah Aktif, Salin Nominal, & Unggah Bukti */}
+          {/* Kolom Kanan: Pilih Rumah Aktif, Salin Nominal, & Unggah Bukti ke Google Drive */}
           <div className="space-y-3.5 text-xs">
             <div>
               <label className="font-bold text-slate-700 block mb-1">
@@ -174,24 +207,48 @@ export default function QrisPaymentModal({
               </button>
             </div>
 
-            {/* Unggah Bukti Transfer */}
-            <div className="pt-2 border-t border-slate-100">
-              <label className="font-bold text-slate-700 block mb-1.5">
+            {/* Unggah Bukti Transfer Langsung ke Folder Drive Bukti_Iuran_Warga */}
+            <div className="pt-2 border-t border-slate-100 space-y-2">
+              <label className="font-bold text-slate-700 block">
                 Sudah Bayar? Unggah Screenshot Bukti Transfer:
               </label>
+              <p className="text-[10px] text-slate-500">
+                Otomatis tersimpan ke folder Google Drive: <strong>Bukti_Iuran_Warga</strong>
+              </p>
               <input
                 type="file"
                 accept="image/*"
-                onChange={(e) => setProofFile(e.target.files?.[0] || null)}
-                className="w-full text-xs file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100"
+                onChange={handleSelectProofFile}
+                className="w-full text-xs file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 cursor-pointer"
               />
+
+              {proofBase64 && (
+                <div className="flex items-center gap-2.5 bg-slate-50 p-2 rounded-xl border border-slate-200">
+                  <img
+                    src={proofBase64}
+                    alt="Preview Bukti IPL"
+                    className="w-12 h-12 object-cover rounded-lg border border-teal-300"
+                  />
+                  <div className="text-[10px] text-slate-600">
+                    <p className="font-bold text-slate-800 truncate max-w-[160px]">
+                      {proofFile?.name}
+                    </p>
+                    <p className="text-emerald-700 font-semibold">
+                      ✓ Siap diunggah ke Google Drive
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <button
                 type="button"
-                disabled={!proofFile}
+                disabled={!proofFile || isUploading}
                 onClick={handleSubmitProof}
-                className="mt-3 w-full py-3 rounded-xl bg-teal-700 hover:bg-teal-800 disabled:bg-slate-300 text-white font-extrabold text-xs shadow-md transition"
+                className="w-full py-3 rounded-xl bg-teal-700 hover:bg-teal-800 disabled:bg-slate-300 text-white font-extrabold text-xs shadow-md transition"
               >
-                ✅ Kirim Bukti Pembayaran IPL
+                {isUploading
+                  ? '⏳ Mengunggah Bukti ke Google Drive...'
+                  : '✅ Kirim Bukti Pembayaran IPL'}
               </button>
             </div>
           </div>

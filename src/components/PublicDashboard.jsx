@@ -63,67 +63,80 @@ const FALLBACK_CLOSINGS_V2 = [
 // Fallback 55 Rincian Transaksi Kas 5 Bulan (V2 Utuh - Urut Terbaru di Atas ke Terlama di Bawah)
 const FALLBACK_LEDGER_V2 = [
   // OKTOBER 2026
-  { id: 'TX-202610-10', tanggal: '2026-10-31', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Air', is_proyek: false, nama_proyek: '', nominal: 60000, keterangan: 'Air Minum Galon' },
-  { id: 'TX-202610-09', tanggal: '2026-10-31', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Listrik', is_proyek: false, nama_proyek: '', nominal: 100000, keterangan: 'Token Listrik' },
-  { id: 'TX-202610-08', tanggal: '2026-10-31', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 350000, keterangan: 'Kasbon pak eko' },
-  { id: 'TX-202610-07', tanggal: '2026-10-31', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 100000, keterangan: 'Lampu jalan + jasa pasang' },
-  { id: 'TX-202610-06', tanggal: '2026-10-31', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 1300000, keterangan: 'Gaji pak eko (Sisa potong kasbon)' },
-  { id: 'TX-202610-05', tanggal: '2026-10-31', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 1650000, keterangan: 'Gaji pak mulyadi' },
-  { id: 'TX-202610-04', tanggal: '2026-10-31', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Sampah', is_proyek: false, nama_proyek: '', nominal: 700000, keterangan: 'Uang sampah Oktober' },
-  { id: 'TX-202610-03', tanggal: '2026-10-31', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 50000, keterangan: 'Ganti Fitting lampu dan jasa pasang' },
-  { id: 'TX-202610-02', tanggal: '2026-10-31', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 8000, keterangan: 'Beli baterai jam pos' },
-  { id: 'TX-202610-01', tanggal: '2026-10-31', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'IN', kategori: 'Iuran Warga', is_proyek: false, nama_proyek: '', nominal: 4200000, keterangan: 'Iuran Warga Oktober (21 Rumah Aktif)' },
+  { id: 'TX-202610-10', tanggal: '2026-10-31', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Air', is_proyek: false, nama_proyek: '', nominal: 60000, keterangan: 'Air Minum Galon', url_bukti: '-' },
+  { id: 'TX-202610-09', tanggal: '2026-10-31', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Listrik', is_proyek: false, nama_proyek: '', nominal: 100000, keterangan: 'Token Listrik', url_bukti: '-' },
+  { id: 'TX-202610-08', tanggal: '2026-10-31', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 350000, keterangan: 'Kasbon pak eko', url_bukti: '-' },
+  { id: 'TX-202610-07', tanggal: '2026-10-31', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 100000, keterangan: 'Lampu jalan + jasa pasang', url_bukti: '-' },
+  { id: 'TX-202610-06', tanggal: '2026-10-31', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 1300000, keterangan: 'Gaji pak eko (Sisa potong kasbon)', url_bukti: '-' },
+  { id: 'TX-202610-05', tanggal: '2026-10-31', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 1650000, keterangan: 'Gaji pak mulyadi', url_bukti: '-' },
+  { id: 'TX-202610-04', tanggal: '2026-10-31', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Sampah', is_proyek: false, nama_proyek: '', nominal: 700000, keterangan: 'Uang sampah Oktober', url_bukti: '-' },
+  { id: 'TX-202610-03', tanggal: '2026-10-31', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 50000, keterangan: 'Ganti Fitting lampu dan jasa pasang', url_bukti: '-' },
+  { id: 'TX-202610-02', tanggal: '2026-10-31', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 8000, keterangan: 'Beli baterai jam pos', url_bukti: '-' },
+  { id: 'TX-202610-01', tanggal: '2026-10-31', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'IN', kategori: 'Iuran Warga', is_proyek: false, nama_proyek: '', nominal: 4200000, keterangan: 'Iuran Warga Oktober (21 Rumah Aktif)', url_bukti: '-' },
   // SEPTEMBER 2026
-  { id: 'TX-202609-12', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 210000, keterangan: 'Perbaikan Pagar' },
-  { id: 'TX-202609-11', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 500000, keterangan: 'Kasbon pak Eko 2x' },
-  { id: 'TX-202609-10', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 47000, keterangan: 'Alat kebersihan' },
-  { id: 'TX-202609-09', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 100000, keterangan: 'Ganti dinamo kipas pos' },
-  { id: 'TX-202609-08', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Konsumsi', is_proyek: false, nama_proyek: '', nominal: 57300, keterangan: 'Kopi dan Gula' },
-  { id: 'TX-202609-07', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Sosial', is_proyek: false, nama_proyek: '', nominal: 300000, keterangan: 'Dana Sosial' },
-  { id: 'TX-202609-06', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 240000, keterangan: 'Plang Nama CMR + Rokok' },
-  { id: 'TX-202609-05', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 50000, keterangan: 'Lampu dan laminating' },
-  { id: 'TX-202609-04', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 1100000, keterangan: 'Gaji pak Eko (Sisa potong kasbon)' },
-  { id: 'TX-202609-03', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 1600000, keterangan: 'Gaji pak Mulyadi' },
-  { id: 'TX-202609-02', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Sampah', is_proyek: false, nama_proyek: '', nominal: 700000, keterangan: 'Uang Sampah September' },
-  { id: 'TX-202609-01', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'IN', kategori: 'Iuran Warga', is_proyek: false, nama_proyek: '', nominal: 4100000, keterangan: 'Iuran Warga September' },
+  { id: 'TX-202609-12', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 210000, keterangan: 'Perbaikan Pagar', url_bukti: '-' },
+  { id: 'TX-202609-11', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 500000, keterangan: 'Kasbon pak Eko 2x', url_bukti: '-' },
+  { id: 'TX-202609-10', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 47000, keterangan: 'Alat kebersihan', url_bukti: '-' },
+  { id: 'TX-202609-09', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 100000, keterangan: 'Ganti dinamo kipas pos', url_bukti: '-' },
+  { id: 'TX-202609-08', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Konsumsi', is_proyek: false, nama_proyek: '', nominal: 57300, keterangan: 'Kopi dan Gula', url_bukti: '-' },
+  { id: 'TX-202609-07', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Sosial', is_proyek: false, nama_proyek: '', nominal: 300000, keterangan: 'Dana Sosial', url_bukti: '-' },
+  { id: 'TX-202609-06', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 240000, keterangan: 'Plang Nama CMR + Rokok', url_bukti: '-' },
+  { id: 'TX-202609-05', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 50000, keterangan: 'Lampu dan laminating', url_bukti: '-' },
+  { id: 'TX-202609-04', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 1100000, keterangan: 'Gaji pak Eko (Sisa potong kasbon)', url_bukti: '-' },
+  { id: 'TX-202609-03', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 1600000, keterangan: 'Gaji pak Mulyadi', url_bukti: '-' },
+  { id: 'TX-202609-02', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Sampah', is_proyek: false, nama_proyek: '', nominal: 700000, keterangan: 'Uang Sampah September', url_bukti: '-' },
+  { id: 'TX-202609-01', tanggal: '2026-09-30', periode_bulan: 'September', periode_tahun: 2026, tipe: 'IN', kategori: 'Iuran Warga', is_proyek: false, nama_proyek: '', nominal: 4100000, keterangan: 'Iuran Warga September', url_bukti: '-' },
   // AGUSTUS 2026
-  { id: 'TX-202608-11', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'OUT', kategori: 'Air', is_proyek: false, nama_proyek: '', nominal: 36000, keterangan: 'Galon Pos 6x' },
-  { id: 'TX-202608-10', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'OUT', kategori: 'Listrik', is_proyek: false, nama_proyek: '', nominal: 100000, keterangan: 'Listrik Pos Agustus' },
-  { id: 'TX-202608-09', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 235000, keterangan: 'Lampu Sorot 3 pcs' },
-  { id: 'TX-202608-08', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 112500, keterangan: 'Bendera Merah Putih & Umbul-umbul' },
-  { id: 'TX-202608-07', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'OUT', kategori: 'Konsumsi', is_proyek: false, nama_proyek: '', nominal: 145000, keterangan: 'Kopi, Gula, Teh Pos' },
-  { id: 'TX-202608-06', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 350000, keterangan: 'Kasbon Pak Eko' },
-  { id: 'TX-202608-05', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 120000, keterangan: 'Uang Lembur Security' },
-  { id: 'TX-202608-04', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 1000000, keterangan: 'Gaji Pak Rizki' },
-  { id: 'TX-202608-03', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 1600000, keterangan: 'Gaji Pak Eko' },
-  { id: 'TX-202608-02', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'OUT', kategori: 'Sampah', is_proyek: false, nama_proyek: '', nominal: 700000, keterangan: 'Uang Sampah Agustus' },
-  { id: 'TX-202608-01', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'IN', kategori: 'Iuran Warga', is_proyek: false, nama_proyek: '', nominal: 4300000, keterangan: 'Iuran Warga Agustus' },
+  { id: 'TX-202608-11', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'OUT', kategori: 'Air', is_proyek: false, nama_proyek: '', nominal: 36000, keterangan: 'Galon Pos 6x', url_bukti: '-' },
+  { id: 'TX-202608-10', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'OUT', kategori: 'Listrik', is_proyek: false, nama_proyek: '', nominal: 100000, keterangan: 'Listrik Pos Agustus', url_bukti: '-' },
+  { id: 'TX-202608-09', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 235000, keterangan: 'Lampu Sorot 3 pcs', url_bukti: '-' },
+  { id: 'TX-202608-08', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 112500, keterangan: 'Bendera Merah Putih & Umbul-umbul', url_bukti: '-' },
+  { id: 'TX-202608-07', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'OUT', kategori: 'Konsumsi', is_proyek: false, nama_proyek: '', nominal: 145000, keterangan: 'Kopi, Gula, Teh Pos', url_bukti: '-' },
+  { id: 'TX-202608-06', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 350000, keterangan: 'Kasbon Pak Eko', url_bukti: '-' },
+  { id: 'TX-202608-05', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 120000, keterangan: 'Uang Lembur Security', url_bukti: '-' },
+  { id: 'TX-202608-04', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 1000000, keterangan: 'Gaji Pak Rizki', url_bukti: '-' },
+  { id: 'TX-202608-03', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 1600000, keterangan: 'Gaji Pak Eko', url_bukti: '-' },
+  { id: 'TX-202608-02', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'OUT', kategori: 'Sampah', is_proyek: false, nama_proyek: '', nominal: 700000, keterangan: 'Uang Sampah Agustus', url_bukti: '-' },
+  { id: 'TX-202608-01', tanggal: '2026-08-31', periode_bulan: 'Agustus', periode_tahun: 2026, tipe: 'IN', kategori: 'Iuran Warga', is_proyek: false, nama_proyek: '', nominal: 4300000, keterangan: 'Iuran Warga Agustus', url_bukti: '-' },
   // JULI 2026
-  { id: 'TX-202607-11', tanggal: '2026-07-31', periode_bulan: 'Juli', periode_tahun: 2026, tipe: 'OUT', kategori: 'Proyek', is_proyek: true, nama_proyek: 'Penambahan Kabel & Lampu Jalan', nominal: 500000, keterangan: 'Proyek Penambahan Kabel & Lampu Jalan' },
-  { id: 'TX-202607-10', tanggal: '2026-07-31', periode_bulan: 'Juli', periode_tahun: 2026, tipe: 'OUT', kategori: 'Air', is_proyek: false, nama_proyek: '', nominal: 30000, keterangan: 'Galon Pos 5x' },
-  { id: 'TX-202607-09', tanggal: '2026-07-31', periode_bulan: 'Juli', periode_tahun: 2026, tipe: 'OUT', kategori: 'Listrik', is_proyek: false, nama_proyek: '', nominal: 100000, keterangan: 'Listrik Pos Juli' },
-  { id: 'TX-202607-08', tanggal: '2026-07-31', periode_bulan: 'Juli', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 85800, keterangan: 'Gembok Pos & Kunci Cadangan' },
-  { id: 'TX-202607-07', tanggal: '2026-07-31', periode_bulan: 'Juli', periode_tahun: 2026, tipe: 'OUT', kategori: 'Konsumsi', is_proyek: false, nama_proyek: '', nominal: 120000, keterangan: 'Kopi, Gula, Teh Pos' },
-  { id: 'TX-202607-06', tanggal: '2026-07-31', periode_bulan: 'Juli', periode_tahun: 2026, tipe: 'OUT', kategori: 'Sosial', is_proyek: false, nama_proyek: '', nominal: 500000, keterangan: 'Dana Sosial Warga Sakit' },
-  { id: 'TX-202607-05', tanggal: '2026-07-31', periode_bulan: 'Juli', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 150000, keterangan: 'Kasbon Pak Eko' },
-  { id: 'TX-202607-04', tanggal: '2026-07-31', periode_bulan: 'Juli', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 1450000, keterangan: 'Gaji Pak Eko (Sisa potong kasbon)' },
-  { id: 'TX-202607-03', tanggal: '2026-07-31', periode_bulan: 'Juli', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 1500000, keterangan: 'Gaji Pak Rizki' },
-  { id: 'TX-202607-02', tanggal: '2026-07-31', periode_bulan: 'Juli', periode_tahun: 2026, tipe: 'OUT', kategori: 'Sampah', is_proyek: false, nama_proyek: '', nominal: 700000, keterangan: 'Uang Sampah Juli' },
-  { id: 'TX-202607-01', tanggal: '2026-07-31', periode_bulan: 'Juli', periode_tahun: 2026, tipe: 'IN', kategori: 'Iuran Warga', is_proyek: false, nama_proyek: '', nominal: 4100000, keterangan: 'Iuran Warga Juli' },
+  { id: 'TX-202607-11', tanggal: '2026-07-31', periode_bulan: 'Juli', periode_tahun: 2026, tipe: 'OUT', kategori: 'Proyek', is_proyek: true, nama_proyek: 'Penambahan Kabel & Lampu Jalan', nominal: 500000, keterangan: 'Proyek Penambahan Kabel & Lampu Jalan', url_bukti: '-' },
+  { id: 'TX-202607-10', tanggal: '2026-07-31', periode_bulan: 'Juli', periode_tahun: 2026, tipe: 'OUT', kategori: 'Air', is_proyek: false, nama_proyek: '', nominal: 30000, keterangan: 'Galon Pos 5x', url_bukti: '-' },
+  { id: 'TX-202607-09', tanggal: '2026-07-31', periode_bulan: 'Juli', periode_tahun: 2026, tipe: 'OUT', kategori: 'Listrik', is_proyek: false, nama_proyek: '', nominal: 100000, keterangan: 'Listrik Pos Juli', url_bukti: '-' },
+  { id: 'TX-202607-08', tanggal: '2026-07-31', periode_bulan: 'Juli', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 85800, keterangan: 'Gembok Pos & Kunci Cadangan', url_bukti: '-' },
+  { id: 'TX-202607-07', tanggal: '2026-07-31', periode_bulan: 'Juli', periode_tahun: 2026, tipe: 'OUT', kategori: 'Konsumsi', is_proyek: false, nama_proyek: '', nominal: 120000, keterangan: 'Kopi, Gula, Teh Pos', url_bukti: '-' },
+  { id: 'TX-202607-06', tanggal: '2026-07-31', periode_bulan: 'Juli', periode_tahun: 2026, tipe: 'OUT', kategori: 'Sosial', is_proyek: false, nama_proyek: '', nominal: 500000, keterangan: 'Dana Sosial Warga Sakit', url_bukti: '-' },
+  { id: 'TX-202607-05', tanggal: '2026-07-31', periode_bulan: 'Juli', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 150000, keterangan: 'Kasbon Pak Eko', url_bukti: '-' },
+  { id: 'TX-202607-04', tanggal: '2026-07-31', periode_bulan: 'Juli', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 1450000, keterangan: 'Gaji Pak Eko (Sisa potong kasbon)', url_bukti: '-' },
+  { id: 'TX-202607-03', tanggal: '2026-07-31', periode_bulan: 'Juli', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 1500000, keterangan: 'Gaji Pak Rizki', url_bukti: '-' },
+  { id: 'TX-202607-02', tanggal: '2026-07-31', periode_bulan: 'Juli', periode_tahun: 2026, tipe: 'OUT', kategori: 'Sampah', is_proyek: false, nama_proyek: '', nominal: 700000, keterangan: 'Uang Sampah Juli', url_bukti: '-' },
+  { id: 'TX-202607-01', tanggal: '2026-07-31', periode_bulan: 'Juli', periode_tahun: 2026, tipe: 'IN', kategori: 'Iuran Warga', is_proyek: false, nama_proyek: '', nominal: 4100000, keterangan: 'Iuran Warga Juli', url_bukti: '-' },
   // JUNI 2026
-  { id: 'TX-202606-10', tanggal: '2026-06-30', periode_bulan: 'Juni', periode_tahun: 2026, tipe: 'OUT', kategori: 'Proyek', is_proyek: true, nama_proyek: 'Pemasangan Lampu 2 dan Kebersihan', nominal: 1179000, keterangan: 'Pemasangan Lampu 2 dan Kebersihan' },
-  { id: 'TX-202606-09', tanggal: '2026-06-30', periode_bulan: 'Juni', periode_tahun: 2026, tipe: 'OUT', kategori: 'Proyek', is_proyek: true, nama_proyek: 'Perbaikan Pagar dan Jembatan', nominal: 1695600, keterangan: 'Perbaikan Pagar dan Jembatan' },
-  { id: 'TX-202606-08', tanggal: '2026-06-30', periode_bulan: 'Juni', periode_tahun: 2026, tipe: 'OUT', kategori: 'Air', is_proyek: false, nama_proyek: '', nominal: 30000, keterangan: 'Galon Pos 5x' },
-  { id: 'TX-202606-07', tanggal: '2026-06-30', periode_bulan: 'Juni', periode_tahun: 2026, tipe: 'OUT', kategori: 'Listrik', is_proyek: false, nama_proyek: '', nominal: 100000, keterangan: 'Listrik Pos Juni' },
-  { id: 'TX-202606-06', tanggal: '2026-06-30', periode_bulan: 'Juni', periode_tahun: 2026, tipe: 'OUT', kategori: 'Konsumsi', is_proyek: false, nama_proyek: '', nominal: 111600, keterangan: 'Kopi, Teh, Gula, Susu' },
-  { id: 'TX-202606-05', tanggal: '2026-06-30', periode_bulan: 'Juni', periode_tahun: 2026, tipe: 'OUT', kategori: 'Sosial', is_proyek: false, nama_proyek: '', nominal: 300000, keterangan: 'Dana Sosial Juni' },
-  { id: 'TX-202606-04', tanggal: '2026-06-30', periode_bulan: 'Juni', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 350000, keterangan: 'Bibit tanaman pos dan jasa cat pagar' },
-  { id: 'TX-202606-03', tanggal: '2026-06-30', periode_bulan: 'Juni', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 585000, keterangan: 'Gaji + Uang Makan Pak Rizki Juni' },
-  { id: 'TX-202606-02', tanggal: '2026-06-30', periode_bulan: 'Juni', periode_tahun: 2026, tipe: 'OUT', kategori: 'Sampah', is_proyek: false, nama_proyek: '', nominal: 700000, keterangan: 'Periode Juni' },
-  { id: 'TX-202606-01', tanggal: '2026-06-30', periode_bulan: 'Juni', periode_tahun: 2026, tipe: 'IN', kategori: 'Iuran Warga', is_proyek: false, nama_proyek: '', nominal: 3800000, keterangan: 'Iuran Warga Juni' }
+  { id: 'TX-202606-10', tanggal: '2026-06-30', periode_bulan: 'Juni', periode_tahun: 2026, tipe: 'OUT', kategori: 'Proyek', is_proyek: true, nama_proyek: 'Pemasangan Lampu 2 dan Kebersihan', nominal: 1179000, keterangan: 'Pemasangan Lampu 2 dan Kebersihan', url_bukti: '-' },
+  { id: 'TX-202606-09', tanggal: '2026-06-30', periode_bulan: 'Juni', periode_tahun: 2026, tipe: 'OUT', kategori: 'Proyek', is_proyek: true, nama_proyek: 'Perbaikan Pagar dan Jembatan', nominal: 1695600, keterangan: 'Perbaikan Pagar dan Jembatan', url_bukti: '-' },
+  { id: 'TX-202606-08', tanggal: '2026-06-30', periode_bulan: 'Juni', periode_tahun: 2026, tipe: 'OUT', kategori: 'Air', is_proyek: false, nama_proyek: '', nominal: 30000, keterangan: 'Galon Pos 5x', url_bukti: '-' },
+  { id: 'TX-202606-07', tanggal: '2026-06-30', periode_bulan: 'Juni', periode_tahun: 2026, tipe: 'OUT', kategori: 'Listrik', is_proyek: false, nama_proyek: '', nominal: 100000, keterangan: 'Listrik Pos Juni', url_bukti: '-' },
+  { id: 'TX-202606-06', tanggal: '2026-06-30', periode_bulan: 'Juni', periode_tahun: 2026, tipe: 'OUT', kategori: 'Konsumsi', is_proyek: false, nama_proyek: '', nominal: 111600, keterangan: 'Kopi, Teh, Gula, Susu', url_bukti: '-' },
+  { id: 'TX-202606-05', tanggal: '2026-06-30', periode_bulan: 'Juni', periode_tahun: 2026, tipe: 'OUT', kategori: 'Sosial', is_proyek: false, nama_proyek: '', nominal: 300000, keterangan: 'Dana Sosial Juni', url_bukti: '-' },
+  { id: 'TX-202606-04', tanggal: '2026-06-30', periode_bulan: 'Juni', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', is_proyek: false, nama_proyek: '', nominal: 350000, keterangan: 'Bibit tanaman pos dan jasa cat pagar', url_bukti: '-' },
+  { id: 'TX-202606-03', tanggal: '2026-06-30', periode_bulan: 'Juni', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji', is_proyek: false, nama_proyek: '', nominal: 585000, keterangan: 'Gaji + Uang Makan Pak Rizki Juni', url_bukti: '-' },
+  { id: 'TX-202606-02', tanggal: '2026-06-30', periode_bulan: 'Juni', periode_tahun: 2026, tipe: 'OUT', kategori: 'Sampah', is_proyek: false, nama_proyek: '', nominal: 700000, keterangan: 'Periode Juni', url_bukti: '-' },
+  { id: 'TX-202606-01', tanggal: '2026-06-30', periode_bulan: 'Juni', periode_tahun: 2026, tipe: 'IN', kategori: 'Iuran Warga', is_proyek: false, nama_proyek: '', nominal: 3800000, keterangan: 'Iuran Warga Juni', url_bukti: '-' }
 ];
 
-// Helper generator jadwal kalender dinamis untuk bulan apa pun (mengikuti aturan Jumat & Sabtu malam libur)
+// Helper validasi apakah kolom url_bukti berisi tautan bukti yang valid
+function isValidEvidenceUrl(url) {
+  if (!url) return false;
+  const s = String(url).trim();
+  if (!s || s === '-' || s === 'null' || s === 'undefined' || s.startsWith('ERROR_')) return false;
+  return s.startsWith('http://') || s.startsWith('https://') || s.startsWith('data:image/');
+}
+
+// Helper ekstraksi link Google Drive dari detail_catatan log security (jika ada)
+function extractEvidenceUrlFromText(text = '') {
+  const match = String(text).match(/https?:\/\/[^\s\]]+/);
+  return match ? match[0] : '';
+}
+
 function buildMonthCalendarSchedules(year, monthIndex, overrides = []) {
   const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
   const firstDayDow = new Date(year, monthIndex, 1).getDay();
@@ -215,28 +228,27 @@ export default function PublicDashboard({
   const [secretTapCount, setSecretTapCount] = useState(0);
   const [logoError, setLogoError] = useState(false);
 
-  // State Buka-Tutup Rincian Laporan Bulanan di Beranda (Default buka Oktober)
   const [expandedMonth, setExpandedMonth] = useState('Oktober');
   const [copyMonthNotice, setCopyMonthNotice] = useState('');
 
-  // Filter State untuk Tab Mutasi Kas & Tab 22 Rumah (Persis V2)
+  // Filter State untuk Tab Mutasi Kas & Tab 22 Rumah (V2 + Filter Bukti V4)
   const [filterBulanKas, setFilterBulanKas] = useState('Semua');
   const [filterKategoriKas, setFilterKategoriKas] = useState('ALL');
   const [searchRumah, setSearchRumah] = useState('');
   const [filterStatusIpl, setFilterStatusIpl] = useState('ALL');
 
-  // State Tombol Darurat SOS (Tahan 3 Detik - Persis V2)
+  // State Tombol Darurat SOS (Tahan 3 Detik - V2)
   const [sosProgress, setSosProgress] = useState(0);
   const [sosTriggered, setSosTriggered] = useState(false);
   const sosTimerRef = useRef(null);
 
   // State Kalender Dinamis Security (V3)
-  const [calMonthIndex, setCalMonthIndex] = useState(10); // 10 = November
+  const [calMonthIndex, setCalMonthIndex] = useState(10);
   const [calYear, setCalYear] = useState(2026);
   const [selectedCalDay, setSelectedCalDay] = useState(null);
   const [scheduleEditForm, setScheduleEditForm] = useState(null);
 
-  // State Generator Laporan WA & Log Security (V3 - Pak Eko & Pak Mulyadi)
+  // State Generator Laporan WA & Log Security (V3 + V4 Drive Evidence)
   const nowDateStr = new Date().toISOString().slice(0, 10);
   const nowTimeStr = new Date().toTimeString().slice(0, 5);
   const [secGeneratorMode, setSecGeneratorMode] = useState('PATROLI');
@@ -311,7 +323,6 @@ export default function PublicDashboard({
     setIsQrisOpen(true);
   };
 
-  // Logika Tahan 3 Detik untuk Tombol SOS (V2 Utuh)
   const startSosHold = () => {
     let current = 0;
     sosTimerRef.current = setInterval(() => {
@@ -330,7 +341,6 @@ export default function PublicDashboard({
     setSosProgress(0);
   };
 
-  // Fungsi Pembentuk Rincian Kategori Bulanan (V2 Utuh)
   const getMonthlyBreakdown = (bulan, tahun = 2026) => {
     const items = cashLedger.filter(
       (tx) => String(tx.periode_bulan).toLowerCase() === String(bulan).toLowerCase() && Number(tx.periode_tahun || 2026) === Number(tahun)
@@ -349,15 +359,16 @@ export default function PublicDashboard({
         pemasukanMap[kat] = (pemasukanMap[kat] || 0) + nom;
       } else {
         if (isProyek) {
-          proyekList.push({ nama: tx.nama_proyek || ket, nominal: nom });
+          proyekList.push({ nama: tx.nama_proyek || ket, nominal: nom, url_bukti: tx.url_bukti });
         }
         if (!pengeluaranMap[kat]) {
-          pengeluaranMap[kat] = { total: 0, details: [] };
+          pengeluaranMap[kat] = { total: 0, details: [], itemsRaw: [] };
         }
         pengeluaranMap[kat].total += nom;
         pengeluaranMap[kat].details.push(
           `${ket} (Rp ${Number(nom).toLocaleString('id-ID')})`
         );
+        pengeluaranMap[kat].itemsRaw.push(tx);
       }
     });
 
@@ -401,13 +412,15 @@ export default function PublicDashboard({
     return lines.join('\n');
   };
 
-  // Data Olahan Tab Mutasi Kas (V2 Utuh)
+  // Data Olahan Tab Mutasi Kas (V2 + Filter Evidence V4)
   const ledgerList = cashLedger.filter((item) => {
     const matchBulan = filterBulanKas === 'Semua' || item.periode_bulan === filterBulanKas;
     const matchKat =
       filterKategoriKas === 'ALL' ||
       (filterKategoriKas === 'PROYEK'
         ? Boolean(item.is_proyek) && String(item.is_proyek).toUpperCase() !== 'FALSE'
+        : filterKategoriKas === 'WITH_EVIDENCE'
+        ? isValidEvidenceUrl(item.url_bukti)
         : item.kategori === filterKategoriKas);
     return matchBulan && matchKat;
   });
@@ -419,7 +432,7 @@ export default function PublicDashboard({
     .filter((i) => String(i.tipe).toUpperCase() === 'OUT')
     .reduce((acc, cur) => acc + Number(cur.nominal || 0), 0);
 
-  // Data Olahan Tab 22 Rumah (21 Aktif + 1 Tidak Aktif BPR - V2 Utuh)
+  // Data Olahan Tab 22 Rumah (21 Aktif + 1 Tidak Aktif BPR + Evidence Link V4)
   const housesWithIpl = houses.map((h) => {
     const iplRow = (data.ipl_status || []).find((r) => r.house_id === h.id);
     const isNonAktif = h.status_huni === 'Tidak Aktif' || iplRow?.status_bayar === 'Tidak Aktif';
@@ -428,6 +441,7 @@ export default function PublicDashboard({
       is_non_aktif: isNonAktif,
       status_bayar: isNonAktif ? 'Tidak Aktif' : (iplRow?.status_bayar || 'Belum Lunas'),
       tanggal_bayar: iplRow?.tanggal_bayar || '-',
+      url_bukti: iplRow?.url_bukti || '',
       catatan:
         iplRow?.catatan ||
         (isNonAktif ? 'Unit Dijual oleh Pihak BPR (Non-Aktif)' : 'Tagihan IPL November 2026')
@@ -450,7 +464,6 @@ export default function PublicDashboard({
     return matchSearch && matchStatus;
   });
 
-  // Kalender Dinamis & Jadwal Hari Ini (V3)
   const calendarData = useMemo(
     () =>
       buildMonthCalendarSchedules(
@@ -487,7 +500,7 @@ export default function PublicDashboard({
     [houses, pkgHouseId]
   );
 
-  // GENERATOR TEKS WA OTOMATIS SECURITY (V3 - Gaya Pak Eko & Pak Mulyadi)
+  // GENERATOR TEKS WA OTOMATIS SECURITY (V3 Utuh)
   const generatedSecurityWaText = useMemo(() => {
     const dObj = new Date(secDate + 'T00:00:00');
     const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
@@ -646,6 +659,7 @@ export default function PublicDashboard({
     });
   };
 
+  // Handler V4: Salin Teks WA + Simpan Log ke Spreadsheet + Kirim Foto Watermark ke Folder Log_Absensi_Security
   const handleCopyAndSaveSecurityReport = async (openWaDirect = false) => {
     try {
       await navigator.clipboard.writeText(generatedSecurityWaText);
@@ -684,6 +698,10 @@ export default function PublicDashboard({
       detailText = `${anomalyDetail} | Tindakan: ${anomalyAction}`;
     }
 
+    const latestWatermarkedBase64 = watermarkedPhotos.length > 0
+      ? watermarkedPhotos[watermarkedPhotos.length - 1].dataUrl
+      : '';
+
     const logPayload = {
       tanggal: secDate,
       jam: secTime,
@@ -697,14 +715,19 @@ export default function PublicDashboard({
       cuaca_815: secWeather815,
       status_gerbang: secGateStatus,
       detail_catatan: detailText,
-      teks_wa: generatedSecurityWaText
+      teks_wa: generatedSecurityWaText,
+      file_base64: latestWatermarkedBase64
     };
 
     if (onInputSecurityLog) {
       await onInputSecurityLog(logPayload);
     }
 
-    setCopyWaSuccess('✅ Teks Laporan WA berhasil disalin & tercatat di Database C-Money!');
+    setCopyWaSuccess(
+      latestWatermarkedBase64
+        ? '✅ Teks WA disalin & Foto Watermark disimpan ke folder Drive Log_Absensi_Security!'
+        : '✅ Teks Laporan WA berhasil disalin & tercatat di Database C-Money!'
+    );
     setTimeout(() => setCopyWaSuccess(''), 4500);
 
     if (openWaDirect) {
@@ -977,7 +1000,7 @@ export default function PublicDashboard({
 
         {/* KOLOM KANAN (lg:col-span-8): AREA KONTEN DINAMIS 4 TAB */}
         <div className="lg:col-span-8 space-y-5">
-          {/* ================= TAB 1: BERANDA (100% V2 UTUH) ================= */}
+          {/* ================= TAB 1: BERANDA (100% V2 UTUH + LINK BUKTI V4) ================= */}
           {activeTab === 'beranda' && (
             <>
               <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/70">
@@ -1145,11 +1168,14 @@ export default function PublicDashboard({
 
                               <div>
                                 <p className="font-extrabold text-slate-700 mb-1.5">
-                                  Breakdown Pengeluaran per Kategori (Beserta Rincian):
+                                  Breakdown Pengeluaran per Kategori (Beserta Rincian & Bukti):
                                 </p>
                                 <div className="space-y-1.5">
                                   {Object.keys(breakdown.pengeluaranMap).map((kat) => {
                                     const group = breakdown.pengeluaranMap[kat];
+                                    const evidenceItems = (group.itemsRaw || []).filter((tx) =>
+                                      isValidEvidenceUrl(tx.url_bukti)
+                                    );
                                     return (
                                       <div
                                         key={kat}
@@ -1167,6 +1193,21 @@ export default function PublicDashboard({
                                           </span>{' '}
                                           {group.details.join(', ')}
                                         </p>
+                                        {evidenceItems.length > 0 && (
+                                          <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                            {evidenceItems.map((evTx) => (
+                                              <a
+                                                key={evTx.id}
+                                                href={evTx.url_bukti}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-teal-50 text-teal-800 border border-teal-200 hover:bg-teal-100"
+                                              >
+                                                📎 Bukti: {evTx.keterangan}
+                                              </a>
+                                            ))}
+                                          </div>
+                                        )}
                                       </div>
                                     );
                                   })}
@@ -1180,9 +1221,21 @@ export default function PublicDashboard({
                                   </p>
                                   <ul className="space-y-1 text-amber-900 font-medium">
                                     {breakdown.proyekList.map((p, i) => (
-                                      <li key={i}>
-                                        • {p.nama} —{' '}
-                                        <span className="font-bold">{formatRp(p.nominal)}</span>
+                                      <li key={i} className="flex items-center justify-between">
+                                        <span>
+                                          • {p.nama} —{' '}
+                                          <span className="font-bold">{formatRp(p.nominal)}</span>
+                                        </span>
+                                        {isValidEvidenceUrl(p.url_bukti) && (
+                                          <a
+                                            href={p.url_bukti}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="text-[10px] font-extrabold text-teal-800 underline"
+                                          >
+                                            📎 Lihat Nota Proyek
+                                          </a>
+                                        )}
                                       </li>
                                     ))}
                                   </ul>
@@ -1254,7 +1307,7 @@ export default function PublicDashboard({
             </>
           )}
 
-          {/* ================= TAB 2: MUTASI KAS (100% V2 UTUH) ================= */}
+          {/* ================= TAB 2: MUTASI KAS (V2 UTUH + TOMBOL BUKTI GOOGLE DRIVE V4) ================= */}
           {activeTab === 'mutasi' && (
             <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/70 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1263,7 +1316,7 @@ export default function PublicDashboard({
                     📑 Rincian Buku Kas Cluster (Urut Terbaru ke Terlama)
                   </h4>
                   <p className="text-xs text-slate-500">
-                    Menampilkan seluruh rincian transaksi per item sesuai laporan bulanan
+                    Menampilkan seluruh rincian transaksi beserta tautan foto bukti (Evidence) di Google Drive
                   </p>
                 </div>
 
@@ -1288,6 +1341,7 @@ export default function PublicDashboard({
                     className="border border-slate-200 rounded-xl px-3 py-2 font-bold bg-slate-50"
                   >
                     <option value="ALL">Semua Kategori ({ledgerList.length})</option>
+                    <option value="WITH_EVIDENCE">📎 Khusus Ada Foto Bukti</option>
                     <option value="Iuran Warga">Iuran Warga (IN)</option>
                     <option value="Gaji">Gaji & Kasbon Security</option>
                     <option value="Sampah">Uang Sampah</option>
@@ -1321,6 +1375,8 @@ export default function PublicDashboard({
                   const isProyek =
                     Boolean(tx.is_proyek) && String(tx.is_proyek).toUpperCase() !== 'FALSE';
                   const isIn = String(tx.tipe).toUpperCase() === 'IN';
+                  const hasEvidence = isValidEvidenceUrl(tx.url_bukti);
+
                   return (
                     <div
                       key={tx.id}
@@ -1347,11 +1403,28 @@ export default function PublicDashboard({
                                 Proyek: {tx.nama_proyek}
                               </span>
                             )}
+                            {hasEvidence && (
+                              <span className="text-[10px] bg-teal-50 text-teal-800 border border-teal-200 px-2 py-0.5 rounded-md font-extrabold">
+                                ✓ Evidence Teridentifikasi
+                              </span>
+                            )}
                           </div>
                           <p className="text-slate-700 font-medium mt-0.5">{tx.keterangan}</p>
-                          <p className="text-[10px] text-slate-400 mt-0.5">
-                            Tanggal: {String(tx.tanggal).slice(0, 10)} • Kode: {tx.id}
-                          </p>
+                          <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                            <p className="text-[10px] text-slate-400">
+                              Tanggal: {String(tx.tanggal).slice(0, 10)} • Kode: {tx.id}
+                            </p>
+                            {hasEvidence && (
+                              <a
+                                href={tx.url_bukti}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 text-[10px] font-extrabold text-teal-700 hover:text-teal-900 underline"
+                              >
+                                📎 Lihat Foto Nota (Drive) →
+                              </a>
+                            )}
+                          </div>
                         </div>
                       </div>
 
@@ -1371,7 +1444,7 @@ export default function PublicDashboard({
             </div>
           )}
 
-          {/* ================= TAB 3: STATUS 22 RUMAH (100% V2 UTUH) ================= */}
+          {/* ================= TAB 3: STATUS 22 RUMAH (V2 UTUH + LINK BUKTI IPL V4) ================= */}
           {activeTab === 'warga' && (
             <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/70 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1411,6 +1484,7 @@ export default function PublicDashboard({
                 {filteredHouses.map((h) => {
                   const isLunas = h.status_bayar === 'Lunas';
                   const isNonAktif = h.is_non_aktif;
+                  const hasIplProof = isValidEvidenceUrl(h.url_bukti);
 
                   return (
                     <div
@@ -1449,18 +1523,30 @@ export default function PublicDashboard({
                         </p>
                       </div>
 
-                      <div className="mt-3 pt-2.5 border-t border-slate-200/60 flex items-center justify-between text-[11px]">
-                        <span className="text-slate-400">
-                          {isNonAktif
-                            ? 'Non-Aktif'
-                            : isLunas
-                            ? `Tgl: ${h.tanggal_bayar}`
-                            : 'Periode Nov 2026'}
-                        </span>
+                      <div className="mt-3 pt-2.5 border-t border-slate-200/60 flex items-center justify-between text-[11px] gap-1">
+                        <div className="flex flex-col">
+                          <span className="text-slate-400">
+                            {isNonAktif
+                              ? 'Non-Aktif'
+                              : isLunas
+                              ? `Tgl: ${String(h.tanggal_bayar).slice(0, 10)}`
+                              : 'Periode Nov 2026'}
+                          </span>
+                          {hasIplProof && (
+                            <a
+                              href={h.url_bukti}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-[10px] font-extrabold text-teal-700 underline mt-0.5"
+                            >
+                              📎 Lihat Bukti IPL
+                            </a>
+                          )}
+                        </div>
                         {!isNonAktif && !isLunas && (
                           <button
                             onClick={() => openQrisForHouse(h.id)}
-                            className="bg-teal-700 hover:bg-teal-800 text-white font-bold px-2.5 py-1 rounded-lg shadow-sm transition"
+                            className="bg-teal-700 hover:bg-teal-800 text-white font-bold px-2.5 py-1 rounded-lg shadow-sm transition shrink-0"
                           >
                             Bayar QRIS →
                           </button>
@@ -1473,7 +1559,7 @@ export default function PublicDashboard({
             </div>
           )}
 
-          {/* ================= TAB 4: KEAMANAN & SOS (V2 UTUH + FITUR V3 RESPONSIVE) ================= */}
+          {/* ================= TAB 4: KEAMANAN & SOS (V2 + V3 + BUKTI FOTO DRIVE V4) ================= */}
           {activeTab === 'keamanan' && (
             <div className="space-y-5">
               {/* 1. KARTU PANIC BUTTON SOS (PERSIS V2) */}
@@ -1732,12 +1818,12 @@ export default function PublicDashboard({
                 )}
               </div>
 
-              {/* 3. GENERATOR LAPORAN WA SIAP COPAS & KAMERA WATERMARK (V3) */}
+              {/* 3. GENERATOR LAPORAN WA SIAP COPAS & KAMERA WATERMARK (V3 + AUTO-DRIVE V4) */}
               <div className="bg-white rounded-3xl p-5 shadow-sm border-2 border-teal-600/25 space-y-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full bg-teal-100 text-teal-800">
-                      Bebas Typo • Sesuai Tren Grup WA CMR
+                      Bebas Typo • Foto Tersimpan ke Drive Log_Absensi_Security
                     </span>
                     <h4 className="font-extrabold text-slate-800 text-base mt-1">
                       📋 Generator Absen, Patroli 5–6 Titik & Laporan WA Security
@@ -1745,7 +1831,6 @@ export default function PublicDashboard({
                   </div>
                 </div>
 
-                {/* Pilihan Petugas, Shift, Cuaca 815, Tanggal & Jam (4 Kolom di Desktop) */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                   <div>
                     <label className="block text-[11px] font-bold text-slate-500 mb-1">
@@ -1816,7 +1901,6 @@ export default function PublicDashboard({
                   </div>
                 </div>
 
-                {/* 5 Tab Mode Laporan */}
                 <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs font-extrabold">
                   {[
                     { id: 'ABSEN_SHIFT', icon: '🤳', label: 'Absen Ganti Shift' },
@@ -1841,7 +1925,6 @@ export default function PublicDashboard({
                   ))}
                 </div>
 
-                {/* Form Isian Sesuai Mode + Preview WA Berdampingan di Layar Lebar */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                   {/* Kolom Form Pilihan */}
                   <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs">
@@ -2191,7 +2274,7 @@ export default function PublicDashboard({
                       </>
                     )}
 
-                    {/* Kamera Watermark */}
+                    {/* Kamera Watermark + Simpan Otomatis ke Folder Drive Log_Absensi_Security */}
                     <div className="pt-2 border-t border-slate-200 space-y-2">
                       <div className="flex items-center justify-between">
                         <div>
@@ -2199,7 +2282,7 @@ export default function PublicDashboard({
                             📷 Kamera Watermark Realtime
                           </p>
                           <p className="text-[10px] text-slate-500">
-                            Tempel jam, tanggal & cuaca 815 otomatis di foto
+                            Otomatis masuk ke folder Drive: <strong>Log_Absensi_Security</strong>
                           </p>
                         </div>
                         <label className="cursor-pointer bg-teal-700 hover:bg-teal-800 text-white text-[11px] font-extrabold px-3 py-2 rounded-xl shadow-sm shrink-0">
@@ -2275,7 +2358,7 @@ export default function PublicDashboard({
                 </div>
               </div>
 
-              {/* 4. RIWAYAT LOG LAPORAN & CATATAN ANOMALI SECURITY (V3) */}
+              {/* 4. RIWAYAT LOG LAPORAN & CATATAN ANOMALI SECURITY (V3 + LINK FOTO DRIVE V4) */}
               <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/70 space-y-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
@@ -2312,52 +2395,69 @@ export default function PublicDashboard({
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-y-auto pr-1">
-                  {filteredSecurityLogs.map((log) => (
-                    <div
-                      key={log.id}
-                      className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5 text-xs flex flex-col justify-between"
-                    >
-                      <div className="space-y-1.5">
-                        <div className="flex items-center justify-between gap-1">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-teal-100 text-teal-900">
-                              {log.nama_security} ({log.shift})
-                            </span>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-900">
-                              {log.sub_kategori || log.kategori_laporan}
+                  {filteredSecurityLogs.map((log) => {
+                    const logDriveUrl = extractEvidenceUrlFromText(log.detail_catatan);
+                    const cleanCatatan = String(log.detail_catatan || '').replace(/\[Foto Bukti:.*?\]/g, '').trim();
+
+                    return (
+                      <div
+                        key={log.id}
+                        className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5 text-xs flex flex-col justify-between"
+                      >
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between gap-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded bg-teal-100 text-teal-900">
+                                {log.nama_security} ({log.shift})
+                              </span>
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-900">
+                                {log.sub_kategori || log.kategori_laporan}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-slate-400 font-bold shrink-0">
+                              {String(log.tanggal).slice(0, 10)} • {log.jam}
                             </span>
                           </div>
-                          <span className="text-[10px] text-slate-400 font-bold shrink-0">
-                            {String(log.tanggal).slice(0, 10)} • {log.jam}
-                          </span>
+
+                          <p className="text-xs font-bold text-slate-800">{cleanCatatan}</p>
                         </div>
 
-                        <p className="text-xs font-bold text-slate-800">{log.detail_catatan}</p>
+                        <div className="flex items-center justify-between text-[10px] text-slate-500 pt-2 mt-2 border-t border-slate-200/70 gap-2">
+                          <span className="truncate">
+                            📍 {log.titik_patroli || 'Pos Security'} • 815: {log.cuaca_815 || 'Cerah'}
+                          </span>
+                          <div className="flex items-center gap-2 shrink-0">
+                            {logDriveUrl && (
+                              <a
+                                href={logDriveUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-emerald-700 font-extrabold hover:underline"
+                              >
+                                📎 Foto Drive
+                              </a>
+                            )}
+                            {log.teks_wa && (
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await navigator.clipboard.writeText(log.teks_wa);
+                                    setCopyWaSuccess(`✅ Teks WA log ${log.id} disalin ulang!`);
+                                    setTimeout(() => setCopyWaSuccess(''), 3000);
+                                  } catch (e) {
+                                    console.warn(e);
+                                  }
+                                }}
+                                className="text-teal-700 font-extrabold hover:underline"
+                              >
+                                📋 Copas WA
+                              </button>
+                            )}
+                          </div>
+                        </div>
                       </div>
-
-                      <div className="flex items-center justify-between text-[10px] text-slate-500 pt-2 mt-2 border-t border-slate-200/70">
-                        <span className="truncate pr-2">
-                          📍 {log.titik_patroli || 'Pos Security'} • 815: {log.cuaca_815 || 'Cerah'}
-                        </span>
-                        {log.teks_wa && (
-                          <button
-                            onClick={async () => {
-                              try {
-                                await navigator.clipboard.writeText(log.teks_wa);
-                                setCopyWaSuccess(`✅ Teks WA log ${log.id} disalin ulang!`);
-                                setTimeout(() => setCopyWaSuccess(''), 3000);
-                              } catch (e) {
-                                console.warn(e);
-                              }
-                            }}
-                            className="text-teal-700 font-extrabold hover:underline shrink-0"
-                          >
-                            📋 Copas WA
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
@@ -2510,7 +2610,7 @@ export default function PublicDashboard({
         </button>
       </div>
 
-      {/* MODAL POP-UP QRIS (KOMPATIBEL DENGAN V2 & V3) */}
+      {/* MODAL POP-UP QRIS (KOMPATIBEL DENGAN V2, V3 & V4 DRIVE UPLOAD) */}
       <QrisPaymentModal
         isOpen={isQrisOpen}
         onClose={() => setIsQrisOpen(false)}
