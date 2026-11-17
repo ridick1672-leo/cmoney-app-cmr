@@ -435,11 +435,20 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // State Mode Pengurus (1 Akun Tunggal Tanpa Gmail)
+  // V4.1: State Jam Detik Real-Time, Waktu Sinkronisasi & Status Lampu Hijau Online
+  const [liveClock, setLiveClock] = useState(new Date());
+  const [lastSyncTime, setLastSyncTime] = useState(new Date());
+  const [isOnline, setIsOnline] = useState(true);
+
+  // V4.1: State Tab Menu Utama yang bisa dikontrol juga dari dalam Pop-up Pengurus
+  const [externalTabRequest, setExternalTabRequest] = useState(null);
+
+  // State Mode Pengurus (Dipisahkan antara Sesi Login & Buka/Tutup Pop-up Panel)
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(
     Boolean(localStorage.getItem('cmoney_pengurus_token'))
   );
+  const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState('');
@@ -479,6 +488,15 @@ export default function App() {
   const [actionStatus, setActionStatus] = useState('');
   const [lastUploadedDriveUrl, setLastUploadedDriveUrl] = useState('');
 
+  // Detak Jam Real-Time dengan Detik (Update setiap 1 detik)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setLiveClock(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Fungsi Tarik Data & Sinkronisasi Manual/Otomatis (Tombol Refresh)
   const fetchDashboard = async () => {
     try {
       setLoading(true);
@@ -495,9 +513,12 @@ export default function App() {
             ? res.security_logs
             : prev.security_logs
         }));
+        setLastSyncTime(new Date());
+        setIsOnline(true);
       }
     } catch (err) {
       console.warn('Menggunakan data baseline C-Money:', err.message);
+      setIsOnline(false);
     } finally {
       setLoading(false);
     }
@@ -514,6 +535,7 @@ export default function App() {
       const res = await CMoneyAPI.loginPengurus(username, password);
       if (res.status === 'success') {
         setIsAdminLoggedIn(true);
+        setIsAdminPanelOpen(true);
         setIsLoginModalOpen(false);
         setUsername('');
         setPassword('');
@@ -524,6 +546,7 @@ export default function App() {
       if (username === 'pengurus_cmr' && password === 'cmr_admin_2026') {
         localStorage.setItem('cmoney_pengurus_token', 'LOCAL_DEV_TOKEN');
         setIsAdminLoggedIn(true);
+        setIsAdminPanelOpen(true);
         setIsLoginModalOpen(false);
       } else {
         setAuthError('Gagal terhubung ke server atau kredensial salah.');
@@ -534,6 +557,13 @@ export default function App() {
   const handleLogoutAdmin = () => {
     localStorage.removeItem('cmoney_pengurus_token');
     setIsAdminLoggedIn(false);
+    setIsAdminPanelOpen(false);
+  };
+
+  // Handler Pindah Tab Menu Layar Utama langsung dari dalam Pop-up Pengurus
+  const handleJumpToTabFromAdmin = (tabId) => {
+    setExternalTabRequest({ tab: tabId, timestamp: Date.now() });
+    setIsAdminPanelOpen(false);
   };
 
   // Handler Pilih Foto Nota / Struk pada Form 1 (Otomatis Kompresi ke Base64)
@@ -541,7 +571,7 @@ export default function App() {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      setActionStatus('Mengompresi foto bukti transaksi...');
+      setActionStatus('⏳ Mengompresi foto bukti transaksi...');
       const base64Str = await compressImageToBase64(file, 1000, 0.82);
       setTxForm((prev) => ({
         ...prev,
@@ -559,6 +589,7 @@ export default function App() {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
+      setActionStatus('⏳ Mengompresi foto bukti IPL warga...');
       const base64Str = await compressImageToBase64(file, 1000, 0.82);
       setIplUpdateForm((prev) => ({
         ...prev,
@@ -588,14 +619,22 @@ export default function App() {
         nominal: Number(txForm.nominal)
       });
       if (res.status === 'success') {
-        const driveUrl = res.url_bukti && res.url_bukti !== '-' ? res.url_bukti : '';
+        const driveUrl =
+          res.url_bukti && res.url_bukti !== '-' && !String(res.url_bukti).startsWith('ERROR_DRIVE')
+            ? res.url_bukti
+            : '';
         if (driveUrl) setLastUploadedDriveUrl(driveUrl);
 
-        setActionStatus(
-          `✅ Transaksi ${res.tx_id} berhasil disimpan di urutan teratas! Saldo baru: Rp ${Number(
-            res.new_balance
-          ).toLocaleString('id-ID')}${driveUrl ? ' • Foto Bukti tersimpan di Google Drive.' : ''}`
-        );
+        if (String(res.url_bukti || '').startsWith('ERROR_DRIVE')) {
+          setActionStatus(`⚠️ Transaksi tersimpan, namun Drive melaporkan: ${res.url_bukti}`);
+        } else {
+          setActionStatus(
+            `✅ Transaksi ${res.tx_id} berhasil disimpan di urutan teratas! Saldo baru: Rp ${Number(
+              res.new_balance
+            ).toLocaleString('id-ID')}${driveUrl ? ' • Foto Bukti masuk ke Google Drive!' : ''}`
+          );
+        }
+
         setTxForm({
           ...txForm,
           nominal: '',
@@ -628,7 +667,9 @@ export default function App() {
     try {
       const res = await CMoneyAPI.updateIplStatus(iplUpdateForm);
       if (res.status === 'success') {
-        if (res.url_bukti) setLastUploadedDriveUrl(res.url_bukti);
+        if (res.url_bukti && !String(res.url_bukti).startsWith('ERROR_DRIVE')) {
+          setLastUploadedDriveUrl(res.url_bukti);
+        }
         setActionStatus(
           `✅ ${res.message}${res.url_bukti ? ' • Foto bukti tersimpan di Drive Bukti_Iuran_Warga.' : ''}`
         );
@@ -721,46 +762,141 @@ export default function App() {
     }
   };
 
+  // Handler Tunggal Upload Bukti QRIS Mandiri Warga -> Drive Bukti_Iuran_Warga
+  const handleCitizenUploadQrisProof = async (proofPayload) => {
+    const res = await CMoneyAPI.uploadIplProof(proofPayload);
+    await fetchDashboard();
+    return res;
+  };
+
   return (
-    <div className="relative">
+    <div className="relative min-h-screen overflow-y-auto overflow-x-hidden">
+      {/* TAMPILAN UTAMA WARGA & SECURITY */}
       <PublicDashboard
         dashboardData={dashboardData}
         loading={loading}
+        isRefreshing={loading}
+        onRefresh={fetchDashboard}
+        liveClock={liveClock}
+        lastSyncTime={lastSyncTime}
+        isOnline={isOnline}
+        externalTabRequest={externalTabRequest}
         isAdminLoggedIn={isAdminLoggedIn}
         onOpenAdminLogin={() => {
-          if (!isAdminLoggedIn) setIsLoginModalOpen(true);
+          if (isAdminLoggedIn) {
+            setIsAdminPanelOpen(true);
+          } else {
+            setIsLoginModalOpen(true);
+          }
         }}
         onInputSecurityLog={handleInputSecurityLog}
         onUpdateSecuritySchedule={handleUpdateSecuritySchedule}
-        onConfirmQrisProof={async (proof) => {
-          try {
-            await CMoneyAPI.uploadIplProof(proof);
-            fetchDashboard();
-          } catch (e) {
-            console.warn(e.message);
-          }
-        }}
+        onUploadIplProof={handleCitizenUploadQrisProof}
+        onConfirmQrisProof={handleCitizenUploadQrisProof}
       />
 
-      {/* PANEL KHUSUS PENGURUS (HIDDEN VIEW + FITUR UPLOAD EVIDENCE V4) */}
-      {isAdminLoggedIn && (
-        <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex justify-center overflow-y-auto p-4">
-          <div className="bg-white w-full max-w-md rounded-3xl p-5 my-auto shadow-2xl space-y-5 max-h-[92vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div>
-                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 bg-amber-100 text-amber-800 rounded-md">
-                  Hidden View • Mode Pengurus
-                </span>
-                <h2 className="text-base font-extrabold text-slate-800 mt-1">
-                  Panel Kendali Pengurus C-Money
-                </h2>
+      {/* TOMBOL MELAYANG PENGURUS SAAT POP-UP DITUTUP (AGAR MUDAH DIBUKA KEMBALI TANPA LOGIN ULANG) */}
+      {isAdminLoggedIn && !isAdminPanelOpen && (
+        <div className="fixed bottom-20 right-4 z-40 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIsAdminPanelOpen(true)}
+            className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-xs px-4 py-2.5 rounded-2xl shadow-xl border-2 border-white transition cursor-pointer"
+          >
+            <span>⚙️</span>
+            <span>Buka Panel Pengurus</span>
+          </button>
+        </div>
+      )}
+
+      {/* PANEL KHUSUS PENGURUS (BISA DITUTUP KE LAYAR UTAMA & PINDAH TAB MENU TANPA LOGOUT) */}
+      {isAdminLoggedIn && isAdminPanelOpen && (
+        <div
+          onClick={() => setIsAdminPanelOpen(false)}
+          className="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-sm flex items-start md:items-center justify-center overflow-y-auto p-3 sm:p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white w-full max-w-lg rounded-3xl p-5 my-4 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto border border-slate-200"
+          >
+            {/* HEADER STICKY POP-UP PENGURUS: TOMBOL BACK, LOGOUT, SILANG (X) & PINTASAN TAB */}
+            <div className="sticky top-0 bg-white z-10 pb-3 border-b border-slate-200 space-y-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAdminPanelOpen(false)}
+                  className="inline-flex items-center gap-1.5 text-xs bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold px-3 py-1.5 rounded-xl transition cursor-pointer"
+                >
+                  <span>←</span>
+                  <span>Kembali ke Layar Utama</span>
+                </button>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={handleLogoutAdmin}
+                    className="text-xs bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold px-3 py-1.5 rounded-xl border border-rose-200 transition cursor-pointer"
+                  >
+                    🚪 Logout
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsAdminPanelOpen(false)}
+                    title="Tutup Pop-up (Tetap Login)"
+                    className="w-8 h-8 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black flex items-center justify-center text-sm transition cursor-pointer"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
-              <button
-                onClick={handleLogoutAdmin}
-                className="text-xs bg-rose-50 text-rose-700 font-bold px-3 py-1.5 rounded-xl border border-rose-200"
-              >
-                Keluar
-              </button>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 bg-amber-100 text-amber-800 rounded-md">
+                    Hidden View • Mode Pengurus Aktif
+                  </span>
+                  <h2 className="text-base font-extrabold text-slate-800 mt-1">
+                    Panel Kendali Pengurus C-Money
+                  </h2>
+                </div>
+              </div>
+
+              {/* PINTASAN INTERAKSI LANGSUNG KE TAB MENU LAYAR UTAMA */}
+              <div className="bg-slate-50 p-2 rounded-2xl border border-slate-200/80">
+                <p className="text-[10px] font-bold text-slate-500 mb-1.5 px-1">
+                  Pintasan Buka Tab Menu Layar Utama:
+                </p>
+                <div className="grid grid-cols-4 gap-1.5 text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => handleJumpToTabFromAdmin('home')}
+                    className="py-1.5 px-2 rounded-xl bg-white hover:bg-teal-50 text-slate-700 hover:text-teal-800 font-bold border border-slate-200 transition cursor-pointer truncate"
+                  >
+                    🏠 Beranda
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleJumpToTabFromAdmin('houses')}
+                    className="py-1.5 px-2 rounded-xl bg-white hover:bg-teal-50 text-slate-700 hover:text-teal-800 font-bold border border-slate-200 transition cursor-pointer truncate"
+                  >
+                    🏘️ 22 Rumah
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleJumpToTabFromAdmin('ledger')}
+                    className="py-1.5 px-2 rounded-xl bg-white hover:bg-teal-50 text-slate-700 hover:text-teal-800 font-bold border border-slate-200 transition cursor-pointer truncate"
+                  >
+                    📑 Mutasi
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleJumpToTabFromAdmin('security')}
+                    className="py-1.5 px-2 rounded-xl bg-white hover:bg-teal-50 text-slate-700 hover:text-teal-800 font-bold border border-slate-200 transition cursor-pointer truncate"
+                  >
+                    🛡️ Security
+                  </button>
+                </div>
+              </div>
             </div>
 
             {actionStatus && (
@@ -874,7 +1010,7 @@ export default function App() {
                 />
               </div>
 
-              {/* INPUT BARU V4: UPLOAD FOTO NOTA / STRUK BUKTI TRANSAKSI KE GOOGLE DRIVE */}
+              {/* INPUT UPLOAD FOTO NOTA / STRUK BUKTI TRANSAKSI KE GOOGLE DRIVE */}
               <div className="p-3 rounded-2xl bg-slate-50 border border-dashed border-teal-300 space-y-2">
                 <div className="flex items-center justify-between">
                   <div>
@@ -925,7 +1061,7 @@ export default function App() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 disabled:bg-slate-400 text-white font-extrabold shadow transition"
+                className="w-full py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 disabled:bg-slate-400 text-white font-extrabold shadow transition cursor-pointer"
               >
                 {isSubmitting ? '⏳ Menyimpan ke Drive & Database...' : '💾 Simpan Transaksi ke Database'}
               </button>
@@ -987,7 +1123,7 @@ export default function App() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-900 disabled:bg-slate-400 text-white font-bold transition"
+                className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-900 disabled:bg-slate-400 text-white font-bold transition cursor-pointer"
               >
                 {isSubmitting ? '⏳ Memperbarui...' : 'Perbarui Status IPL Rumah'}
               </button>
@@ -1020,7 +1156,7 @@ export default function App() {
                 type="button"
                 disabled={isSubmitting}
                 onClick={handleTriggerClosingWa}
-                className="w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-400 text-white font-extrabold shadow-md transition"
+                className="w-full py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-400 text-white font-extrabold shadow-md transition cursor-pointer"
               >
                 📲 Tutup Buku & Kirim WA via Fonnte
               </button>
@@ -1031,15 +1167,22 @@ export default function App() {
 
       {/* MODAL LOGIN PENGURUS */}
       {isLoginModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl">
+        <div
+          onClick={() => setIsLoginModalOpen(false)}
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl"
+          >
             <div className="flex justify-between items-center pb-3 border-b border-slate-100">
               <h3 className="font-extrabold text-slate-800 text-sm">
                 🔒 Login Khusus Pengurus CMR
               </h3>
               <button
+                type="button"
                 onClick={() => setIsLoginModalOpen(false)}
-                className="text-slate-400 font-bold"
+                className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold flex items-center justify-center"
               >
                 ✕
               </button>
@@ -1074,7 +1217,7 @@ export default function App() {
               </div>
               <button
                 type="submit"
-                className="w-full py-3 rounded-xl bg-teal-700 text-white font-extrabold shadow-md"
+                className="w-full py-3 rounded-xl bg-teal-700 hover:bg-teal-800 text-white font-extrabold shadow-md cursor-pointer"
               >
                 Masuk ke Panel Pengurus
               </button>
