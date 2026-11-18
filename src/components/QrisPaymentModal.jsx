@@ -1,563 +1,615 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { compressImageToBase64, MONTH_LIST_ID, getSmartBookPeriod } from '../services/apiService';
+import { compressImageToBase64 } from '../services/apiService';
 
-function formatRp(num) {
-  return 'Rp ' + Number(num || 0).toLocaleString('id-ID');
+const MONTH_NAMES = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+];
+
+/**
+ * Penentu Otomatis Periode Buku Berdasarkan Cut-Off Tanggal 25
+ */
+function getDefaultSmartPeriod() {
+  const now = new Date();
+  const day = now.getDate();
+  let monthIndex = now.getMonth();
+  let year = now.getFullYear();
+
+  if (day >= 25) {
+    monthIndex += 1;
+    if (monthIndex > 11) {
+      monthIndex = 0;
+      year += 1;
+    }
+  }
+  return {
+    month: MONTH_NAMES[monthIndex],
+    year
+  };
 }
 
+/**
+ * Pilihan Paket Pembayaran QRIS V6.0 (Netral & 100% Uang Kas Nyata)
+ */
+const QRIS_PACKAGES_V6 = [
+  {
+    id: 'IPL_ONLY',
+    title: 'IPL Saja',
+    subtitle: 'Iuran Wajib Bulanan',
+    nominal: 200000,
+    badge: 'Rp 200.000'
+  },
+  {
+    id: 'IPL_PARKIR_1',
+    title: 'IPL + Parkir 1 Mobil',
+    subtitle: 'IPL Rp 200rb + Parkir Rp 150rb',
+    nominal: 350000,
+    badge: 'Rp 350.000'
+  },
+  {
+    id: 'IPL_PARKIR_2',
+    title: 'IPL + Parkir 2 Mobil',
+    subtitle: 'IPL Rp 200rb + 2 Mobil Rp 300rb',
+    nominal: 500000,
+    badge: 'Rp 500.000'
+  },
+  {
+    id: 'IPL_PARKIR_WEEKEND',
+    title: 'IPL + Parkir Weekend',
+    subtitle: 'IPL Rp 200rb + Weekend Rp 50rb',
+    nominal: 250000,
+    badge: 'Rp 250.000'
+  },
+  {
+    id: 'PARKIR_1_ONLY',
+    title: 'Parkir 1 Mobil Saja',
+    subtitle: 'Khusus Kontribusi Parkir Bulanan',
+    nominal: 150000,
+    badge: 'Rp 150.000'
+  },
+  {
+    id: 'CUSTOM',
+    title: 'Nominal Lainnya',
+    subtitle: 'Isi sesuai uang riil yang ditransfer',
+    nominal: 200000,
+    badge: 'Custom'
+  }
+];
+
 export default function QrisPaymentModal({
-  isOpen,
+  isOpen = true,
   onClose,
-  selectedHouse,
   houses = [],
+  selectedHouse = null,
+  defaultMonth,
+  defaultYear,
   qrisImageUrl = '/assets/qris-cmr-statis.png',
-  merchantName = 'Cluster Mutiara Residence',
-  defaultAmount = 200000,
-  parkingConfig = {},
-  smartPeriod = null,
-  activeBookBulan = 'November',
-  activeBookTahun = 2026,
-  onUploadIplProof,
-  onConfirmQrisProof
+  qrisMerchantName = 'Cluster Mutiara Residence',
+  onUploadProof,
+  onConfirmQrisProof,
+  onOpenLightbox,
+  formatHouseIdentity
 }) {
-  // Saring hanya 21 rumah aktif (Rumah No. 04 Non-Aktif BPR otomatis dikecualikan)
+  const smartPeriod = useMemo(() => getDefaultSmartPeriod(), []);
+
+  // Saring Hanya 21 Unit Rumah Aktif (Kunci Unit Non-Aktif No. 04 BPR)
   const activeHouses = useMemo(() => {
-    return (houses || []).filter(
-      (h) => !String(h.status_huni || '').includes('Tidak Aktif') && h.id !== 'H-04'
+    const rawList = Array.isArray(houses) ? houses : [];
+    return rawList.filter(
+      (h) =>
+        String(h.status_huni || 'Aktif').toLowerCase() !== 'tidak aktif' &&
+        String(h.id || '').toUpperCase() !== 'H-04'
     );
   }, [houses]);
 
-  const cutoffDay = Number(parkingConfig?.cutoff_day_ipl || 25);
-  const computedSmart = smartPeriod || getSmartBookPeriod(cutoffDay);
+  // Helper Format Seragam "No. XX / Nama Warga"
+  const getHouseLabel = (houseObjOrId) => {
+    if (typeof formatHouseIdentity === 'function') {
+      return formatHouseIdentity(houseObjOrId);
+    }
+    if (!houseObjOrId) return '-';
+    if (typeof houseObjOrId === 'object') {
+      const num = String(houseObjOrId.nomor_rumah || houseObjOrId.id || '')
+        .replace(/^H-/i, '')
+        .replace(/^No\.?\s*/i, '')
+        .padStart(2, '0');
+      const name = houseObjOrId.nama_kepala_keluarga || 'Warga';
+      return `No. ${num} / ${name}`;
+    }
+    const found = activeHouses.find(
+      (h) => String(h.id).toUpperCase() === String(houseObjOrId).toUpperCase()
+    );
+    if (found) {
+      const num = String(found.nomor_rumah || found.id).replace(/^H-/i, '').padStart(2, '0');
+      return `No. ${num} / ${found.nama_kepala_keluarga}`;
+    }
+    return String(houseObjOrId);
+  };
 
-  const feeMonthly = Number(parkingConfig?.fee_monthly || 100000);
-  const feeWeekend = Number(parkingConfig?.fee_weekend || 50000);
-  const feeDaily = Number(parkingConfig?.fee_daily || 10000);
-  const baseIpl = Number(defaultAmount || 200000);
-
-  // State Form Konfirmasi Pembayaran Warga
-  const [houseId, setHouseId] = useState('H-01');
-  const [periodeBulan, setPeriodeBulan] = useState(
-    computedSmart.default_ipl_bulan || activeBookBulan || 'November'
+  // State Pilihan Form Warga
+  const [houseId, setHouseId] = useState(
+    selectedHouse?.id || activeHouses[0]?.id || 'H-01'
   );
-  const [periodeTahun, setPeriodeTahun] = useState(
-    Number(computedSmart.default_ipl_tahun || activeBookTahun || 2026)
-  );
-  const [paketBayar, setPaketBayar] = useState('IPL_ONLY'); // IPL_ONLY | IPL_PLUS_WEEKEND | IPL_PLUS_MONTHLY | PARKIR_ONLY
-  const [customParkirOnlyAmount, setCustomParkirOnlyAmount] = useState(feeWeekend);
+  const [periodeBulan, setPeriodeBulan] = useState(defaultMonth || smartPeriod.month);
+  const [periodeTahun, setPeriodeTahun] = useState(defaultYear || smartPeriod.year);
+  const [selectedPkgId, setSelectedPkgId] = useState('IPL_ONLY');
+  const [nominalBayar, setNominalBayar] = useState(200000);
+  const [catatanWarga, setCatatanWarga] = useState('');
 
-  // State File Bukti Transfer / Screenshot QRIS
-  const [rawFile, setRawFile] = useState(null);
+  // State Bukti Transfer & Status Pengiriman
   const [fileBase64, setFileBase64] = useState('');
   const [fileName, setFileName] = useState('');
   const [isCompressing, setIsCompressing] = useState(false);
-
-  // State Status Pengiriman & UI
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [statusMessage, setStatusMessage] = useState('');
-  const [uploadedDriveUrl, setUploadedDriveUrl] = useState('');
+  const [submitResult, setSubmitResult] = useState(null);
+  const [errorMsg, setErrorMsg] = useState('');
   const [qrisImgError, setQrisImgError] = useState(false);
-  const [copiedNominal, setCopiedNominal] = useState(false);
 
-  // Sinkronkan rumah & periode bulan saat modal dibuka
+  // Sinkronisasi rumah terpilih saat modal dibuka dari kartu 22 Rumah
   useEffect(() => {
-    if (isOpen) {
-      if (selectedHouse && selectedHouse.id !== 'H-04' && selectedHouse.house_id !== 'H-04') {
-        setHouseId(selectedHouse.house_id || selectedHouse.id || 'H-01');
-      } else if (activeHouses.length > 0) {
-        setHouseId(activeHouses[0].id);
-      }
-
-      // Gunakan periode pintar Cut-Off Tanggal 25 saat pertama dibuka
-      const defaultBulan = computedSmart.is_after_cutoff
-        ? computedSmart.default_ipl_bulan
-        : activeBookBulan || computedSmart.default_ipl_bulan || 'November';
-      const defaultTahun = computedSmart.is_after_cutoff
-        ? computedSmart.default_ipl_tahun
-        : activeBookTahun || computedSmart.default_ipl_tahun || 2026;
-
-      setPeriodeBulan(defaultBulan);
-      setPeriodeTahun(Number(defaultTahun));
-      setPaketBayar('IPL_ONLY');
-      setRawFile(null);
-      setFileBase64('');
-      setFileName('');
-      setStatusMessage('');
-      setUploadedDriveUrl('');
+    if (selectedHouse?.id && selectedHouse.id !== 'H-04') {
+      setHouseId(selectedHouse.id);
     }
-  }, [isOpen, selectedHouse]);
-
-  // Hitung Total Nominal Berdasarkan Paket yang Dipilih Warga
-  const totalNominalBayar = useMemo(() => {
-    if (paketBayar === 'IPL_ONLY') return baseIpl;
-    if (paketBayar === 'IPL_PLUS_WEEKEND') return baseIpl + feeWeekend;
-    if (paketBayar === 'IPL_PLUS_MONTHLY') return baseIpl + feeMonthly;
-    if (paketBayar === 'PARKIR_ONLY') return Number(customParkirOnlyAmount || feeWeekend);
-    return baseIpl;
-  }, [paketBayar, baseIpl, feeWeekend, feeMonthly, customParkirOnlyAmount]);
-
-  const paketLabelDeskripsi = useMemo(() => {
-    if (paketBayar === 'IPL_ONLY') return `Iuran IPL Bulanan (${formatRp(baseIpl)})`;
-    if (paketBayar === 'IPL_PLUS_WEEKEND') {
-      return `IPL (${formatRp(baseIpl)}) + Parkir Weekend (${formatRp(feeWeekend)})`;
-    }
-    if (paketBayar === 'IPL_PLUS_MONTHLY') {
-      return `IPL (${formatRp(baseIpl)}) + Member Parkir Bulanan (${formatRp(feeMonthly)})`;
-    }
-    return `Kontribusi Parkir Fasum (${formatRp(customParkirOnlyAmount)})`;
-  }, [paketBayar, baseIpl, feeWeekend, feeMonthly, customParkirOnlyAmount]);
+  }, [selectedHouse]);
 
   if (!isOpen) return null;
 
+  const formatRp = (num) => 'Rp ' + Number(num || 0).toLocaleString('id-ID');
+
+  const selectedPackage =
+    QRIS_PACKAGES_V6.find((p) => p.id === selectedPkgId) || QRIS_PACKAGES_V6[0];
+
+  const handleSelectPackage = (pkg) => {
+    setSelectedPkgId(pkg.id);
+    if (pkg.id !== 'CUSTOM') {
+      setNominalBayar(pkg.nominal);
+    }
+  };
+
+  // Handler Pilih & Kompresi Foto Bukti Transfer/QRIS
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setRawFile(file);
-    setFileName(file.name);
-    setStatusMessage('');
+    setErrorMsg('');
+    setIsCompressing(true);
     try {
-      setIsCompressing(true);
-      const compressed = await compressImageToBase64(file, 800, 0.75);
+      const compressed = await compressImageToBase64(file);
       setFileBase64(compressed);
+      setFileName(file.name);
     } catch (err) {
-      setStatusMessage('⚠️ Gagal mengompresi gambar: ' + err.message);
+      setErrorMsg('Gagal memproses gambar bukti pembayaran. Silakan coba foto lain.');
     } finally {
       setIsCompressing(false);
     }
   };
 
-  const handleCopyNominal = () => {
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(String(totalNominalBayar));
-      setCopiedNominal(true);
-      setTimeout(() => setCopiedNominal(false), 2000);
-    }
-  };
-
+  // Handler Kirim Bukti Pembayaran ke Google Drive & Spreadsheet
   const handleSubmitProof = async (e) => {
     e.preventDefault();
-    setUploadedDriveUrl('');
+    setErrorMsg('');
 
-    let finalBase64 = fileBase64;
-    if (!finalBase64 && rawFile) {
-      setIsCompressing(true);
-      finalBase64 = await compressImageToBase64(rawFile, 800, 0.75);
-      setIsCompressing(false);
-    }
-
-    if (!finalBase64) {
-      setStatusMessage('⚠️ Mohon pilih foto / screenshot bukti pembayaran terlebih dahulu.');
+    if (!fileBase64) {
+      setErrorMsg('Mohon pilih atau unggah foto screenshot bukti pembayaran QRIS terlebih dahulu.');
       return;
     }
 
-    const submitFn = onUploadIplProof || onConfirmQrisProof;
-    if (!submitFn) {
-      setStatusMessage('⚠️ Fungsi pengiriman belum terhubung.');
+    if (!nominalBayar || Number(nominalBayar) <= 0) {
+      setErrorMsg('Nominal pembayaran wajib diisi dengan benar.');
       return;
     }
 
+    setIsSubmitting(true);
     try {
-      setIsSubmitting(true);
-      setStatusMessage(
-        `⏳ Mengunggah bukti ${paketLabelDeskripsi} ke Google Drive (Buku ${periodeBulan} ${periodeTahun})...`
-      );
+      const houseIdentity = getHouseLabel(houseId);
+      const packageSummary = `${selectedPackage.title} (${formatRp(nominalBayar)})`;
+      const finalNote = catatanWarga
+        ? `${packageSummary} — ${catatanWarga} [${houseIdentity}]`
+        : `${packageSummary} [${houseIdentity}]`;
 
-      const res = await submitFn({
+      const payload = {
         house_id: houseId,
+        identitas_rumah: houseIdentity,
         periode_bulan: periodeBulan,
         periode_tahun: Number(periodeTahun),
-        paket_bayar: paketBayar,
-        nominal_total: totalNominalBayar,
-        file_name: fileName || `QRIS_${houseId}_${periodeBulan}.jpg`,
-        file_base64: finalBase64
-      });
+        paket_id: selectedPackage.id,
+        paket_label: selectedPackage.title,
+        nominal_bayar: Number(nominalBayar),
+        catatan: finalNote,
+        file_name: fileName || `QRIS_${periodeBulan}_${houseId}.jpg`,
+        file_base64: fileBase64
+      };
 
-      if (res && res.status === 'success') {
-        const driveLink =
-          res.url_bukti && String(res.url_bukti).startsWith('http') ? res.url_bukti : '';
-        setUploadedDriveUrl(driveLink);
-        setStatusMessage(
-          `✅ Bukti pembayaran Rumah ${houseId} (Buku ${periodeBulan} ${periodeTahun}) berhasil tersimpan di Google Drive & menunggu validasi Bendahara!`
-        );
-        setRawFile(null);
-        setFileBase64('');
-        setFileName('');
+      const submitFn = onUploadProof || onConfirmQrisProof;
+      if (typeof submitFn === 'function') {
+        const res = await submitFn(payload);
+        if (res && res.status === 'success') {
+          setSubmitResult({
+            houseIdentity,
+            periodeBulan,
+            periodeTahun,
+            nominal: Number(nominalBayar),
+            paketTitle: selectedPackage.title,
+            urlBukti: res.url_bukti || fileBase64
+          });
+        } else {
+          setErrorMsg(res?.message || 'Gagal mengirim bukti pembayaran ke server.');
+        }
       } else {
-        setStatusMessage(
-          `⚠️ Gagal mengirim bukti: ${res?.message || 'Periksa koneksi internet Anda.'}`
-        );
+        setSubmitResult({
+          houseIdentity,
+          periodeBulan,
+          periodeTahun,
+          nominal: Number(nominalBayar),
+          paketTitle: selectedPackage.title,
+          urlBukti: fileBase64
+        });
       }
     } catch (err) {
-      setStatusMessage(`❌ Gagal terhubung ke server GAS: ${err.message}`);
+      setErrorMsg(`Terjadi kendala koneksi: ${err.message}`);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const selectedHouseObj = activeHouses.find((h) => h.id === houseId);
-
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/75 backdrop-blur-sm p-3 sm:p-5 overflow-y-auto"
+      className="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5 overflow-y-auto"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-3xl max-w-3xl w-full p-5 sm:p-6 shadow-2xl border border-slate-200 max-h-[92vh] overflow-y-auto my-auto animate-fadeIn"
+        className="bg-white rounded-3xl max-w-3xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden my-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* HEADER MODAL QRIS */}
-        <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-3.5 mb-4">
+        <div className="px-5 py-4 bg-gradient-to-r from-teal-900 via-teal-800 to-emerald-800 text-white flex items-center justify-between">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-800 border border-teal-200">
-                QRIS Statis Resmi CMR (MDR 0%)
-              </span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900">
-                Cut-Off Buku Tgl {cutoffDay}
-              </span>
-            </div>
-            <h3 className="text-base sm:text-lg font-extrabold text-slate-900 mt-1">
-              📲 Pembayaran Iuran IPL & Kontribusi Parkir Fasum
-            </h3>
-            <p className="text-xs text-slate-500">
-              Pindai kode QRIS menggunakan m-Banking / e-Wallet, lalu unggah bukti bayar di sebelah kanan.
-            </p>
+            <span className="text-[10px] uppercase tracking-wider bg-white/20 px-2.5 py-0.5 rounded-full font-bold">
+              QRIS Resmi • Bebas Biaya Admin (MDR 0%)
+            </span>
+            <h2 className="text-base sm:text-lg font-extrabold mt-1">
+              📲 Pembayaran IPL & Parkir Fasum CMR
+            </h2>
           </div>
-
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-extrabold flex items-center justify-center shrink-0"
-            title="Tutup"
+            className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center font-bold text-sm"
           >
             ✕
           </button>
         </div>
 
-        {/* BANNER INFO SIKLUS BUKU TANGGAL 25 */}
-        <div className="mb-4 bg-teal-50/90 border border-teal-200 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-2 text-xs text-teal-950">
-          <div>
-            <span className="font-extrabold">📅 Info Siklus Buku Tanggal {cutoffDay}: </span>
-            {computedSmart.is_after_cutoff ? (
-              <span>
-                Karena hari ini sudah melewati tanggal {cutoffDay}, pembayaran iuran otomatis diarahkan ke{' '}
-                <strong className="underline">
-                  Buku {computedSmart.default_ipl_bulan} {computedSmart.default_ipl_tahun}
-                </strong>
-                .
-              </span>
-            ) : (
-              <span>
-                Pembayaran tanggal 1 s/d {cutoffDay - 1} dicatat untuk periode berjalan{' '}
-                <strong>
-                  Buku {computedSmart.default_ipl_bulan} {computedSmart.default_ipl_tahun}
-                </strong>
-                .
-              </span>
-            )}
-          </div>
-          <span className="bg-teal-800 text-amber-300 font-extrabold px-2.5 py-1 rounded-xl text-[11px]">
-            Periode Dipilih: {periodeBulan} {periodeTahun}
-          </span>
-        </div>
-
-        {/* GRID 2 KOLOM DI DESKTOP, 1 KOLOM DI HP */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
-          {/* KOLOM KIRI (5 Kolom): KARTU GAMBAR QRIS STATIS & TOTAL NOMINAL */}
-          <div className="md:col-span-5 bg-gradient-to-b from-slate-900 to-teal-950 text-white rounded-3xl p-4 flex flex-col justify-between border border-teal-800 shadow-lg">
-            <div>
-              <div className="text-center border-b border-slate-800 pb-2.5 mb-3">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-teal-300">
-                  Merchant Resmi
-                </p>
-                <h4 className="font-black text-sm sm:text-base text-white">{merchantName}</h4>
-              </div>
-
-              {/* Bingkai Gambar QRIS */}
-              <div className="bg-white rounded-2xl p-3 flex flex-col items-center justify-center shadow-inner min-h-[220px]">
-                {!qrisImgError && qrisImageUrl ? (
-                  <img
-                    src={qrisImageUrl}
-                    alt="QRIS Cluster Mutiara Residence"
-                    className="w-full max-w-[210px] h-auto object-contain rounded-lg"
-                    onError={() => setQrisImgError(true)}
-                  />
-                ) : (
-                  <div className="text-center p-4 text-slate-700 space-y-2">
-                    <div className="w-36 h-36 mx-auto border-4 border-dashed border-teal-700 rounded-2xl flex flex-col items-center justify-center bg-teal-50">
-                      <span className="text-3xl">🏁</span>
-                      <span className="text-[11px] font-extrabold text-teal-900 mt-1">
-                        QRIS STATIS CMR
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-slate-500">
-                      Taruh file gambar QRIS di{' '}
-                      <code className="font-mono font-bold text-teal-800">
-                        public/assets/qris-cmr-statis.png
-                      </code>
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Kotak Nominal yang Harus Ditransfer */}
-              <div className="mt-3 bg-slate-950/70 border border-teal-600/50 rounded-2xl p-3 text-center">
-                <p className="text-[10px] text-teal-300 font-semibold">
-                  Nominal yang Ditransfer ({paketLabelDeskripsi}):
-                </p>
-                <p className="text-xl sm:text-2xl font-black text-amber-300 my-1">
-                  {formatRp(totalNominalBayar)}
-                </p>
-                <button
-                  type="button"
-                  onClick={handleCopyNominal}
-                  className="text-[11px] font-bold bg-teal-800 hover:bg-teal-700 text-white px-3 py-1 rounded-xl border border-teal-600 transition"
-                >
-                  {copiedNominal ? '✓ Nominal Tersalin!' : '📋 Salin Angka Nominal'}
-                </button>
-              </div>
-            </div>
-
-            {!qrisImgError && qrisImageUrl && (
-              <a
-                href={qrisImageUrl}
-                download="QRIS-Cluster-Mutiara-Residence.png"
-                className="mt-3 w-full py-2 rounded-xl bg-white/10 hover:bg-white/20 text-center text-xs font-bold text-teal-200 transition block"
-              >
-                ⬇️ Unduh Gambar QRIS ke HP
-              </a>
-            )}
-          </div>
-
-          {/* KOLOM KANAN (7 Kolom): FORM PILIH RUMAH, BULAN BUKU, PAKET PARKIR & UPLOAD BUKTI */}
-          <form onSubmit={handleSubmitProof} className="md:col-span-7 space-y-3.5 text-xs">
-            {/* 1. Pilih Nomor Rumah (Hanya 21 Rumah Aktif) */}
-            <div>
-              <label className="block font-extrabold text-slate-700 mb-1">
-                1. Pilih Nomor Rumah Anda (21 Unit Aktif)
-              </label>
-              <select
-                value={houseId}
-                onChange={(e) => setHouseId(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 font-bold text-slate-900 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-600"
-              >
-                {activeHouses.map((h) => (
-                  <option key={h.id} value={h.id}>
-                    Rumah No. {h.nomor_rumah} — {h.nama_kepala_keluarga}
-                  </option>
-                ))}
-              </select>
-              {selectedHouseObj?.alias_keluarga && (
-                <p className="text-[11px] text-teal-700 font-medium mt-1">
-                  👨‍👩‍👧‍👦 Keluarga: {selectedHouseObj.alias_keluarga}
-                </p>
-              )}
-            </div>
-
-            {/* 2. Pilih Periode Bulan Buku & Tahun Buku */}
-            <div className="grid grid-cols-3 gap-2">
-              <div className="col-span-2">
-                <label className="block font-extrabold text-slate-700 mb-1">
-                  2. Untuk Periode Bulan Buku
-                </label>
-                <select
-                  value={periodeBulan}
-                  onChange={(e) => setPeriodeBulan(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl border border-teal-500 bg-teal-50/60 font-extrabold text-teal-950"
-                >
-                  {MONTH_LIST_ID.map((m) => (
-                    <option key={m} value={m}>
-                      Buku {m}
-                    </option>
-                  ))}
-                </select>
+        {/* ISI MODAL */}
+        <div className="p-5 overflow-y-auto space-y-5">
+          {submitResult ? (
+            /* TAMPILAN SUKSES TERKIRIM + TOMBOL LIHAT BUKTI DI LIGHTBOX */
+            <div className="p-6 rounded-3xl bg-emerald-50 border border-emerald-200 text-center space-y-4">
+              <div className="w-14 h-14 rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-2xl mx-auto shadow-md">
+                ✓
               </div>
               <div>
-                <label className="block font-extrabold text-slate-700 mb-1">Tahun Buku</label>
-                <input
-                  type="number"
-                  value={periodeTahun}
-                  onChange={(e) => setPeriodeTahun(Number(e.target.value))}
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-300 font-bold text-slate-900 bg-slate-50"
-                />
-              </div>
-            </div>
-
-            {/* 3. Pilih Paket Pembayaran (IPL Saja / + Parkir Weekend / + Member Parkir / Parkir Saja) */}
-            <div>
-              <label className="block font-extrabold text-slate-700 mb-1">
-                3. Pilih Paket Pembayaran (IPL / Kontribusi Parkir Fasum)
-              </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPaketBayar('IPL_ONLY')}
-                  className={`p-2.5 rounded-2xl border text-left transition ${
-                    paketBayar === 'IPL_ONLY'
-                      ? 'bg-teal-800 text-white border-teal-900 shadow-sm'
-                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  <p className="font-extrabold text-xs">🏠 IPL Bulanan Saja</p>
-                  <p className="text-[11px] opacity-90 font-bold mt-0.5">{formatRp(baseIpl)}</p>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setPaketBayar('IPL_PLUS_WEEKEND')}
-                  className={`p-2.5 rounded-2xl border text-left transition ${
-                    paketBayar === 'IPL_PLUS_WEEKEND'
-                      ? 'bg-teal-800 text-white border-teal-900 shadow-sm'
-                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  <p className="font-extrabold text-xs">🔵 IPL + Parkir Weekend</p>
-                  <p className="text-[11px] opacity-90 font-bold mt-0.5">
-                    {formatRp(baseIpl + feeWeekend)} (+{formatRp(feeWeekend)})
-                  </p>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setPaketBayar('IPL_PLUS_MONTHLY')}
-                  className={`p-2.5 rounded-2xl border text-left transition ${
-                    paketBayar === 'IPL_PLUS_MONTHLY'
-                      ? 'bg-teal-800 text-white border-teal-900 shadow-sm'
-                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  <p className="font-extrabold text-xs">🟢 IPL + Member Parkir</p>
-                  <p className="text-[11px] opacity-90 font-bold mt-0.5">
-                    {formatRp(baseIpl + feeMonthly)} (+{formatRp(feeMonthly)})
-                  </p>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setPaketBayar('PARKIR_ONLY')}
-                  className={`p-2.5 rounded-2xl border text-left transition ${
-                    paketBayar === 'PARKIR_ONLY'
-                      ? 'bg-teal-800 text-white border-teal-900 shadow-sm'
-                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  <p className="font-extrabold text-xs">🅿️ Khusus Parkir Fasum Saja</p>
-                  <p className="text-[11px] opacity-90 font-bold mt-0.5">
-                    Bayar terpisah (Weekend/Member/Harian)
-                  </p>
-                </button>
-              </div>
-
-              {paketBayar === 'PARKIR_ONLY' && (
-                <div className="mt-2 p-2.5 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between gap-2">
-                  <span className="font-bold text-amber-950">Nominal Parkir Saja (Rp):</span>
-                  <div className="flex gap-1.5">
-                    {[feeDaily, feeWeekend, feeMonthly].map((nom) => (
-                      <button
-                        key={nom}
-                        type="button"
-                        onClick={() => setCustomParkirOnlyAmount(nom)}
-                        className={`px-2 py-1 rounded-lg font-bold text-[11px] border ${
-                          Number(customParkirOnlyAmount) === Number(nom)
-                            ? 'bg-amber-500 text-slate-950 border-amber-600'
-                            : 'bg-white text-slate-700 border-slate-300'
-                        }`}
-                      >
-                        {formatRp(nom)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* 4. Upload Screenshot / Foto Bukti Bayar ke Drive Bukti_Iuran_Warga */}
-            <div className="bg-slate-50 border-2 border-dashed border-teal-500/60 rounded-2xl p-3.5">
-              <label className="block font-extrabold text-teal-900 mb-1">
-                4. 📷 Unggah Screenshot / Foto Bukti Transfer (Otomatis Masuk Google Drive)
-              </label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                className="w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-extrabold file:bg-teal-800 file:text-white hover:file:bg-teal-700"
-              />
-
-              {isCompressing && (
-                <p className="text-[11px] text-amber-700 font-semibold mt-1.5">
-                  ⏳ Mengompresi gambar bukti pembayaran...
+                <h3 className="text-base sm:text-lg font-extrabold text-emerald-950">
+                  Bukti Pembayaran Berhasil Terkirim!
+                </h3>
+                <p className="text-xs text-emerald-800 mt-1">
+                  Terima kasih, bukti transfer untuk{' '}
+                  <span className="font-extrabold">{submitResult.houseIdentity}</span> telah
+                  tersimpan di Google Drive & tercatat pada Buku{' '}
+                  <span className="font-extrabold">
+                    {submitResult.periodeBulan} {submitResult.periodeTahun}
+                  </span>
+                  .
                 </p>
-              )}
+              </div>
 
-              {fileBase64 && (
-                <div className="mt-2.5 flex items-center justify-between bg-white p-2 rounded-xl border border-slate-200">
-                  <div className="flex items-center gap-2.5">
-                    <img
-                      src={fileBase64}
-                      alt="Preview Bukti QRIS"
-                      className="w-11 h-11 object-cover rounded-lg border border-teal-500/40"
-                    />
-                    <div>
-                      <p className="text-[11px] font-bold text-emerald-700 truncate max-w-[180px]">
-                        ✓ {fileName || 'Bukti siap diunggah'}
-                      </p>
-                      <p className="text-[10px] text-slate-400">
-                        Ukuran ringan: ~{Math.round(fileBase64.length / 1024)} KB
-                      </p>
-                    </div>
-                  </div>
+              <div className="max-w-md mx-auto p-3.5 rounded-2xl bg-white border border-emerald-200/80 text-xs space-y-1.5 text-left">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Identitas Rumah:</span>
+                  <span className="font-extrabold text-slate-900">
+                    {submitResult.houseIdentity}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Paket Pembayaran:</span>
+                  <span className="font-bold text-slate-800">{submitResult.paketTitle}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Nominal Uang Nyata:</span>
+                  <span className="font-extrabold text-teal-800">
+                    {formatRp(submitResult.nominal)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Periode Buku:</span>
+                  <span className="font-bold text-slate-800">
+                    {submitResult.periodeBulan} {submitResult.periodeTahun}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
+                {submitResult.urlBukti && (
                   <button
                     type="button"
                     onClick={() => {
-                      setRawFile(null);
-                      setFileBase64('');
-                      setFileName('');
+                      if (typeof onOpenLightbox === 'function') {
+                        onOpenLightbox(
+                          submitResult.urlBukti,
+                          `Bukti Pembayaran — ${submitResult.houseIdentity}`,
+                          `${submitResult.paketTitle} • ${formatRp(submitResult.nominal)}`
+                        );
+                      }
                     }}
-                    className="text-[11px] text-rose-600 hover:text-rose-800 font-bold px-2"
+                    className="px-4 py-2.5 rounded-xl bg-teal-800 hover:bg-teal-900 text-white text-xs font-extrabold shadow"
                   >
-                    Hapus
+                    🖼️ Lihat Foto Bukti di Layar
                   </button>
-                </div>
-              )}
-            </div>
-
-            {/* Pesan Status & Link Bukti Google Drive */}
-            {statusMessage && (
-              <div className="p-3 rounded-2xl bg-teal-50 border border-teal-200 text-teal-950 font-semibold space-y-1">
-                <p>{statusMessage}</p>
-                {uploadedDriveUrl && (
-                  <a
-                    href={uploadedDriveUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-teal-800 underline font-extrabold hover:text-teal-600"
-                  >
-                    📎 Lihat Bukti Pembayaran Anda di Google Drive →
-                  </a>
                 )}
-              </div>
-            )}
 
-            {/* Tombol Kirim Bukti */}
-            <div className="flex items-center justify-end gap-2 pt-1">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition"
-              >
-                Tutup
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting || isCompressing}
-                className="flex-1 py-2.5 px-4 rounded-xl bg-teal-800 hover:bg-teal-900 disabled:opacity-50 text-white font-extrabold text-xs shadow-md transition"
-              >
-                {isSubmitting
-                  ? '⏳ Mengirim ke Google Drive...'
-                  : `📤 Kirim Bukti (${formatRp(totalNominalBayar)} • Buku ${periodeBulan})`}
-              </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-extrabold"
+                >
+                  Selesai & Tutup
+                </button>
+              </div>
             </div>
-          </form>
+          ) : (
+            /* FORM PEMBAYARAN QRIS 2 KOLOM (KIRI: GAMBAR QRIS, KANAN: PILIHAN RUMAH & PAKET) */
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
+              {/* KOLOM KIRI (5 KOLOM): KODE QRIS STATIS RESMI CMR */}
+              <div className="md:col-span-5 bg-slate-50 rounded-3xl p-4 border border-slate-200/80 text-center space-y-3">
+                <div className="inline-block bg-teal-900 text-white text-[11px] font-extrabold px-3 py-1 rounded-full">
+                  {qrisMerchantName}
+                </div>
+
+                <div
+                  onClick={() =>
+                    typeof onOpenLightbox === 'function' &&
+                    !qrisImgError &&
+                    onOpenLightbox(
+                      qrisImageUrl,
+                      `QRIS Resmi ${qrisMerchantName}`,
+                      `Nominal Tagihan Pilihan: ${formatRp(nominalBayar)}`
+                    )
+                  }
+                  className="bg-white p-3 rounded-2xl border border-slate-200 shadow-inner mx-auto max-w-[230px] cursor-pointer hover:border-teal-600 transition"
+                >
+                  {!qrisImgError ? (
+                    <img
+                      src={qrisImageUrl}
+                      alt="QRIS Cluster Mutiara Residence"
+                      className="w-full h-auto object-contain rounded-xl"
+                      onError={() => setQrisImgError(true)}
+                    />
+                  ) : (
+                    <div className="py-12 px-4 text-xs text-slate-500 space-y-1">
+                      <p className="text-2xl">📲</p>
+                      <p className="font-bold text-slate-700">QRIS Cluster Mutiara Residence</p>
+                      <p className="text-[11px]">
+                        Simpan file QRIS di public/assets/qris-cmr-statis.png
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-3 rounded-2xl bg-teal-900 text-white">
+                  <p className="text-[10px] uppercase tracking-wider text-teal-200 font-bold">
+                    Nominal yang Diinput Saat Scan QRIS
+                  </p>
+                  <p className="text-xl font-black text-emerald-300 mt-0.5">
+                    {formatRp(nominalBayar)}
+                  </p>
+                  <p className="text-[11px] text-teal-100 mt-0.5">{selectedPackage.title}</p>
+                </div>
+
+                <a
+                  href={qrisImageUrl}
+                  download="QRIS-Cluster-Mutiara-Residence.png"
+                  className="block w-full py-2 rounded-xl bg-white hover:bg-slate-100 border border-slate-200 text-xs font-extrabold text-teal-900 transition"
+                >
+                  ⬇️ Unduh Gambar QRIS ke HP
+                </a>
+              </div>
+
+              {/* KOLOM KANAN (7 KOLOM): PILIH RUMAH, PAKET NETRAL, & UPLOAD BUKTI */}
+              <form onSubmit={handleSubmitProof} className="md:col-span-7 space-y-3.5 text-xs">
+                {errorMsg && (
+                  <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 font-bold">
+                    {errorMsg}
+                  </div>
+                )}
+
+                {/* Pilih Rumah (No. XX / Nama Warga) & Periode Bulan Buku */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-extrabold text-slate-700 mb-1">
+                      1. Pilih No. Rumah / Nama Warga
+                    </label>
+                    <select
+                      value={houseId}
+                      onChange={(e) => setHouseId(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 font-extrabold text-slate-900 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-teal-600"
+                    >
+                      {activeHouses.map((h) => (
+                        <option key={h.id} value={h.id}>
+                          {getHouseLabel(h)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-extrabold text-slate-700 mb-1">
+                      2. Periode Bulan Buku
+                    </label>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <select
+                        value={periodeBulan}
+                        onChange={(e) => setPeriodeBulan(e.target.value)}
+                        className="w-full px-2.5 py-2.5 rounded-xl border border-slate-200 font-extrabold text-slate-900 bg-slate-50"
+                      >
+                        {MONTH_NAMES.map((m) => (
+                          <option key={m} value={m}>
+                            {m}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        value={periodeTahun}
+                        onChange={(e) => setPeriodeTahun(Number(e.target.value))}
+                        className="w-full px-2.5 py-2.5 rounded-xl border border-slate-200 font-extrabold text-slate-900 bg-slate-50"
+                      >
+                        <option value={2026}>2026</option>
+                        <option value={2027}>2027</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Pilihan Paket Pembayaran Netral (100% Real Cash) */}
+                <div>
+                  <label className="block font-extrabold text-slate-700 mb-1.5">
+                    3. Pilih Paket Pembayaran (Uang Kas Nyata)
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {QRIS_PACKAGES_V6.map((pkg) => {
+                      const isSelected = selectedPkgId === pkg.id;
+                      return (
+                        <button
+                          key={pkg.id}
+                          type="button"
+                          onClick={() => handleSelectPackage(pkg)}
+                          className={`p-2.5 rounded-2xl border text-left transition flex items-center justify-between gap-2 ${
+                            isSelected
+                              ? 'bg-teal-900 text-white border-teal-900 shadow-sm'
+                              : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-200'
+                          }`}
+                        >
+                          <div>
+                            <p className="font-extrabold text-xs">{pkg.title}</p>
+                            <p
+                              className={`text-[10px] mt-0.5 ${
+                                isSelected ? 'text-teal-200' : 'text-slate-500'
+                              }`}
+                            >
+                              {pkg.subtitle}
+                            </p>
+                          </div>
+                          <span
+                            className={`text-[11px] font-black px-2 py-0.5 rounded-lg shrink-0 ${
+                              isSelected
+                                ? 'bg-emerald-400 text-slate-950'
+                                : 'bg-white text-teal-800 border border-slate-200'
+                            }`}
+                          >
+                            {pkg.badge}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Nominal Uang Riil & Catatan Tambahan */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-extrabold text-slate-700 mb-1">
+                      Nominal Transfer Riil (Rp)
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      min="1000"
+                      value={nominalBayar}
+                      onChange={(e) => setNominalBayar(Number(e.target.value))}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 font-extrabold text-teal-900 bg-teal-50/50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-extrabold text-slate-700 mb-1">
+                      Catatan Tambahan (Opsional)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Contoh: Transfer via BCA / Mandiri"
+                      value={catatanWarga}
+                      onChange={(e) => setCatatanWarga(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200"
+                    />
+                  </div>
+                </div>
+
+                {/* Unggah Foto Screenshot Bukti Transfer */}
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-dashed border-slate-300 space-y-2">
+                  <label className="block font-extrabold text-slate-700">
+                    4. 📷 Unggah Screenshot Bukti Transfer / QRIS
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="w-full text-xs text-slate-600"
+                  />
+
+                  {isCompressing && (
+                    <p className="text-[11px] text-amber-700 font-bold">
+                      ⏳ Mengompresi ukuran gambar agar cepat diunggah...
+                    </p>
+                  )}
+
+                  {fileBase64 && !isCompressing && (
+                    <div className="flex items-center justify-between gap-3 pt-1">
+                      <div className="flex items-center gap-2.5">
+                        <img
+                          src={fileBase64}
+                          alt="Preview Bukti QRIS"
+                          onClick={() =>
+                            typeof onOpenLightbox === 'function' &&
+                            onOpenLightbox(
+                              fileBase64,
+                              `Pratinjau Bukti — ${getHouseLabel(houseId)}`,
+                              `${selectedPackage.title} (${formatRp(nominalBayar)})`
+                            )
+                          }
+                          className="w-12 h-12 object-cover rounded-xl border border-emerald-300 cursor-pointer"
+                        />
+                        <div>
+                          <p className="font-extrabold text-emerald-800 text-[11px]">
+                            ✓ Foto bukti siap dikirim ke Drive
+                          </p>
+                          <p className="text-[10px] text-slate-500">
+                            Klik gambar untuk memperbesar pratinjau
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setFileBase64('');
+                          setFileName('');
+                        }}
+                        className="text-rose-600 font-bold hover:underline"
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting || isCompressing}
+                  className="w-full py-3 rounded-xl bg-teal-800 hover:bg-teal-900 disabled:opacity-60 text-white font-extrabold text-xs sm:text-sm shadow-md transition"
+                >
+                  {isSubmitting
+                    ? 'Menyimpan Bukti ke Google Drive...'
+                    : `✅ Kirim Bukti Pembayaran (${getHouseLabel(houseId)})`}
+                </button>
+              </form>
+            </div>
+          )}
         </div>
       </div>
     </div>
