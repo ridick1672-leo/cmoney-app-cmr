@@ -3,8 +3,8 @@
  * Mendukung Google Apps Script (GAS) + Auto-Upload Evidence ke Google Drive CMR
  */
 
-const BACKEND_PROVIDER = import.meta.env.VITE_BACKEND_PROVIDER || 'gas';
-const GAS_WEBAPP_URL = import.meta.env.VITE_GAS_WEBAPP_URL || '';
+const BACKEND_PROVIDER = 'gas';
+const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbw2SIIEjqnUbDOp3f4skutwuzY-0oWcGXrja0Xxr5-wOCElh_v7VyEmS9yStJpJl-MrAA/exec';
 
 /**
  * Helper V4.2: Kompresi Foto Nota / Bukti Transfer ke Base64 Ringan
