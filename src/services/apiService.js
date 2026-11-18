@@ -1,13 +1,57 @@
 /**
- * C-MONEY API SERVICE ADAPTER v4.2
+ * C-MONEY API SERVICE ADAPTER v5.0
  * Mendukung Google Apps Script (GAS) + Auto-Upload Evidence ke Google Drive CMR
+ * + Denah Parkir Fasum Fleksibel (Slot 1-6) + Siklus Buku Cut-Off Tanggal 25
  */
 
-const BACKEND_PROVIDER = 'gas';
-const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbw2SIIEjqnUbDOp3f4skutwuzY-0oWcGXrja0Xxr5-wOCElh_v7VyEmS9yStJpJl-MrAA/exec';
+const BACKEND_PROVIDER = import.meta.env.VITE_BACKEND_PROVIDER || 'gas';
+// PENTING: Pastikan link /exec Google Apps Script Anda terpasang di dalam tanda kutip di bawah ini:
+const GAS_WEBAPP_URL = import.meta.env.VITE_GAS_WEBAPP_URL || 'https://script.google.com/macros/s/AKfycbz2348WMAzvnD5xQa7Zy5kMM4Fu0ALmskjJJ0Xv_fQjUSxcdxR1PKdkbu3DEeEYEj7g/exec';
+
+export const MONTH_LIST_ID = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+];
 
 /**
- * Helper V4.2: Kompresi Foto Nota / Bukti Transfer ke Base64 Ringan
+ * Helper V5.0: Hitung Periode Buku Pintar Berdasarkan Cut-Off Tanggal 25
+ * - Tanggal 1 s/d 24 -> Default IPL masuk ke Bulan Berjalan
+ * - Tanggal 25 s/d 31 -> Default IPL otomatis masuk ke Bulan Berikutnya
+ */
+export function getSmartBookPeriod(cutoffDay = 25, customDate = null) {
+  const now = customDate instanceof Date ? customDate : new Date();
+  const day = now.getDate();
+  const monthIdx = now.getMonth(); // 0..11
+  const year = now.getFullYear();
+
+  const calendarBulan = MONTH_LIST_ID[monthIdx] || 'November';
+  const calendarTahun = year;
+
+  let nextMonthIdx = monthIdx + 1;
+  let nextYear = year;
+  if (nextMonthIdx > 11) {
+    nextMonthIdx = 0;
+    nextYear += 1;
+  }
+  const nextBulan = MONTH_LIST_ID[nextMonthIdx] || 'Desember';
+
+  const isAfterCutoff = day >= Number(cutoffDay || 25);
+
+  return {
+    cutoff_day: Number(cutoffDay || 25),
+    current_day: day,
+    is_after_cutoff: isAfterCutoff,
+    calendar_bulan: calendarBulan,
+    calendar_tahun: calendarTahun,
+    default_ipl_bulan: isAfterCutoff ? nextBulan : calendarBulan,
+    default_ipl_tahun: isAfterCutoff ? nextYear : calendarTahun,
+    next_bulan: nextBulan,
+    next_tahun: nextYear
+  };
+}
+
+/**
+ * Helper V4.2 & V5.0: Kompresi Foto Nota / Bukti Transfer ke Base64 Ringan
  * Dilengkapi fallback otomatis ke DataURL asli agar file_base64 tidak pernah kosong
  */
 export function compressImageToBase64(file, maxWidth = 800, quality = 0.75) {
@@ -47,8 +91,8 @@ export function compressImageToBase64(file, maxWidth = 800, quality = 0.75) {
 }
 
 async function requestGasGet(params = {}) {
-  if (!GAS_WEBAPP_URL) {
-    throw new Error('VITE_GAS_WEBAPP_URL belum diatur di .env / Vercel.');
+  if (!GAS_WEBAPP_URL || GAS_WEBAPP_URL.includes('TEMPEL_LINK_EXEC')) {
+    throw new Error('URL Web App GAS (/exec) belum dipasang di apiService.js atau .env');
   }
   const url = new URL(GAS_WEBAPP_URL);
   Object.keys(params).forEach((key) => {
@@ -56,7 +100,7 @@ async function requestGasGet(params = {}) {
       url.searchParams.append(key, params[key]);
     }
   });
-  // Cache-buster agar browser selalu menarik saldo & link bukti terbaru dari Sheet
+  // Cache-buster agar browser selalu menarik saldo, slot parkir & link bukti terbaru dari Sheet
   url.searchParams.append('_t', Date.now());
 
   const response = await fetch(url.toString(), {
@@ -70,8 +114,8 @@ async function requestGasGet(params = {}) {
 }
 
 async function requestGasPost(payload = {}) {
-  if (!GAS_WEBAPP_URL) {
-    throw new Error('VITE_GAS_WEBAPP_URL belum diatur di .env / Vercel.');
+  if (!GAS_WEBAPP_URL || GAS_WEBAPP_URL.includes('TEMPEL_LINK_EXEC')) {
+    throw new Error('URL Web App GAS (/exec) belum dipasang di apiService.js atau .env');
   }
   const token = localStorage.getItem('cmoney_pengurus_token') || '';
   const bodyData = {
@@ -96,7 +140,7 @@ async function requestGasPost(payload = {}) {
 }
 
 export const CMoneyAPI = {
-  // 1. Ambil seluruh data Dashboard Publik, Kalender Security & Log (Tanpa Login)
+  // 1. Ambil seluruh data Dashboard Publik, Kalender Security, Log & Denah Parkir (Tanpa Login)
   async getPublicDashboard(bulan = 'November', tahun = 2026) {
     if (BACKEND_PROVIDER === 'gas') {
       return requestGasGet({ action: 'dashboard', bulan, tahun });
@@ -125,7 +169,7 @@ export const CMoneyAPI = {
     });
   },
 
-  // 4. Update Status Lunas IPL Warga + Foto Bukti ke Bukti_Iuran_Warga (Pengurus)
+  // 4. Update Status Lunas IPL Warga + Auto-Jurnal ke cash_ledger + Foto Bukti ke Bukti_Iuran_Warga (Pengurus)
   async updateIplStatus(iplData) {
     return requestGasPost({
       action: 'update_ipl',
@@ -133,7 +177,7 @@ export const CMoneyAPI = {
     });
   },
 
-  // 5. Unggah Konfirmasi Bukti Bayar QRIS oleh Warga ke Bukti_Iuran_Warga (Tanpa Login)
+  // 5. Unggah Konfirmasi Bukti Bayar QRIS (IPL / Paket Parkir) oleh Warga ke Bukti_Iuran_Warga (Tanpa Login)
   async uploadIplProof(proofData) {
     return requestGasPost({
       action: 'upload_ipl_proof',
@@ -159,7 +203,7 @@ export const CMoneyAPI = {
     });
   },
 
-  // 8. Simpan Laporan WA & Log Aktivitas/Anomali Security + Foto Watermark ke Log_Absensi_Security
+  // 8. Simpan Laporan WA & Log Aktivitas/Anomali Security + Ceklis Parkir Malam + Foto Watermark
   async inputSecurityLog(logData) {
     return requestGasPost({
       action: 'input_security_log',
@@ -172,6 +216,22 @@ export const CMoneyAPI = {
     return requestGasPost({
       action: 'update_security_schedule',
       ...scheduleData
+    });
+  },
+
+  // 10. BARU V5.0: Interaksi Denah Slot Parkir Fasum 1-6 (Check-In / Kosongkan Slot / Upload Bukti Parkir)
+  async updateParkingSlot(slotData) {
+    return requestGasPost({
+      action: 'update_parking_slot',
+      ...slotData
+    });
+  },
+
+  // 11. BARU V5.0: Update Aturan Tarif Parkir Fleksibel & Cut-Off Tanggal 25 di app_settings (Pengurus)
+  async updateParkingConfig(configData) {
+    return requestGasPost({
+      action: 'update_parking_config',
+      ...configData
     });
   }
 };
