@@ -1,5 +1,5 @@
 /**
- * C-MONEY API SERVICE ADAPTER v4.0
+ * C-MONEY API SERVICE ADAPTER v4.2
  * Mendukung Google Apps Script (GAS) + Auto-Upload Evidence ke Google Drive CMR
  */
 
@@ -7,10 +7,10 @@ const BACKEND_PROVIDER = import.meta.env.VITE_BACKEND_PROVIDER || 'gas';
 const GAS_WEBAPP_URL = import.meta.env.VITE_GAS_WEBAPP_URL || '';
 
 /**
- * Helper V4: Kompresi Foto Nota / Bukti Transfer ke Base64 Ringan
- * Agar unggahan ke Google Drive via GAS cepat (1-2 detik) dan bebas gagal payload
+ * Helper V4.2: Kompresi Foto Nota / Bukti Transfer ke Base64 Ringan
+ * Dilengkapi fallback otomatis ke DataURL asli agar file_base64 tidak pernah kosong
  */
-export function compressImageToBase64(file, maxWidth = 1000, quality = 0.82) {
+export function compressImageToBase64(file, maxWidth = 800, quality = 0.75) {
   return new Promise((resolve, reject) => {
     if (!file) {
       resolve('');
@@ -18,21 +18,28 @@ export function compressImageToBase64(file, maxWidth = 1000, quality = 0.82) {
     }
     const reader = new FileReader();
     reader.onload = (event) => {
+      const rawDataUrl = event.target?.result || '';
       const img = new Image();
       img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const scale = img.width > maxWidth ? maxWidth / img.width : 1;
-        canvas.width = Math.round(img.width * scale);
-        canvas.height = Math.round(img.height * scale);
+        try {
+          const canvas = document.createElement('canvas');
+          const scale = img.width > maxWidth ? maxWidth / img.width : 1;
+          canvas.width = Math.max(1, Math.round(img.width * scale));
+          canvas.height = Math.max(1, Math.round(img.height * scale));
 
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-        const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
-        resolve(compressedDataUrl);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+          resolve(compressedDataUrl || rawDataUrl);
+        } catch (canvasErr) {
+          resolve(rawDataUrl);
+        }
       };
-      img.onerror = (err) => reject(err);
-      img.src = event.target.result;
+      img.onerror = () => resolve(rawDataUrl);
+      img.src = rawDataUrl;
     };
     reader.onerror = (err) => reject(err);
     reader.readAsDataURL(file);
@@ -49,6 +56,8 @@ async function requestGasGet(params = {}) {
       url.searchParams.append(key, params[key]);
     }
   });
+  // Cache-buster agar browser selalu menarik saldo & link bukti terbaru dari Sheet
+  url.searchParams.append('_t', Date.now());
 
   const response = await fetch(url.toString(), {
     method: 'GET',

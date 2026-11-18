@@ -435,12 +435,13 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // V4.1: State Jam Detik Real-Time, Waktu Sinkronisasi & Status Lampu Hijau Online
+  // V4.2: State Jam Detik Real-Time, Waktu Sinkronisasi, Status Online & Versi Backend GAS
   const [liveClock, setLiveClock] = useState(new Date());
   const [lastSyncTime, setLastSyncTime] = useState(new Date());
   const [isOnline, setIsOnline] = useState(true);
+  const [backendVersion, setBackendVersion] = useState('');
 
-  // V4.1: State Tab Menu Utama yang bisa dikontrol juga dari dalam Pop-up Pengurus
+  // V4.2: State Tab Menu Utama yang bisa dikontrol dari dalam Pop-up Pengurus
   const [externalTabRequest, setExternalTabRequest] = useState(null);
 
   // State Mode Pengurus (Dipisahkan antara Sesi Login & Buka/Tutup Pop-up Panel)
@@ -453,7 +454,8 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState('');
 
-  // State Form 1: Input Transaksi Pengurus + Upload Foto Nota V4
+  // State Form 1: Input Transaksi Pengurus + File Asli & Base64
+  const [txRawFile, setTxRawFile] = useState(null);
   const [txForm, setTxForm] = useState({
     tanggal: new Date().toISOString().slice(0, 10),
     periode_bulan: 'November',
@@ -468,7 +470,8 @@ export default function App() {
     file_name: ''
   });
 
-  // State Form 2: Update Status IPL Warga oleh Pengurus + Upload Bukti V4
+  // State Form 2: Update Status IPL Warga oleh Pengurus + File Asli & Base64
+  const [iplRawFile, setIplRawFile] = useState(null);
   const [iplUpdateForm, setIplUpdateForm] = useState({
     house_id: 'H-01',
     periode_bulan: 'November',
@@ -488,7 +491,6 @@ export default function App() {
   const [actionStatus, setActionStatus] = useState('');
   const [lastUploadedDriveUrl, setLastUploadedDriveUrl] = useState('');
 
-  // Detak Jam Real-Time dengan Detik (Update setiap 1 detik)
   useEffect(() => {
     const timer = setInterval(() => {
       setLiveClock(new Date());
@@ -496,12 +498,12 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
-  // Fungsi Tarik Data & Sinkronisasi Manual/Otomatis (Tombol Refresh)
   const fetchDashboard = async () => {
     try {
       setLoading(true);
       const res = await CMoneyAPI.getPublicDashboard('November', 2026);
       if (res && res.status === 'success') {
+        setBackendVersion(res.backend_version || 'v3.0 (Lama)');
         setDashboardData((prev) => ({
           ...prev,
           ...res,
@@ -560,7 +562,6 @@ export default function App() {
     setIsAdminPanelOpen(false);
   };
 
-  // Handler Pindah Tab Menu Layar Utama langsung dari dalam Pop-up Pengurus
   const handleJumpToTabFromAdmin = (tabId) => {
     setExternalTabRequest({ tab: tabId, timestamp: Date.now() });
     setIsAdminPanelOpen(false);
@@ -570,9 +571,10 @@ export default function App() {
   const handleSelectTxPhoto = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setTxRawFile(file);
     try {
       setActionStatus('⏳ Mengompresi foto bukti transaksi...');
-      const base64Str = await compressImageToBase64(file, 1000, 0.82);
+      const base64Str = await compressImageToBase64(file, 800, 0.75);
       setTxForm((prev) => ({
         ...prev,
         file_base64: base64Str,
@@ -588,9 +590,10 @@ export default function App() {
   const handleSelectIplPhoto = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setIplRawFile(file);
     try {
       setActionStatus('⏳ Mengompresi foto bukti IPL warga...');
-      const base64Str = await compressImageToBase64(file, 1000, 0.82);
+      const base64Str = await compressImageToBase64(file, 800, 0.75);
       setIplUpdateForm((prev) => ({
         ...prev,
         file_base64: base64Str,
@@ -602,39 +605,59 @@ export default function App() {
     }
   };
 
-  // Handler Simpan Transaksi Kas + Upload Foto ke Struk_Pengeluaran_Kas
+  // Handler Simpan Transaksi Kas + Jaminan File Base64 Terkirim ke Drive Struk_Pengeluaran_Kas
   const handleSaveTransaction = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     setLastUploadedDriveUrl('');
-    setActionStatus(
-      txForm.file_base64
-        ? '⏳ Mengunggah foto bukti ke Google Drive (Struk_Pengeluaran_Kas) & menyimpan ke Spreadsheet...'
-        : '⏳ Menyimpan transaksi ke Spreadsheet...'
-    );
 
     try {
+      let finalBase64 = txForm.file_base64;
+      if (txRawFile && !finalBase64) {
+        finalBase64 = await compressImageToBase64(txRawFile, 800, 0.75);
+      }
+
+      setActionStatus(
+        finalBase64
+          ? '⏳ Mengunggah foto bukti ke Google Drive (Struk_Pengeluaran_Kas) & menyimpan ke Spreadsheet...'
+          : '⏳ Menyimpan transaksi ke Spreadsheet...'
+      );
+
       const res = await CMoneyAPI.inputTransaction({
         ...txForm,
+        file_base64: finalBase64,
         nominal: Number(txForm.nominal)
       });
-      if (res.status === 'success') {
-        const driveUrl =
-          res.url_bukti && res.url_bukti !== '-' && !String(res.url_bukti).startsWith('ERROR_DRIVE')
-            ? res.url_bukti
-            : '';
-        if (driveUrl) setLastUploadedDriveUrl(driveUrl);
 
-        if (String(res.url_bukti || '').startsWith('ERROR_DRIVE')) {
-          setActionStatus(`⚠️ Transaksi tersimpan, namun Drive melaporkan: ${res.url_bukti}`);
+      if (res.status === 'success') {
+        const rawUrl = String(res.url_bukti || '');
+        const isValidDriveLink = rawUrl.startsWith('http');
+
+        if (isValidDriveLink) {
+          setLastUploadedDriveUrl(rawUrl);
+        }
+
+        if (finalBase64 && !isValidDriveLink) {
+          if (!res.backend_version) {
+            setActionStatus(
+              '⚠️ Transaksi masuk ke Sheet, TAPI foto belum terunggah karena URL GAS di .env / Vercel masih menjalankan Code.gs versi lama. Pastikan sudah Deploy -> Manage deployments -> Edit -> New version!'
+            );
+          } else {
+            setActionStatus(
+              `⚠️ Transaksi tersimpan, namun gagal membuat file di Drive: ${rawUrl || 'URL kosong'}`
+            );
+          }
         } else {
           setActionStatus(
-            `✅ Transaksi ${res.tx_id} berhasil disimpan di urutan teratas! Saldo baru: Rp ${Number(
+            `✅ Transaksi ${res.tx_id} berhasil disimpan! Saldo Kas Aktif: Rp ${Number(
               res.new_balance
-            ).toLocaleString('id-ID')}${driveUrl ? ' • Foto Bukti masuk ke Google Drive!' : ''}`
+            ).toLocaleString('id-ID')}${
+              isValidDriveLink ? ' • Foto Bukti berhasil masuk ke Google Drive & cash_ledger!' : ''
+            }`
           );
         }
 
+        setTxRawFile(null);
         setTxForm({
           ...txForm,
           nominal: '',
@@ -654,25 +677,42 @@ export default function App() {
     }
   };
 
-  // Handler Simpan Update Status IPL + Upload Bukti ke Bukti_Iuran_Warga
+  // Handler Simpan Update Status IPL + Jaminan Bukti Masuk ke Bukti_Iuran_Warga
   const handleSaveIplStatus = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
     setLastUploadedDriveUrl('');
-    setActionStatus(
-      iplUpdateForm.file_base64
-        ? '⏳ Mengunggah bukti IPL ke Google Drive (Bukti_Iuran_Warga) & memperbarui status...'
-        : '⏳ Memperbarui status IPL warga...'
-    );
+
     try {
-      const res = await CMoneyAPI.updateIplStatus(iplUpdateForm);
+      let finalBase64 = iplUpdateForm.file_base64;
+      if (iplRawFile && !finalBase64) {
+        finalBase64 = await compressImageToBase64(iplRawFile, 800, 0.75);
+      }
+
+      setActionStatus(
+        finalBase64
+          ? '⏳ Mengunggah bukti IPL ke Google Drive (Bukti_Iuran_Warga) & memperbarui status...'
+          : '⏳ Memperbarui status IPL warga...'
+      );
+
+      const res = await CMoneyAPI.updateIplStatus({
+        ...iplUpdateForm,
+        file_base64: finalBase64
+      });
+
       if (res.status === 'success') {
-        if (res.url_bukti && !String(res.url_bukti).startsWith('ERROR_DRIVE')) {
-          setLastUploadedDriveUrl(res.url_bukti);
+        const rawUrl = String(res.url_bukti || '');
+        const isValidDriveLink = rawUrl.startsWith('http');
+        if (isValidDriveLink) {
+          setLastUploadedDriveUrl(rawUrl);
         }
+
         setActionStatus(
-          `✅ ${res.message}${res.url_bukti ? ' • Foto bukti tersimpan di Drive Bukti_Iuran_Warga.' : ''}`
+          `✅ ${res.message}${
+            isValidDriveLink ? ' • Foto bukti tersimpan di Drive Bukti_Iuran_Warga!' : ''
+          }`
         );
+        setIplRawFile(null);
         setIplUpdateForm((prev) => ({
           ...prev,
           file_base64: '',
@@ -710,7 +750,6 @@ export default function App() {
     }
   };
 
-  // Handler Simpan Laporan WA & Log Security (Otomatis Urut Paling Atas + Foto Watermark ke Drive)
   const handleInputSecurityLog = async (newLogPayload) => {
     const optimisticLog = {
       id: `SEC-${Date.now()}`,
@@ -740,7 +779,6 @@ export default function App() {
     }
   };
 
-  // Handler Update Jadwal Kalender Security (Tukar Shift / Izin Sakit)
   const handleUpdateSecuritySchedule = async (updatedItem) => {
     setDashboardData((prev) => {
       const existing = prev.security_schedules || [];
@@ -762,7 +800,6 @@ export default function App() {
     }
   };
 
-  // Handler Tunggal Upload Bukti QRIS Mandiri Warga -> Drive Bukti_Iuran_Warga
   const handleCitizenUploadQrisProof = async (proofPayload) => {
     const res = await CMoneyAPI.uploadIplProof(proofPayload);
     await fetchDashboard();
@@ -771,7 +808,6 @@ export default function App() {
 
   return (
     <div className="relative min-h-screen overflow-y-auto overflow-x-hidden">
-      {/* TAMPILAN UTAMA WARGA & SECURITY */}
       <PublicDashboard
         dashboardData={dashboardData}
         loading={loading}
@@ -795,7 +831,7 @@ export default function App() {
         onConfirmQrisProof={handleCitizenUploadQrisProof}
       />
 
-      {/* TOMBOL MELAYANG PENGURUS SAAT POP-UP DITUTUP (AGAR MUDAH DIBUKA KEMBALI TANPA LOGIN ULANG) */}
+      {/* TOMBOL MELAYANG PENGURUS SAAT POP-UP DITUTUP */}
       {isAdminLoggedIn && !isAdminPanelOpen && (
         <div className="fixed bottom-20 right-4 z-40 flex items-center gap-2">
           <button
@@ -809,7 +845,7 @@ export default function App() {
         </div>
       )}
 
-      {/* PANEL KHUSUS PENGURUS (BISA DITUTUP KE LAYAR UTAMA & PINDAH TAB MENU TANPA LOGOUT) */}
+      {/* PANEL KHUSUS PENGURUS (DENGAN TOMBOL KEMBALI, SILANG X & PINTASAN TAB) */}
       {isAdminLoggedIn && isAdminPanelOpen && (
         <div
           onClick={() => setIsAdminPanelOpen(false)}
@@ -819,7 +855,6 @@ export default function App() {
             onClick={(e) => e.stopPropagation()}
             className="bg-white w-full max-w-lg rounded-3xl p-5 my-4 shadow-2xl space-y-4 max-h-[92vh] overflow-y-auto border border-slate-200"
           >
-            {/* HEADER STICKY POP-UP PENGURUS: TOMBOL BACK, LOGOUT, SILANG (X) & PINTASAN TAB */}
             <div className="sticky top-0 bg-white z-10 pb-3 border-b border-slate-200 space-y-2.5">
               <div className="flex items-center justify-between gap-2">
                 <button
@@ -850,7 +885,7 @@ export default function App() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
                   <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 bg-amber-100 text-amber-800 rounded-md">
                     Hidden View • Mode Pengurus Aktif
@@ -859,9 +894,17 @@ export default function App() {
                     Panel Kendali Pengurus C-Money
                   </h2>
                 </div>
+                <span
+                  className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full border ${
+                    backendVersion === 'v4.2'
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                      : 'bg-rose-50 text-rose-700 border-rose-200'
+                  }`}
+                >
+                  GAS API: {backendVersion || 'Mengecek...'}
+                </span>
               </div>
 
-              {/* PINTASAN INTERAKSI LANGSUNG KE TAB MENU LAYAR UTAMA */}
               <div className="bg-slate-50 p-2 rounded-2xl border border-slate-200/80">
                 <p className="text-[10px] font-bold text-slate-500 mb-1.5 px-1">
                   Pintasan Buka Tab Menu Layar Utama:
@@ -1010,7 +1053,6 @@ export default function App() {
                 />
               </div>
 
-              {/* INPUT UPLOAD FOTO NOTA / STRUK BUKTI TRANSAKSI KE GOOGLE DRIVE */}
               <div className="p-3 rounded-2xl bg-slate-50 border border-dashed border-teal-300 space-y-2">
                 <div className="flex items-center justify-between">
                   <div>
@@ -1021,10 +1063,13 @@ export default function App() {
                       Otomatis masuk ke folder Drive: <strong>Struk_Pengeluaran_Kas</strong>
                     </p>
                   </div>
-                  {txForm.file_base64 && (
+                  {(txForm.file_base64 || txRawFile) && (
                     <button
                       type="button"
-                      onClick={() => setTxForm({ ...txForm, file_base64: '', file_name: '' })}
+                      onClick={() => {
+                        setTxRawFile(null);
+                        setTxForm({ ...txForm, file_base64: '', file_name: '' });
+                      }}
                       className="text-[10px] font-bold text-rose-600 hover:underline"
                     >
                       ✕ Hapus Foto
@@ -1051,7 +1096,7 @@ export default function App() {
                         {txForm.file_name}
                       </p>
                       <p className="text-emerald-700 font-semibold">
-                        ✓ Terkompresi & siap dikirim ke Google Drive
+                        ✓ Terkompresi ({Math.round(txForm.file_base64.length / 1024)} KB) & siap ke Drive
                       </p>
                     </div>
                   </div>
@@ -1096,16 +1141,18 @@ export default function App() {
                 </select>
               </div>
 
-              {/* Lampirkan Foto Bukti Transfer Warga (Masuk ke Folder Bukti_Iuran_Warga) */}
               <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold text-slate-600">
                     📎 Lampirkan Bukti Transfer IPL (Folder Drive: <strong>Bukti_Iuran_Warga</strong>)
                   </span>
-                  {iplUpdateForm.file_base64 && (
+                  {(iplUpdateForm.file_base64 || iplRawFile) && (
                     <button
                       type="button"
-                      onClick={() => setIplUpdateForm({ ...iplUpdateForm, file_base64: '', file_name: '' })}
+                      onClick={() => {
+                        setIplRawFile(null);
+                        setIplUpdateForm({ ...iplUpdateForm, file_base64: '', file_name: '' });
+                      }}
                       className="text-[10px] text-rose-600 font-bold"
                     >
                       ✕ Batal
@@ -1198,7 +1245,7 @@ export default function App() {
                 <input
                   type="text"
                   required
-                  placeholder="pengurus_cmr"
+                  placeholder="cmr1672"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="w-full border border-slate-200 rounded-xl px-3 py-2.5"
