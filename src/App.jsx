@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import PublicDashboard from './components/PublicDashboard';
 import QrisPaymentModal from './components/QrisPaymentModal';
 import { CMoneyAPI, compressImageToBase64 } from './services/apiService';
@@ -9,7 +9,7 @@ const MONTH_NAMES = [
 ];
 
 /**
- * Helper V6.1: Penentu Otomatis Periode Buku berdasarkan Cut-Off Tanggal 25
+ * Helper V6.2: Penentu Otomatis Periode Buku berdasarkan Cut-Off Tanggal 25
  * Tanggal 1-24 -> Bulan Berjalan | Tanggal 25-31 -> Bulan Berikutnya
  */
 function getSmartPeriod(cutoffDay = 25) {
@@ -40,7 +40,7 @@ function getSmartPeriod(cutoffDay = 25) {
 }
 
 /**
- * Helper V6.1: Konversi URL Google Drive menjadi Direct Image URL untuk In-App Lightbox
+ * Helper V6.2: Konversi URL Google Drive menjadi Direct Image URL untuk In-App Lightbox
  */
 export function getDirectDriveImageUrl(url) {
   if (!url || url === '-' || typeof url !== 'string') return '';
@@ -60,7 +60,32 @@ export function getDirectDriveImageUrl(url) {
 }
 
 /**
- * Helper V6.1: Ekstrak 2 Digit Nomor Rumah Murni (Anti-Bug "No. No. 01")
+ * Helper V6.2: Ekstrak Daftar URL Foto (Mendukung String Tunggal, Pemisah " | ", maupun Array)
+ */
+export function parseLightboxPhotos(urlOrUrls) {
+  if (!urlOrUrls) return [];
+  const rawItems = Array.isArray(urlOrUrls) ? urlOrUrls : [urlOrUrls];
+  const flattened = [];
+
+  rawItems.forEach((item) => {
+    if (!item || typeof item !== 'string') return;
+    item
+      .split('|')
+      .map((part) => part.trim())
+      .filter((part) => part && part !== '-')
+      .forEach((cleanUrl) => {
+        flattened.push({
+          rawUrl: cleanUrl,
+          imageUrl: getDirectDriveImageUrl(cleanUrl)
+        });
+      });
+  });
+
+  return flattened;
+}
+
+/**
+ * Helper V6.2: Ekstrak 2 Digit Nomor Rumah Murni (Anti-Bug "No. No. 01")
  */
 export function extractCleanHouseNum(rawVal) {
   const digits = String(rawVal || '').replace(/[^0-9]/g, '');
@@ -96,7 +121,7 @@ const FALLBACK_HOUSES = [
 ];
 
 /**
- * Helper V6.1: Standarisasi Format "No. XX / Nama Warga" (Anti-Bug "No. No." & "undefined")
+ * Helper V6.2: Standarisasi Format "No. XX / Nama Warga" (Anti-Bug "No. No." & "undefined")
  */
 export function formatHouseIdentity(houseOrId, housesList = FALLBACK_HOUSES) {
   if (!houseOrId || houseOrId === '-') return '-';
@@ -161,7 +186,7 @@ function normalizeHousesArray(rawHouses) {
 }
 
 /**
- * Pilihan Paket Pembayaran Netral V6.1 (100% Uang Kas Nyata)
+ * Pilihan Paket Pembayaran Netral V6.2 (100% Uang Kas Nyata)
  */
 const PAYMENT_PACKAGES_V6 = [
   {
@@ -229,8 +254,9 @@ export default function App() {
   const [isQrisModalOpen, setIsQrisModalOpen] = useState(false);
   const [selectedHouseForQris, setSelectedHouseForQris] = useState(null);
 
-  // Modal Penampil Gambar Langsung (In-App Lightbox V6)
-  const [lightboxData, setLightboxData] = useState(null);
+  // Modal In-App Lightbox V6.2 (Slider Multi-Foto + Swipe HP + Keyboard)
+  const [lightboxState, setLightboxState] = useState(null);
+  const touchStartXRef = useRef(null);
 
   // State Login & Panel Pengurus
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(
@@ -243,6 +269,12 @@ export default function App() {
   const [adminActiveSection, setAdminActiveSection] = useState('mutasi');
   const [adminStatusMsg, setAdminStatusMsg] = useState({ type: '', text: '' });
   const [isSubmittingAdmin, setIsSubmittingAdmin] = useState(false);
+
+  // State Kompresi Foto Fail-Safe Pengurus
+  const [isCompressingTxPhoto, setIsCompressingTxPhoto] = useState(false);
+  const [txPhotoError, setTxPhotoError] = useState('');
+  const [isCompressingIplPhoto, setIsCompressingIplPhoto] = useState(false);
+  const [iplPhotoError, setIplPhotoError] = useState('');
 
   // State Form 1: Input Mutasi Kas (Uang Nyata)
   const [txForm, setTxForm] = useState({
@@ -317,6 +349,33 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
+  // Navigasi Keyboard untuk Lightbox Slider (Panah Kiri/Kanan & Esc)
+  useEffect(() => {
+    if (!lightboxState) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setLightboxState(null);
+      } else if (e.key === 'ArrowRight' && lightboxState.photos.length > 1) {
+        setLightboxState((prev) =>
+          prev
+            ? { ...prev, activeIndex: (prev.activeIndex + 1) % prev.photos.length }
+            : null
+        );
+      } else if (e.key === 'ArrowLeft' && lightboxState.photos.length > 1) {
+        setLightboxState((prev) =>
+          prev
+            ? {
+                ...prev,
+                activeIndex: (prev.activeIndex - 1 + prev.photos.length) % prev.photos.length
+              }
+            : null
+        );
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [lightboxState]);
+
   // Ambil Data dari Backend Google Apps Script
   const fetchDashboard = useCallback(
     async (bulan = selectedMonth, tahun = selectedYear, silent = false) => {
@@ -349,6 +408,7 @@ export default function App() {
         setDashboardData((prev) =>
           prev || {
             status: 'success',
+            backend_version: 'offline',
             app_name: 'C-Money',
             cluster_full_name: 'Cluster Mutiara Residence Sumberjaya',
             logo_url: '/assets/logo-cmoney.png',
@@ -384,15 +444,57 @@ export default function App() {
     (h) => String(h.status_huni || 'Aktif').toLowerCase() !== 'tidak aktif' && h.id !== 'H-04'
   );
 
-  // Buka Pop-up Penampil Gambar Langsung (In-App Lightbox V6)
-  const handleOpenLightbox = (url, title = 'Bukti Transaksi / Foto', subtitle = '') => {
-    if (!url || url === '-') return;
-    setLightboxData({
-      rawUrl: url,
-      imageUrl: getDirectDriveImageUrl(url),
+  // Buka Pop-up Slider Lightbox Multi-Foto (Mendukung 1 URL, Pemisah " | ", maupun Array URL)
+  const handleOpenLightbox = (
+    urlOrUrls,
+    title = 'Bukti Transaksi / Foto',
+    subtitle = '',
+    initialIndex = 0
+  ) => {
+    const photos = parseLightboxPhotos(urlOrUrls);
+    if (photos.length === 0) return;
+    const safeIdx = Math.max(0, Math.min(initialIndex, photos.length - 1));
+    setLightboxState({
+      photos,
+      activeIndex: safeIdx,
       title,
       subtitle
     });
+  };
+
+  // Navigasi Slide Lightbox
+  const handlePrevLightbox = () => {
+    setLightboxState((prev) =>
+      prev
+        ? { ...prev, activeIndex: (prev.activeIndex - 1 + prev.photos.length) % prev.photos.length }
+        : null
+    );
+  };
+
+  const handleNextLightbox = () => {
+    setLightboxState((prev) =>
+      prev ? { ...prev, activeIndex: (prev.activeIndex + 1) % prev.photos.length } : null
+    );
+  };
+
+  // Handler Swipe Touch di Layar HP untuk Lightbox Multi-Foto
+  const handleLightboxTouchStart = (e) => {
+    touchStartXRef.current = e.touches?.[0]?.clientX ?? null;
+  };
+
+  const handleLightboxTouchEnd = (e) => {
+    if (touchStartXRef.current === null || !lightboxState || lightboxState.photos.length <= 1) {
+      return;
+    }
+    const endX = e.changedTouches?.[0]?.clientX ?? null;
+    if (endX === null) return;
+    const deltaX = touchStartXRef.current - endX;
+    if (deltaX > 45) {
+      handleNextLightbox();
+    } else if (deltaX < -45) {
+      handlePrevLightbox();
+    }
+    touchStartXRef.current = null;
   };
 
   // Buka Pop-up QRIS Warga
@@ -425,7 +527,7 @@ export default function App() {
         setLoginError(res?.message || 'Username atau password salah.');
       }
     } catch (err) {
-      setLoginError('Gagal terhubung ke server atau kredensial salah.');
+      setLoginError(`Gagal terhubung ke server: ${err.message}`);
     } finally {
       setIsSubmittingAdmin(false);
     }
@@ -437,28 +539,54 @@ export default function App() {
     setIsAdminModalOpen(false);
   };
 
-  // Handler Upload File Foto di Form 1 (Mutasi Kas)
+  // Handler Upload File Foto di Form 1 (Mutasi Kas — Fail-Safe)
   const handleTxPhotoChange = async (e) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    const base64 = await compressImageToBase64(file);
-    setTxForm((prev) => ({
-      ...prev,
-      file_base64: base64,
-      file_name: file.name
-    }));
+    setTxPhotoError('');
+    if (!file) {
+      setTxForm((prev) => ({ ...prev, file_base64: '', file_name: '' }));
+      return;
+    }
+
+    setIsCompressingTxPhoto(true);
+    try {
+      const base64 = await compressImageToBase64(file, 900, 0.76);
+      setTxForm((prev) => ({
+        ...prev,
+        file_base64: base64,
+        file_name: file.name
+      }));
+    } catch (err) {
+      setTxPhotoError(err.message || 'Gagal membaca/mengompresi foto bukti. Pilih ulang foto lain.');
+      setTxForm((prev) => ({ ...prev, file_base64: '', file_name: '' }));
+    } finally {
+      setIsCompressingTxPhoto(false);
+    }
   };
 
-  // Handler Upload File Foto di Form 2 (Validasi IPL)
+  // Handler Upload File Foto di Form 2 (Validasi IPL — Fail-Safe)
   const handleIplPhotoChange = async (e) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    const base64 = await compressImageToBase64(file);
-    setIplForm((prev) => ({
-      ...prev,
-      file_base64: base64,
-      file_name: file.name
-    }));
+    setIplPhotoError('');
+    if (!file) {
+      setIplForm((prev) => ({ ...prev, file_base64: '', file_name: '' }));
+      return;
+    }
+
+    setIsCompressingIplPhoto(true);
+    try {
+      const base64 = await compressImageToBase64(file, 900, 0.76);
+      setIplForm((prev) => ({
+        ...prev,
+        file_base64: base64,
+        file_name: file.name
+      }));
+    } catch (err) {
+      setIplPhotoError(err.message || 'Gagal membaca/mengompresi foto bukti IPL. Pilih ulang foto lain.');
+      setIplForm((prev) => ({ ...prev, file_base64: '', file_name: '' }));
+    } finally {
+      setIsCompressingIplPhoto(false);
+    }
   };
 
   // Perubahan Pilihan Paket Pembayaran di Form 2 Pengurus
@@ -472,13 +600,25 @@ export default function App() {
     }));
   };
 
-  // Submit Form 1: Simpan Mutasi Kas (Uang Nyata)
+  // Submit Form 1: Simpan Mutasi Kas (Atomik / Fail-Safe)
   const handleSubmitTransaction = async (e) => {
     e.preventDefault();
+    if (isCompressingTxPhoto) {
+      setAdminStatusMsg({ type: 'error', text: 'Tunggu sebentar, foto bukti masih dikompresi...' });
+      return;
+    }
+    if (txPhotoError) {
+      setAdminStatusMsg({
+        type: 'error',
+        text: `Transaksi dibatalkan: ${txPhotoError}`
+      });
+      return;
+    }
     if (!txForm.nominal || Number(txForm.nominal) <= 0) {
       setAdminStatusMsg({ type: 'error', text: 'Nominal transaksi wajib diisi dengan benar.' });
       return;
     }
+
     setIsSubmittingAdmin(true);
     setAdminStatusMsg({ type: '', text: '' });
 
@@ -492,17 +632,21 @@ export default function App() {
           ? `${txForm.keterangan} (${houseLabel})`.trim()
           : txForm.keterangan;
 
+      const hasAttachedPhoto = Boolean(txForm.file_name || txForm.file_base64);
+
       const res = await CMoneyAPI.inputTransaction({
         ...txForm,
         nominal: Number(txForm.nominal),
-        keterangan: finalKeterangan
+        keterangan: finalKeterangan,
+        expect_photo: hasAttachedPhoto
       });
 
       if (res && res.status === 'success') {
+        const hasSavedProof = res.url_bukti && res.url_bukti !== '-';
         setAdminStatusMsg({
           type: 'success',
           text: `Transaksi berhasil disimpan ke Buku Kas ${txForm.periode_bulan}.${
-            res.url_bukti && res.url_bukti !== '-' ? ' Foto bukti tersimpan di Drive!' : ''
+            hasSavedProof ? ' Foto bukti berhasil tersimpan di Google Drive!' : ''
           }`
         });
         setTxForm((prev) => ({
@@ -514,20 +658,39 @@ export default function App() {
           file_base64: '',
           file_name: ''
         }));
+        setTxPhotoError('');
         await fetchDashboard(selectedMonth, selectedYear, true);
       } else {
-        setAdminStatusMsg({ type: 'error', text: res?.message || 'Gagal menyimpan mutasi.' });
+        setAdminStatusMsg({
+          type: 'error',
+          text: res?.message || 'Gagal menyimpan mutasi kas. Saldo tidak berubah.'
+        });
       }
     } catch (err) {
-      setAdminStatusMsg({ type: 'error', text: `Error: ${err.message}` });
+      setAdminStatusMsg({
+        type: 'error',
+        text: `Gagal menyimpan transaksi: ${err.message}`
+      });
     } finally {
       setIsSubmittingAdmin(false);
     }
   };
 
-  // Submit Form 2: Validasi Status Lunas IPL & Parkir Warga (+ Auto-Jurnal Kas Nyata)
+  // Submit Form 2: Validasi Status Lunas IPL & Parkir Warga (Atomik / Fail-Safe + Auto-Jurnal)
   const handleSubmitIplUpdate = async (e) => {
     e.preventDefault();
+    if (isCompressingIplPhoto) {
+      setAdminStatusMsg({ type: 'error', text: 'Tunggu sebentar, foto bukti IPL masih dikompresi...' });
+      return;
+    }
+    if (iplPhotoError) {
+      setAdminStatusMsg({
+        type: 'error',
+        text: `Validasi dibatalkan: ${iplPhotoError}`
+      });
+      return;
+    }
+
     setIsSubmittingAdmin(true);
     setAdminStatusMsg({ type: '', text: '' });
 
@@ -535,6 +698,7 @@ export default function App() {
       const houseIdentity = formatHouseIdentity(iplForm.house_id, housesList);
       const selectedPkg =
         PAYMENT_PACKAGES_V6.find((p) => p.id === iplForm.paket_id) || PAYMENT_PACKAGES_V6[0];
+      const hasAttachedPhoto = Boolean(iplForm.file_name || iplForm.file_base64);
 
       const res = await CMoneyAPI.updateIplStatus({
         house_id: iplForm.house_id,
@@ -547,30 +711,9 @@ export default function App() {
         tanggal_bayar: iplForm.tanggal_bayar,
         catatan: `${iplForm.catatan} — ${houseIdentity}`,
         file_base64: iplForm.file_base64,
-        file_name: iplForm.file_name
+        file_name: iplForm.file_name,
+        expect_photo: hasAttachedPhoto
       });
-
-      if (
-        res &&
-        res.status === 'success' &&
-        iplForm.status_bayar === 'Lunas' &&
-        iplForm.auto_jurnal_kas &&
-        !res.auto_ledger_id
-      ) {
-        await CMoneyAPI.inputTransaction({
-          id: `IPL-${iplForm.periode_bulan.toUpperCase()}-${iplForm.periode_tahun}-${iplForm.house_id}`,
-          tanggal: iplForm.tanggal_bayar,
-          periode_bulan: iplForm.periode_bulan,
-          periode_tahun: Number(iplForm.periode_tahun),
-          tipe: 'IN',
-          kategori: selectedPkg.kategoriKas,
-          nominal: Number(iplForm.nominal_bayar),
-          keterangan: `Pembayaran ${selectedPkg.label} — ${houseIdentity}`,
-          house_id: iplForm.house_id,
-          url_bukti: res.url_bukti || '-',
-          is_proyek: false
-        });
-      }
 
       if (res && res.status === 'success') {
         setAdminStatusMsg({
@@ -582,9 +725,13 @@ export default function App() {
           file_base64: '',
           file_name: ''
         }));
+        setIplPhotoError('');
         await fetchDashboard(selectedMonth, selectedYear, true);
       } else {
-        setAdminStatusMsg({ type: 'error', text: res?.message || 'Gagal memperbarui status IPL.' });
+        setAdminStatusMsg({
+          type: 'error',
+          text: res?.message || 'Gagal memperbarui status IPL.'
+        });
       }
     } catch (err) {
       setAdminStatusMsg({ type: 'error', text: `Error: ${err.message}` });
@@ -635,6 +782,8 @@ export default function App() {
           ).toLocaleString('id-ID')}`
         });
         await fetchDashboard(selectedMonth, selectedYear, true);
+      } else {
+        setAdminStatusMsg({ type: 'error', text: res?.message || 'Gagal menyimpan slip gaji.' });
       }
     } catch (err) {
       setAdminStatusMsg({ type: 'error', text: `Error: ${err.message}` });
@@ -646,26 +795,33 @@ export default function App() {
   // Handler Publik: Upload Bukti QRIS Mandiri oleh Warga
   const handlePublicUploadIplProof = async (proofPayload) => {
     const res = await CMoneyAPI.uploadIplProof(proofPayload);
-    await fetchDashboard(selectedMonth, selectedYear, true);
+    if (res && res.status === 'success') {
+      await fetchDashboard(selectedMonth, selectedYear, true);
+    }
     return res;
   };
 
-  // Handler Publik/Security: Simpan Laporan Pos, Patroli, & Paket Tiba di Pos
+  // Handler Publik/Security: Simpan Laporan Pos, Patroli, & Paket (Verifikasi Respon Nyata Server)
   const handleInputSecurityLog = async (logPayload) => {
     const res = await CMoneyAPI.inputSecurityLog(logPayload);
-    await fetchDashboard(selectedMonth, selectedYear, true);
+    if (res && res.status === 'success') {
+      await fetchDashboard(selectedMonth, selectedYear, true);
+    }
     return res;
   };
 
   // Handler Publik/Security: Check-In / Check-Out Denah 6 Slot Parkir Dinamis
   const handleUpdateParkingSlot = async (slotPayload) => {
-    if (typeof CMoneyAPI.updateParkingSlot === 'function') {
-      const res = await CMoneyAPI.updateParkingSlot(slotPayload);
+    const res = await CMoneyAPI.updateParkingSlot(slotPayload);
+    if (res && res.status === 'success') {
       await fetchDashboard(selectedMonth, selectedYear, true);
-      return res;
     }
-    return { status: 'error', message: 'Endpoint parkir belum tersedia.' };
+    return res;
   };
+
+  const activeLightboxPhoto = lightboxState
+    ? lightboxState.photos[lightboxState.activeIndex] || lightboxState.photos[0]
+    : null;
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 pb-10">
@@ -676,6 +832,7 @@ export default function App() {
         isRefreshing={isRefreshing}
         isOnline={isOnline}
         hasServerData={hasServerData}
+        backendVersion={dashboardData?.backend_version || ''}
         liveClock={liveClock}
         lastSyncTime={lastSyncTime}
         selectedMonth={selectedMonth}
@@ -714,57 +871,133 @@ export default function App() {
         />
       )}
 
-      {/* MODAL IN-APP IMAGE LIGHTBOX V6.1 (KLIK LANGSUNG MUNCUL GAMBAR TANPA PINDAH TAB) */}
-      {lightboxData && (
+      {/* MODAL IN-APP LIGHTBOX SLIDER V6.2 (MENDUKUNG MULTI-FOTO, PANAH, THUMBNAIL, & SWIPE HP) */}
+      {lightboxState && activeLightboxPhoto && (
         <div
-          className="fixed inset-0 z-[90] bg-slate-900/85 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={() => setLightboxData(null)}
+          className="fixed inset-0 z-[90] bg-slate-900/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5"
+          onClick={() => setLightboxState(null)}
         >
           <div
-            className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-200"
+            className="bg-white rounded-3xl max-w-2xl w-full overflow-hidden shadow-2xl border border-slate-200 flex flex-col max-h-[92vh]"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-4 bg-teal-900 text-white flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-sm">{lightboxData.title}</h3>
-                {lightboxData.subtitle && (
-                  <p className="text-xs text-teal-200 mt-0.5">{lightboxData.subtitle}</p>
+            {/* Header Lightbox */}
+            <div className="px-5 py-3.5 bg-teal-900 text-white flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-bold text-sm truncate">{lightboxState.title}</h3>
+                  {lightboxState.photos.length > 1 && (
+                    <span className="text-[11px] font-black bg-emerald-400 text-slate-950 px-2 py-0.5 rounded-full shrink-0">
+                      Foto {lightboxState.activeIndex + 1} / {lightboxState.photos.length}
+                    </span>
+                  )}
+                </div>
+                {lightboxState.subtitle && (
+                  <p className="text-xs text-teal-200 mt-0.5 truncate">{lightboxState.subtitle}</p>
                 )}
               </div>
               <button
                 type="button"
-                onClick={() => setLightboxData(null)}
-                className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center font-bold text-sm"
+                onClick={() => setLightboxState(null)}
+                className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center font-bold text-sm shrink-0 cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            <div className="p-4 bg-slate-950 flex items-center justify-center min-h-[280px] max-h-[70vh] overflow-auto">
+            {/* Area Gambar Utama + Navigasi Slide & Swipe */}
+            <div
+              className="relative p-4 bg-slate-950 flex items-center justify-center min-h-[280px] sm:min-h-[360px] max-h-[60vh] overflow-hidden select-none"
+              onTouchStart={handleLightboxTouchStart}
+              onTouchEnd={handleLightboxTouchEnd}
+            >
+              {lightboxState.photos.length > 1 && (
+                <button
+                  type="button"
+                  onClick={handlePrevLightbox}
+                  aria-label="Foto sebelumnya"
+                  className="absolute left-3 z-10 w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 text-white border border-white/20 flex items-center justify-center font-black text-base shadow-lg cursor-pointer transition"
+                >
+                  ◀
+                </button>
+              )}
+
               <img
-                src={lightboxData.imageUrl}
-                alt={lightboxData.title}
-                className="max-w-full max-h-[62vh] object-contain rounded-xl"
+                key={activeLightboxPhoto.imageUrl}
+                src={activeLightboxPhoto.imageUrl}
+                alt={`${lightboxState.title} (${lightboxState.activeIndex + 1})`}
+                className="max-w-full max-h-[55vh] object-contain rounded-xl"
                 onError={(e) => {
                   e.target.onerror = null;
                   e.target.src = '/assets/logo-cmoney.png';
                 }}
               />
+
+              {lightboxState.photos.length > 1 && (
+                <button
+                  type="button"
+                  onClick={handleNextLightbox}
+                  aria-label="Foto berikutnya"
+                  className="absolute right-3 z-10 w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 text-white border border-white/20 flex items-center justify-center font-black text-base shadow-lg cursor-pointer transition"
+                >
+                  ▶
+                </button>
+              )}
             </div>
 
-            <div className="px-5 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-2">
-              <a
-                href={lightboxData.rawUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-xs font-semibold text-teal-700 hover:underline"
-              >
-                🔗 Buka Resolusi Penuh di Google Drive
-              </a>
+            {/* Barisan Thumbnail (Muncul otomatis jika jumlah foto > 1) */}
+            {lightboxState.photos.length > 1 && (
+              <div className="px-4 py-2.5 bg-slate-900 border-t border-slate-800 flex items-center justify-center gap-2 overflow-x-auto">
+                {lightboxState.photos.map((p, idx) => {
+                  const isActive = idx === lightboxState.activeIndex;
+                  return (
+                    <button
+                      key={`${p.rawUrl}-${idx}`}
+                      type="button"
+                      onClick={() =>
+                        setLightboxState((prev) => (prev ? { ...prev, activeIndex: idx } : null))
+                      }
+                      className={`relative w-12 h-12 rounded-xl overflow-hidden border-2 shrink-0 transition cursor-pointer ${
+                        isActive
+                          ? 'border-emerald-400 scale-105 shadow-md'
+                          : 'border-slate-700 opacity-60 hover:opacity-100'
+                      }`}
+                    >
+                      <img
+                        src={p.imageUrl}
+                        alt={`Thumbnail ${idx + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                      <span className="absolute bottom-0 right-0 bg-black/70 text-white text-[9px] font-bold px-1">
+                        {idx + 1}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Footer Lightbox */}
+            <div className="px-5 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-3">
+                <a
+                  href={activeLightboxPhoto.rawUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-xs font-semibold text-teal-700 hover:underline"
+                >
+                  🔗 Buka Resolusi Penuh di Google Drive
+                </a>
+                {lightboxState.photos.length > 1 && (
+                  <span className="hidden sm:inline text-[11px] text-slate-400">
+                    (Geser / klik ◀ ▶ untuk foto lainnya)
+                  </span>
+                )}
+              </div>
               <button
                 type="button"
-                onClick={() => setLightboxData(null)}
-                className="px-4 py-1.5 rounded-xl bg-slate-800 text-white text-xs font-bold hover:bg-slate-700"
+                onClick={() => setLightboxState(null)}
+                className="px-4 py-1.5 rounded-xl bg-slate-800 text-white text-xs font-bold hover:bg-slate-700 cursor-pointer"
               >
                 Tutup Gambar
               </button>
@@ -785,7 +1018,7 @@ export default function App() {
               <button
                 type="button"
                 onClick={() => setIsLoginModalOpen(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold"
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold cursor-pointer"
               >
                 ✕
               </button>
@@ -823,7 +1056,7 @@ export default function App() {
               <button
                 type="submit"
                 disabled={isSubmittingAdmin}
-                className="w-full py-3 rounded-xl bg-teal-800 hover:bg-teal-900 text-white font-bold text-sm transition shadow-md"
+                className="w-full py-3 rounded-xl bg-teal-800 hover:bg-teal-900 text-white font-bold text-sm transition shadow-md cursor-pointer"
               >
                 {isSubmittingAdmin ? 'Memverifikasi...' : 'Masuk Panel Pengurus'}
               </button>
@@ -832,52 +1065,57 @@ export default function App() {
         </div>
       )}
 
-      {/* PANEL KENDALI PENGURUS V6.1 (RINGKAS: 3 FORM UTAMA BENDAHARA) */}
+      {/* PANEL KENDALI PENGURUS V6.2 (RINGKAS: 3 FORM UTAMA BENDAHARA + FAIL-SAFE UPLOAD) */}
       {isAdminModalOpen && isAdminLoggedIn && (
         <div className="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
           <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden my-auto">
             {/* Header Panel Pengurus */}
-            <div className="px-5 py-4 bg-gradient-to-r from-teal-900 to-emerald-800 text-white flex items-center justify-between">
+            <div className="px-5 py-4 bg-gradient-to-r from-teal-900 to-emerald-800 text-white flex items-center justify-between gap-2">
               <div>
-                <span className="text-[10px] uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full font-bold">
-                  Panel Kendali Pengurus V6.1
-                </span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[10px] uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full font-bold">
+                    Panel Pengurus V6.2
+                  </span>
+                  <span className="text-[10px] font-mono bg-emerald-400/25 border border-emerald-300/40 px-2 py-0.5 rounded-full font-bold text-emerald-100">
+                    GAS API: {dashboardData?.backend_version || 'memuat...'}
+                  </span>
+                </div>
                 <h2 className="text-base sm:text-lg font-extrabold mt-1">
                   Bendahara & Operasional CMR
                 </h2>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsAdminModalOpen(false)}
-                  className="px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-xs font-bold flex items-center gap-1"
+                  className="px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-xs font-bold flex items-center gap-1 cursor-pointer"
                 >
                   ← Layar Utama
                 </button>
                 <button
                   type="button"
                   onClick={handleLogoutAdmin}
-                  className="px-3 py-1.5 rounded-xl bg-rose-500/80 hover:bg-rose-600 text-xs font-bold"
+                  className="px-3 py-1.5 rounded-xl bg-rose-500/80 hover:bg-rose-600 text-xs font-bold cursor-pointer"
                 >
                   Logout
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsAdminModalOpen(false)}
-                  className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center font-bold"
+                  className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center font-bold cursor-pointer"
                 >
                   ✕
                 </button>
               </div>
             </div>
 
-            {/* Bar Pintasan Navigasi ke Layar Utama */}
+            {/* Bar Pintasan Navigasi ke Layar Utama (Menu 22 Rumah -> Warga) */}
             <div className="px-5 py-2 bg-slate-100 border-b border-slate-200 flex items-center justify-between flex-wrap gap-2 text-xs">
               <span className="font-semibold text-slate-500">Buka Cepat Menu Utama:</span>
               <div className="flex items-center gap-1.5 flex-wrap">
                 {[
                   { id: 'beranda', label: '🏠 Beranda' },
-                  { id: 'rumah', label: '🏘️ 22 Rumah' },
+                  { id: 'rumah', label: '🏘️ Warga' },
                   { id: 'mutasi', label: '📑 Buku Kas' },
                   { id: 'parkir', label: '🅿️ Parkir' },
                   { id: 'keamanan', label: '🛡️ Pos Security' }
@@ -889,7 +1127,7 @@ export default function App() {
                       setActiveTab(t.id);
                       setIsAdminModalOpen(false);
                     }}
-                    className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:border-teal-600 text-slate-700 font-semibold"
+                    className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:border-teal-600 text-slate-700 font-semibold cursor-pointer"
                   >
                     {t.label}
                   </button>
@@ -905,7 +1143,7 @@ export default function App() {
                   setAdminActiveSection('mutasi');
                   setAdminStatusMsg({ type: '', text: '' });
                 }}
-                className={`py-2.5 px-3 rounded-xl text-xs font-extrabold transition ${
+                className={`py-2.5 px-3 rounded-xl text-xs font-extrabold transition cursor-pointer ${
                   adminActiveSection === 'mutasi'
                     ? 'bg-teal-800 text-white shadow'
                     : 'text-slate-600 hover:bg-slate-200/70'
@@ -919,7 +1157,7 @@ export default function App() {
                   setAdminActiveSection('ipl');
                   setAdminStatusMsg({ type: '', text: '' });
                 }}
-                className={`py-2.5 px-3 rounded-xl text-xs font-extrabold transition ${
+                className={`py-2.5 px-3 rounded-xl text-xs font-extrabold transition cursor-pointer ${
                   adminActiveSection === 'ipl'
                     ? 'bg-teal-800 text-white shadow'
                     : 'text-slate-600 hover:bg-slate-200/70'
@@ -933,7 +1171,7 @@ export default function App() {
                   setAdminActiveSection('closing');
                   setAdminStatusMsg({ type: '', text: '' });
                 }}
-                className={`py-2.5 px-3 rounded-xl text-xs font-extrabold transition ${
+                className={`py-2.5 px-3 rounded-xl text-xs font-extrabold transition cursor-pointer ${
                   adminActiveSection === 'closing'
                     ? 'bg-teal-800 text-white shadow'
                     : 'text-slate-600 hover:bg-slate-200/70'
@@ -957,7 +1195,7 @@ export default function App() {
                 </div>
               )}
 
-              {/* FORM 1: INPUT MUTASI KAS (UANG NYATA) */}
+              {/* FORM 1: INPUT MUTASI KAS (UANG NYATA — ATOMIK / FAIL-SAFE) */}
               {adminActiveSection === 'mutasi' && (
                 <form onSubmit={handleSubmitTransaction} className="space-y-3.5">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -1103,9 +1341,11 @@ export default function App() {
                     />
                   </div>
 
-                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-dashed border-slate-300">
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      📷 Upload Foto Nota / Kuitansi Bukti (Otomatis ke Drive Struk_Pengeluaran_Kas)
+                  {/* Upload Foto Nota / Struk Bukti (Fail-Safe) */}
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-dashed border-slate-300 space-y-2">
+                    <label className="block text-xs font-bold text-slate-700">
+                      📷 Upload Foto Nota / Kuitansi Bukti (Masuk ke Drive{' '}
+                      {txForm.tipe === 'IN' ? 'Bukti_Iuran_Warga' : 'Struk_Pengeluaran_Kas'})
                     </label>
                     <input
                       type="file"
@@ -1113,21 +1353,43 @@ export default function App() {
                       onChange={handleTxPhotoChange}
                       className="w-full text-xs text-slate-600"
                     />
-                    {txForm.file_base64 && (
-                      <div className="mt-2 flex items-center gap-3">
+
+                    {isCompressingTxPhoto && (
+                      <p className="text-[11px] font-bold text-amber-700">
+                        ⏳ Mengompresi foto bukti... harap tunggu sebelum menekan Simpan.
+                      </p>
+                    )}
+
+                    {txPhotoError && (
+                      <p className="text-[11px] font-bold text-rose-600">⚠️ {txPhotoError}</p>
+                    )}
+
+                    {txForm.file_base64 && !isCompressingTxPhoto && (
+                      <div className="flex items-center gap-3 pt-1">
                         <img
                           src={txForm.file_base64}
                           alt="Preview Nota"
-                          className="w-14 h-14 object-cover rounded-xl border border-slate-200"
+                          onClick={() =>
+                            handleOpenLightbox(
+                              txForm.file_base64,
+                              'Pratinjau Nota Transaksi',
+                              txForm.file_name
+                            )
+                          }
+                          className="w-14 h-14 object-cover rounded-xl border border-emerald-300 cursor-pointer"
                         />
                         <div className="text-xs">
-                          <p className="font-bold text-emerald-700">✓ Foto siap diunggah</p>
+                          <p className="font-bold text-emerald-700">
+                            ✓ Foto siap diunggah (~
+                            {Math.round((txForm.file_base64.length * 3) / 4 / 1024)} KB)
+                          </p>
                           <button
                             type="button"
-                            onClick={() =>
-                              setTxForm((prev) => ({ ...prev, file_base64: '', file_name: '' }))
-                            }
-                            className="text-rose-600 font-semibold hover:underline mt-0.5"
+                            onClick={() => {
+                              setTxForm((prev) => ({ ...prev, file_base64: '', file_name: '' }));
+                              setTxPhotoError('');
+                            }}
+                            className="text-rose-600 font-semibold hover:underline mt-0.5 cursor-pointer"
                           >
                             Hapus Foto
                           </button>
@@ -1138,17 +1400,19 @@ export default function App() {
 
                   <button
                     type="submit"
-                    disabled={isSubmittingAdmin}
-                    className="w-full py-3 rounded-xl bg-teal-800 hover:bg-teal-900 text-white font-extrabold text-xs sm:text-sm shadow-md transition"
+                    disabled={isSubmittingAdmin || isCompressingTxPhoto}
+                    className="w-full py-3 rounded-xl bg-teal-800 hover:bg-teal-900 disabled:opacity-60 text-white font-extrabold text-xs sm:text-sm shadow-md transition cursor-pointer"
                   >
-                    {isSubmittingAdmin
-                      ? 'Menyimpan ke Spreadsheet & Drive...'
+                    {isCompressingTxPhoto
+                      ? '⏳ Memproses Foto...'
+                      : isSubmittingAdmin
+                      ? 'Menyimpan ke Drive & Spreadsheet...'
                       : '💾 Simpan Transaksi ke Buku Kas'}
                   </button>
                 </form>
               )}
 
-              {/* FORM 2: VALIDASI LUNAS IPL & PARKIR WARGA (NETRAL + AUTO-JURNAL) */}
+              {/* FORM 2: VALIDASI LUNAS IPL & PARKIR WARGA (NETRAL + FAIL-SAFE + AUTO-JURNAL) */}
               {adminActiveSection === 'ipl' && (
                 <form onSubmit={handleSubmitIplUpdate} className="space-y-3.5">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1277,9 +1541,9 @@ export default function App() {
                     />
                   </div>
 
-                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-dashed border-slate-300">
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      📷 Upload Bukti Transfer / QRIS Warga (Otomatis ke Drive Bukti_Iuran_Warga)
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-dashed border-slate-300 space-y-2">
+                    <label className="block text-xs font-bold text-slate-700">
+                      📷 Upload Bukti Transfer / QRIS Warga (Masuk ke Drive Bukti_Iuran_Warga)
                     </label>
                     <input
                       type="file"
@@ -1287,26 +1551,59 @@ export default function App() {
                       onChange={handleIplPhotoChange}
                       className="w-full text-xs text-slate-600"
                     />
-                    {iplForm.file_base64 && (
-                      <div className="mt-2 flex items-center gap-3">
+
+                    {isCompressingIplPhoto && (
+                      <p className="text-[11px] font-bold text-amber-700">
+                        ⏳ Mengompresi foto bukti transfer...
+                      </p>
+                    )}
+
+                    {iplPhotoError && (
+                      <p className="text-[11px] font-bold text-rose-600">⚠️ {iplPhotoError}</p>
+                    )}
+
+                    {iplForm.file_base64 && !isCompressingIplPhoto && (
+                      <div className="flex items-center gap-3 pt-1">
                         <img
                           src={iplForm.file_base64}
                           alt="Preview Bukti IPL"
-                          className="w-14 h-14 object-cover rounded-xl border border-slate-200"
+                          onClick={() =>
+                            handleOpenLightbox(
+                              iplForm.file_base64,
+                              'Pratinjau Bukti IPL Warga',
+                              iplForm.file_name
+                            )
+                          }
+                          className="w-14 h-14 object-cover rounded-xl border border-emerald-300 cursor-pointer"
                         />
-                        <span className="text-xs font-bold text-emerald-700">
-                          ✓ Bukti transfer siap disimpan
-                        </span>
+                        <div className="text-xs">
+                          <p className="font-bold text-emerald-700">
+                            ✓ Bukti siap disimpan (~
+                            {Math.round((iplForm.file_base64.length * 3) / 4 / 1024)} KB)
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIplForm((prev) => ({ ...prev, file_base64: '', file_name: '' }));
+                              setIplPhotoError('');
+                            }}
+                            className="text-rose-600 font-semibold hover:underline mt-0.5 cursor-pointer"
+                          >
+                            Hapus Foto
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
 
                   <button
                     type="submit"
-                    disabled={isSubmittingAdmin}
-                    className="w-full py-3 rounded-xl bg-teal-800 hover:bg-teal-900 text-white font-extrabold text-xs sm:text-sm shadow-md transition"
+                    disabled={isSubmittingAdmin || isCompressingIplPhoto}
+                    className="w-full py-3 rounded-xl bg-teal-800 hover:bg-teal-900 disabled:opacity-60 text-white font-extrabold text-xs sm:text-sm shadow-md transition cursor-pointer"
                   >
-                    {isSubmittingAdmin
+                    {isCompressingIplPhoto
+                      ? '⏳ Memproses Foto...'
+                      : isSubmittingAdmin
                       ? 'Memvalidasi & Mencatat Kas...'
                       : `✅ Simpan Status Lunas (${formatHouseIdentity(
                           iplForm.house_id,
@@ -1363,7 +1660,7 @@ export default function App() {
                     <button
                       type="submit"
                       disabled={isSubmittingAdmin}
-                      className="w-full py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow"
+                      className="w-full py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow cursor-pointer"
                     >
                       {isSubmittingAdmin
                         ? 'Mengirim Laporan...'
@@ -1465,7 +1762,7 @@ export default function App() {
                     <button
                       type="submit"
                       disabled={isSubmittingAdmin}
-                      className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs shadow"
+                      className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs shadow cursor-pointer"
                     >
                       💾 Simpan Slip Gaji Security
                     </button>
