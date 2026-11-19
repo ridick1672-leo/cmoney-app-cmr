@@ -1,5 +1,6 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { compressMultipleImagesToBase64 } from '../services/apiService';
+import SecurityAttendanceCard from './SecurityAttendanceCard';
 
 // ============================================================================
 // SAKLAR FITUR V6.3 (FEATURE FLAGS)
@@ -48,8 +49,7 @@ function getLogPhotoUrls(log) {
 const SECURITY_CATEGORY_TABS = [
   { id: 'PAKET_SURAT', label: '📦 Paket Warga', short: 'Paket' },
   { id: 'PATROLI', label: '🔦 Patroli', short: 'Patroli' },
-  { id: 'ABSEN_SHIFT', label: '👮 Absen Shift', short: 'Absen' },
-  { id: 'ANOMALI_FASILITAS', label: '⚠️ Kendala / Tamu', short: 'Kendala' }
+  { id: 'ANOMALI_FASILITAS', label: '⚠️ Kendala / Izin Pos', short: 'Kendala' }
 ];
 
 const SECURITY_PRESETS = {
@@ -66,13 +66,8 @@ const SECURITY_PRESETS = {
     'Patroli Dini Hari (02:00)',
     'Patroli Subuh (05:00)'
   ],
-  ABSEN_SHIFT: [
-    'Serah Terima Malam → Pagi (08:00)',
-    'Serah Terima Pagi → Malam (20:00)',
-    'Tutup Pos Malam Libur (Jumat / Sabtu)',
-    'Izin Sholat Jumat / ISOMA (Gerbang Dikunci)'
-  ],
   ANOMALI_FASILITAS: [
+    'Izin Sholat Jumat / ISOMA (Gerbang Dikunci)',
     'Kendala Lampu / Listrik / Gerbang',
     'Tamu / Survei / Kurir (KTP Dicatat)',
     'Pengambilan Sampah / Isi Galon Pos',
@@ -2221,7 +2216,7 @@ export default function PublicDashboard({
                       : 'text-slate-600 hover:bg-slate-100'
                   }`}
                 >
-                  📅 Jadwal Shift
+                  ⏱️ Absen & Shift
                 </button>
 
                 <button
@@ -2430,7 +2425,7 @@ export default function PublicDashboard({
                       <label className="block font-bold text-slate-600 mb-1.5">
                         3. Jenis Laporan Pos
                       </label>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                         {SECURITY_CATEGORY_TABS.map((tab) => {
                           const isSelected = secForm.kategori_laporan === tab.id;
                           return (
@@ -2701,93 +2696,15 @@ export default function PublicDashboard({
                 </div>
               )}
 
-              {/* SUB-TAB 3: KALENDER JADWAL ROTASI SECURITY (TERFILTER PER BULAN TERPILIH V6.3) */}
+              {/* SUB-TAB 3: ABSENSI & SHIFT SECURITY ALA GREATDAY (TANPA GPS) */}
               {secSubTab === 'jadwal' && (
-                <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/70 space-y-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <h4 className="font-extrabold text-slate-800 text-base">
-                        📅 Jadwal Rotasi Shift Security (
-                        {scheduleFilterMode === 'ALL'
-                          ? 'Semua Periode'
-                          : `${selectedMonth} ${selectedYear}`}
-                        )
-                      </h4>
-                      <p className="text-xs text-slate-500">
-                        Minggu–Kamis: 2 Shift Normal • Jumat Malam: Libur • Sabtu: Rotasi Shift Pagi
-                        &amp; Malam Libur
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 text-xs bg-slate-100 p-1 rounded-xl border border-slate-200">
-                      <button
-                        type="button"
-                        onClick={() => setScheduleFilterMode('SELECTED_MONTH')}
-                        className={`px-3 py-1.5 rounded-lg font-bold transition cursor-pointer ${
-                          scheduleFilterMode === 'SELECTED_MONTH'
-                            ? 'bg-teal-800 text-white shadow-sm'
-                            : 'text-slate-600 hover:bg-white'
-                        }`}
-                      >
-                        {selectedMonth} {selectedYear}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setScheduleFilterMode('ALL')}
-                        className={`px-3 py-1.5 rounded-lg font-bold transition cursor-pointer ${
-                          scheduleFilterMode === 'ALL'
-                            ? 'bg-teal-800 text-white shadow-sm'
-                            : 'text-slate-600 hover:bg-white'
-                        }`}
-                      >
-                        Semua Arsip
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse text-xs">
-                      <thead>
-                        <tr className="border-b border-slate-200 text-slate-500 bg-slate-50">
-                          <th className="py-2.5 px-3 font-extrabold">Tanggal</th>
-                          <th className="py-2.5 px-3 font-extrabold">Hari</th>
-                          <th className="py-2.5 px-3 font-extrabold">Shift Pagi (08:00-20:00)</th>
-                          <th className="py-2.5 px-3 font-extrabold">Shift Malam (20:00-08:00)</th>
-                          <th className="py-2.5 px-3 font-extrabold">Keterangan</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {securitySchedules.map((sch) => {
-                          const isOffNight = String(sch.shift_malam || '').toUpperCase().includes('LIBUR');
-                          return (
-                            <tr
-                              key={sch.id || sch.tanggal}
-                              className={isOffNight ? 'bg-amber-50/40' : 'hover:bg-slate-50'}
-                            >
-                              <td className="py-2.5 px-3 font-mono font-semibold text-slate-700 whitespace-nowrap">
-                                {sch.tanggal}
-                              </td>
-                              <td className="py-2.5 px-3 font-bold text-slate-800">{sch.hari}</td>
-                              <td className="py-2.5 px-3 font-extrabold text-teal-800">
-                                {sch.shift_pagi}
-                              </td>
-                              <td
-                                className={`py-2.5 px-3 font-bold ${
-                                  isOffNight ? 'text-amber-700' : 'text-indigo-800'
-                                }`}
-                              >
-                                {sch.shift_malam}
-                              </td>
-                              <td className="py-2.5 px-3 text-slate-500">
-                                {sch.status_jadwal}
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                <SecurityAttendanceCard
+                  securityLogs={securityLogs}
+                  securitySchedules={securitySchedules}
+                  waitingPackagesCount={waitingPackagesCount}
+                  onInputSecurityLog={onInputSecurityLog}
+                  onOpenLightbox={triggerLightbox}
+                />
               )}
 
               {/* SUB-TAB 4: RIWAYAT LOG POS SECURITY (RAPI + FILTER KATEGORI + 1 TOMBOL SLIDER MULTI-FOTO) */}
