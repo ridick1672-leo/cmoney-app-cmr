@@ -9,7 +9,7 @@ const MONTH_NAMES = [
 ];
 
 /**
- * Helper V6: Penentu Otomatis Periode Buku berdasarkan Cut-Off Tanggal 25
+ * Helper V6.1: Penentu Otomatis Periode Buku berdasarkan Cut-Off Tanggal 25
  * Tanggal 1-24 -> Bulan Berjalan | Tanggal 25-31 -> Bulan Berikutnya
  */
 function getSmartPeriod(cutoffDay = 25) {
@@ -40,7 +40,7 @@ function getSmartPeriod(cutoffDay = 25) {
 }
 
 /**
- * Helper V6: Konversi URL Google Drive menjadi Direct Image URL untuk In-App Lightbox
+ * Helper V6.1: Konversi URL Google Drive menjadi Direct Image URL untuk In-App Lightbox
  */
 export function getDirectDriveImageUrl(url) {
   if (!url || url === '-' || typeof url !== 'string') return '';
@@ -60,35 +60,43 @@ export function getDirectDriveImageUrl(url) {
 }
 
 /**
- * Data Cadangan (Fallback) 22 Unit Rumah CMR (21 Aktif + 1 Non-Aktif BPR)
+ * Helper V6.1: Ekstrak 2 Digit Nomor Rumah Murni (Anti-Bug "No. No. 01")
+ */
+export function extractCleanHouseNum(rawVal) {
+  const digits = String(rawVal || '').replace(/[^0-9]/g, '');
+  return digits ? digits.padStart(2, '0') : '';
+}
+
+/**
+ * Data Cadangan (Fallback) 22 Unit Rumah CMR — 100% Sesuai Sheet `houses` CMR_Database_Master
  */
 const FALLBACK_HOUSES = [
-  { id: 'H-01', nomor_rumah: '01', nama_kepala_keluarga: 'Pak Suharso', alias_keluarga: 'Pak Suharso / Ibu Suharso', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-02', nomor_rumah: '02', nama_kepala_keluarga: 'Pak Kiswanto', alias_keluarga: 'Pak Kiswanto / Ibu Kiswanto', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-03', nomor_rumah: '03', nama_kepala_keluarga: 'Pak Upen', alias_keluarga: 'Pak Upen (Unit Pak Dwi)', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-04', nomor_rumah: '04', nama_kepala_keluarga: 'Dijual (Pihak BPR)', alias_keluarga: 'Unit Non-Aktif (Pihak BPR)', status_huni: 'Tidak Aktif', tarif_ipl: 0 },
-  { id: 'H-05', nomor_rumah: '05', nama_kepala_keluarga: 'Pak Zakaria', alias_keluarga: 'Pak Zakaria (Bang Jak) / Ibu Negara', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-06', nomor_rumah: '06', nama_kepala_keluarga: 'Pak Andy', alias_keluarga: 'Pak Andy / Ibu Andy', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-07', nomor_rumah: '07', nama_kepala_keluarga: 'Pak Refza Muhammad', alias_keluarga: 'Pak Refza Muhammad / Ibu Reza Wandira', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-08', nomor_rumah: '08', nama_kepala_keluarga: 'Pak Ramon', alias_keluarga: 'Pak Ramon / Ibu Yuska / Abang Rasya', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-09', nomor_rumah: '09', nama_kepala_keluarga: 'Pak Fikri', alias_keluarga: 'Pak Fikri / Ibu Fikri', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-10', nomor_rumah: '10', nama_kepala_keluarga: 'Pak Dedi', alias_keluarga: 'Pak Dedi / Ibu Dedi', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-11', nomor_rumah: '11', nama_kepala_keluarga: 'Pak Hendra', alias_keluarga: 'Pak Hendra / Ibu Hendra', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-12', nomor_rumah: '12', nama_kepala_keluarga: 'Pak Rizky', alias_keluarga: 'Pak Rizky / Ibu Rizky', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-13', nomor_rumah: '13', nama_kepala_keluarga: 'Pak Hery', alias_keluarga: 'Pak Hery / Ibu Hery', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-14', nomor_rumah: '14', nama_kepala_keluarga: 'Pak Dwi', alias_keluarga: 'Pak Dwi / Ibu Dwi', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-15', nomor_rumah: '15', nama_kepala_keluarga: 'Pak Juhairi', alias_keluarga: 'Pak Juhairi / Ibu Juhairi', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-16', nomor_rumah: '16', nama_kepala_keluarga: 'Pak Baim', alias_keluarga: 'Pak Baim / Ibu Baim (Unit 1)', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-17', nomor_rumah: '17', nama_kepala_keluarga: 'Pak Agung', alias_keluarga: 'Pak Agung / Ibu Agung', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-18', nomor_rumah: '18', nama_kepala_keluarga: 'Pak Wahyu', alias_keluarga: 'Pak Wahyu / Ibu Wahyu', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-19', nomor_rumah: '19', nama_kepala_keluarga: 'Pak Anton', alias_keluarga: 'Pak Anton / Ibu Anton', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-20', nomor_rumah: '20', nama_kepala_keluarga: 'Pak Bambang', alias_keluarga: 'Pak Bambang / Ibu Bambang', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-21', nomor_rumah: '21', nama_kepala_keluarga: 'Pak Taufik', alias_keluarga: 'Pak Taufik / Ibu Taufik', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-22', nomor_rumah: '22', nama_kepala_keluarga: 'Pak Baim', alias_keluarga: 'Pak Baim / Pak Suwandi', status_huni: 'Aktif', tarif_ipl: 200000 }
+  { id: 'H-01', nomor_rumah: '01', nama_warga: 'Pak Suharso', nama_kepala_keluarga: 'Pak Suharso', alias_keluarga: 'Pak Suharso / Ibu Aira', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-02', nomor_rumah: '02', nama_warga: 'Pak Refza', nama_kepala_keluarga: 'Pak Refza', alias_keluarga: 'Pak Refza / Ibu Ulfa', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-03', nomor_rumah: '03', nama_warga: 'Pak Upen', nama_kepala_keluarga: 'Pak Upen', alias_keluarga: 'Pak Upen', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-04', nomor_rumah: '04', nama_warga: 'Dijual', nama_kepala_keluarga: 'Dijual', alias_keluarga: 'Unit Kosong - Dijual Pihak BPR', status_huni: 'Tidak Aktif', tarif_ipl: 0 },
+  { id: 'H-05', nomor_rumah: '05', nama_warga: 'Pak Anggi', nama_kepala_keluarga: 'Pak Anggi', alias_keluarga: 'Pak Anggi / Ibu Siti / Abang Rafa', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-06', nomor_rumah: '06', nama_warga: 'Pak Andy', nama_kepala_keluarga: 'Pak Andy', alias_keluarga: 'Pak Andi / Ibu Santi', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-07', nomor_rumah: '07', nama_warga: 'Pak Romy', nama_kepala_keluarga: 'Pak Romy', alias_keluarga: 'Pak Romy', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-08', nomor_rumah: '08', nama_warga: 'Pak Sony', nama_kepala_keluarga: 'Pak Sony', alias_keluarga: 'Pak Sonny Ilham / Ibu Uci', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-09', nomor_rumah: '09', nama_warga: 'Pak Robi', nama_kepala_keluarga: 'Pak Robi', alias_keluarga: 'Pak Robi / Ibu Fitri / Kakak Aca', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-10', nomor_rumah: '10', nama_warga: 'Pak Ridick', nama_kepala_keluarga: 'Pak Ridick', alias_keluarga: 'Pak Ridick / Ibu Naufal', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-11', nomor_rumah: '11', nama_warga: 'Pak Zakaria', nama_kepala_keluarga: 'Pak Zakaria', alias_keluarga: 'Bang Jak / Ibu Sari', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-12', nomor_rumah: '12', nama_warga: 'Pak Kiswanto', nama_kepala_keluarga: 'Pak Kiswanto', alias_keluarga: 'Pak Kis / Ibu Ayu', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-13', nomor_rumah: '13', nama_warga: 'Pak Hery', nama_kepala_keluarga: 'Pak Hery', alias_keluarga: 'Pak Hery / Ibu Dewi', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-14', nomor_rumah: '14', nama_warga: 'Pak Dwi', nama_kepala_keluarga: 'Pak Dwi', alias_keluarga: 'Pak Dwi / Ibu Tuti', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-15', nomor_rumah: '15', nama_warga: 'Pak Juhairi', nama_kepala_keluarga: 'Pak Juhairi', alias_keluarga: 'Pak Juhairi', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-16', nomor_rumah: '16', nama_warga: 'Pak Baim', nama_kepala_keluarga: 'Pak Baim', alias_keluarga: 'Pak Baim', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-17', nomor_rumah: '17', nama_warga: 'Pak Yose', nama_kepala_keluarga: 'Pak Yose', alias_keluarga: 'Pak Yose / Ibu Reza', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-18', nomor_rumah: '18', nama_warga: 'Pak Jihad', nama_kepala_keluarga: 'Pak Jihad', alias_keluarga: 'Pak Jihad / Ibu Retno', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-19', nomor_rumah: '19', nama_warga: 'Pak Jacob', nama_kepala_keluarga: 'Pak Jacob', alias_keluarga: 'Opa Jacob', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-20', nomor_rumah: '20', nama_warga: 'Pak Ramon', nama_kepala_keluarga: 'Pak Ramon', alias_keluarga: 'Pak Ramon / Ibu Yuska / Abang Rasya', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-21', nomor_rumah: '21', nama_warga: 'Pak Suwandi', nama_kepala_keluarga: 'Pak Suwandi', alias_keluarga: 'Pak Suwandi / Ibu Maria', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-22', nomor_rumah: '22', nama_warga: 'Pak Baim', nama_kepala_keluarga: 'Pak Baim', alias_keluarga: 'Pak Baim', status_huni: 'Aktif', tarif_ipl: 200000 }
 ];
 
 /**
- * Helper V6: Standarisasi Format "No. XX / Nama Warga" di Seluruh Sistem
+ * Helper V6.1: Standarisasi Format "No. XX / Nama Warga" (Anti-Bug "No. No." & "undefined")
  */
 export function formatHouseIdentity(houseOrId, housesList = FALLBACK_HOUSES) {
   if (!houseOrId || houseOrId === '-') return '-';
@@ -96,31 +104,64 @@ export function formatHouseIdentity(houseOrId, housesList = FALLBACK_HOUSES) {
   const list = Array.isArray(housesList) && housesList.length > 0 ? housesList : FALLBACK_HOUSES;
 
   if (typeof houseOrId === 'object') {
-    const num = String(houseOrId.nomor_rumah || houseOrId.id || '')
-      .replace('H-', '')
-      .padStart(2, '0');
-    const name = houseOrId.nama_kepala_keluarga || 'Warga';
+    const num = extractCleanHouseNum(houseOrId.nomor_rumah || houseOrId.id) || '00';
+    const name = String(
+      houseOrId.nama_warga || houseOrId.nama_kepala_keluarga || 'Warga'
+    ).trim();
     return `No. ${num} / ${name}`;
   }
 
   const raw = String(houseOrId).trim();
-  const cleanNum = raw.replace(/^H-/i, '').replace(/^No\.?\s*/i, '').padStart(2, '0');
+  const cleanNum = extractCleanHouseNum(raw);
+
   const matched = list.find(
     (h) =>
-      String(h.id).toUpperCase() === raw.toUpperCase() ||
-      String(h.nomor_rumah).padStart(2, '0') === cleanNum
+      String(h.id || '').toUpperCase() === raw.toUpperCase() ||
+      (cleanNum && extractCleanHouseNum(h.nomor_rumah || h.id) === cleanNum)
   );
 
   if (matched) {
-    const num = String(matched.nomor_rumah || cleanNum).padStart(2, '0');
-    return `No. ${num} / ${matched.nama_kepala_keluarga}`;
+    const num = extractCleanHouseNum(matched.nomor_rumah || matched.id) || cleanNum || '00';
+    const name = String(matched.nama_warga || matched.nama_kepala_keluarga || 'Warga').trim();
+    return `No. ${num} / ${name}`;
   }
 
   return raw;
 }
 
 /**
- * Pilihan Paket Pembayaran Netral V6 (100% Uang Kas Nyata)
+ * Normalisasi seluruh array rumah dari Backend agar properti selalu konsisten
+ */
+function normalizeHousesArray(rawHouses) {
+  const source = Array.isArray(rawHouses) && rawHouses.length > 0 ? rawHouses : FALLBACK_HOUSES;
+  return source
+    .map((h) => {
+      const cleanNum = extractCleanHouseNum(h.nomor_rumah || h.id) || '00';
+      const fallbackMatch = FALLBACK_HOUSES.find(
+        (fb) => fb.nomor_rumah === cleanNum || fb.id === h.id
+      );
+      const cleanName = String(
+        h.nama_warga ||
+          h.nama_kepala_keluarga ||
+          fallbackMatch?.nama_warga ||
+          'Warga'
+      ).trim();
+
+      return {
+        ...h,
+        id: h.id || `H-${cleanNum}`,
+        nomor_rumah: cleanNum,
+        nama_warga: cleanName,
+        nama_kepala_keluarga: cleanName,
+        alias_keluarga: h.alias_keluarga || fallbackMatch?.alias_keluarga || cleanName,
+        display_label: `No. ${cleanNum} / ${cleanName}`
+      };
+    })
+    .sort((a, b) => Number(a.nomor_rumah) - Number(b.nomor_rumah));
+}
+
+/**
+ * Pilihan Paket Pembayaran Netral V6.1 (100% Uang Kas Nyata)
  */
 const PAYMENT_PACKAGES_V6 = [
   {
@@ -182,6 +223,7 @@ export default function App() {
   const [liveClock, setLiveClock] = useState('');
   const [lastSyncTime, setLastSyncTime] = useState('');
   const [isOnline, setIsOnline] = useState(true);
+  const [hasServerData, setHasServerData] = useState(false);
 
   // Modal QRIS Warga
   const [isQrisModalOpen, setIsQrisModalOpen] = useState(false);
@@ -190,7 +232,7 @@ export default function App() {
   // Modal Penampil Gambar Langsung (In-App Lightbox V6)
   const [lightboxData, setLightboxData] = useState(null);
 
-  // State Login & Panel Pengurus (Dipisahkan agar Pengurus bisa buka-tutup pop-up tanpa logout)
+  // State Login & Panel Pengurus
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(
     Boolean(localStorage.getItem('cmoney_pengurus_token'))
   );
@@ -198,7 +240,7 @@ export default function App() {
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [adminUser, setAdminUser] = useState({ username: '', password: '' });
   const [loginError, setLoginError] = useState('');
-  const [adminActiveSection, setAdminActiveSection] = useState('mutasi'); // 'mutasi' | 'ipl' | 'closing'
+  const [adminActiveSection, setAdminActiveSection] = useState('mutasi');
   const [adminStatusMsg, setAdminStatusMsg] = useState({ type: '', text: '' });
   const [isSubmittingAdmin, setIsSubmittingAdmin] = useState(false);
 
@@ -250,16 +292,25 @@ export default function App() {
     catatan: ''
   });
 
-  // Detak Jam Detik Real-Time WIB
+  // Detak Tanggal & Jam Detik Real-Time WIB
   useEffect(() => {
     const updateClock = () => {
       const now = new Date();
-      const formatted = now.toLocaleTimeString('id-ID', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
+      const tgl = now.toLocaleDateString('id-ID', {
+        weekday: 'short',
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
       });
-      setLiveClock(`${formatted} WIB`);
+      const jam = now
+        .toLocaleTimeString('id-ID', {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false
+        })
+        .replace(/\./g, ':');
+      setLiveClock(`${tgl} • ${jam} WIB`);
     };
     updateClock();
     const timer = setInterval(updateClock, 1000);
@@ -274,27 +325,23 @@ export default function App() {
       try {
         const res = await CMoneyAPI.getPublicDashboard(bulan, tahun);
         if (res && res.status === 'success') {
-          const rawHouses =
-            Array.isArray(res.houses) && res.houses.length > 0
-              ? res.houses
-              : FALLBACK_HOUSES;
-
-          const normalizedHouses = rawHouses.map((h) => ({
-            ...h,
-            display_label: formatHouseIdentity(h, rawHouses)
-          }));
+          const normalizedHouses = normalizeHousesArray(res.houses);
 
           setDashboardData({
             ...res,
             houses: normalizedHouses
           });
           setIsOnline(true);
-          const syncNow = new Date().toLocaleTimeString('id-ID', {
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit'
-          });
-          setLastSyncTime(syncNow);
+          setHasServerData(true);
+          const syncNow = new Date()
+            .toLocaleTimeString('id-ID', {
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+              hour12: false
+            })
+            .replace(/\./g, ':');
+          setLastSyncTime(`${syncNow} WIB`);
         }
       } catch (err) {
         console.warn('Menggunakan data cadangan lokal:', err.message);
@@ -309,10 +356,7 @@ export default function App() {
             default_ipl_amount: 200000,
             total_houses: 22,
             total_active_houses: 21,
-            houses: FALLBACK_HOUSES.map((h) => ({
-              ...h,
-              display_label: formatHouseIdentity(h, FALLBACK_HOUSES)
-            })),
+            houses: normalizeHousesArray(FALLBACK_HOUSES),
             ipl_status: [],
             cash_ledger: [],
             monthly_closings: [],
@@ -335,7 +379,7 @@ export default function App() {
   }, [fetchDashboard, selectedMonth, selectedYear]);
 
   // Daftar Rumah yang Sudah Diseragamkan ("No. XX / Nama Warga")
-  const housesList = dashboardData?.houses || FALLBACK_HOUSES;
+  const housesList = dashboardData?.houses || normalizeHousesArray(FALLBACK_HOUSES);
   const activeHousesList = housesList.filter(
     (h) => String(h.status_huni || 'Aktif').toLowerCase() !== 'tidak aktif' && h.id !== 'H-04'
   );
@@ -381,18 +425,7 @@ export default function App() {
         setLoginError(res?.message || 'Username atau password salah.');
       }
     } catch (err) {
-      // Fallback login lokal jika offline test
-      if (
-        adminUser.username.trim() === 'pengurus_cmr' &&
-        adminUser.password.trim() === 'cmr_admin_2026'
-      ) {
-        localStorage.setItem('cmoney_pengurus_token', 'LOCAL_DEV_TOKEN');
-        setIsAdminLoggedIn(true);
-        setIsLoginModalOpen(false);
-        setIsAdminModalOpen(true);
-      } else {
-        setLoginError('Gagal terhubung ke server atau kredensial salah.');
-      }
+      setLoginError('Gagal terhubung ke server atau kredensial salah.');
     } finally {
       setIsSubmittingAdmin(false);
     }
@@ -503,7 +536,6 @@ export default function App() {
       const selectedPkg =
         PAYMENT_PACKAGES_V6.find((p) => p.id === iplForm.paket_id) || PAYMENT_PACKAGES_V6[0];
 
-      // 1. Update status di tabel ipl_status
       const res = await CMoneyAPI.updateIplStatus({
         house_id: iplForm.house_id,
         periode_bulan: iplForm.periode_bulan,
@@ -518,7 +550,6 @@ export default function App() {
         file_name: iplForm.file_name
       });
 
-      // 2. Jika backend belum auto-jurnal atau centang auto_jurnal_kas aktif dan belum tercatat di response
       if (
         res &&
         res.status === 'success' &&
@@ -626,7 +657,7 @@ export default function App() {
     return res;
   };
 
-  // Handler Publik/Security: Update Denah 6 Slot Parkir Dinamis
+  // Handler Publik/Security: Check-In / Check-Out Denah 6 Slot Parkir Dinamis
   const handleUpdateParkingSlot = async (slotPayload) => {
     if (typeof CMoneyAPI.updateParkingSlot === 'function') {
       const res = await CMoneyAPI.updateParkingSlot(slotPayload);
@@ -637,13 +668,14 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-800 pb-12">
+    <div className="min-h-screen bg-slate-100 text-slate-800 pb-10">
       {/* DASHBOARD UTAMA PUBLIK WARGA & SECURITY */}
       <PublicDashboard
         data={dashboardData}
         isLoading={isLoading}
         isRefreshing={isRefreshing}
         isOnline={isOnline}
+        hasServerData={hasServerData}
         liveClock={liveClock}
         lastSyncTime={lastSyncTime}
         selectedMonth={selectedMonth}
@@ -682,14 +714,14 @@ export default function App() {
         />
       )}
 
-      {/* MODAL IN-APP IMAGE LIGHTBOX V6 (KLIK LANGSUNG MUNCUL GAMBAR TANPA PINDAH TAB) */}
+      {/* MODAL IN-APP IMAGE LIGHTBOX V6.1 (KLIK LANGSUNG MUNCUL GAMBAR TANPA PINDAH TAB) */}
       {lightboxData && (
         <div
           className="fixed inset-0 z-[90] bg-slate-900/85 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={() => setLightboxData(null)}
         >
           <div
-            className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-200 animate-fadeIn"
+            className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-200"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-5 py-4 bg-teal-900 text-white flex items-center justify-between">
@@ -773,7 +805,7 @@ export default function App() {
                   required
                   value={adminUser.username}
                   onChange={(e) => setAdminUser({ ...adminUser, username: e.target.value })}
-                  placeholder="pengurus_cmr"
+                  placeholder="Username pengurus"
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
                 />
               </div>
@@ -800,7 +832,7 @@ export default function App() {
         </div>
       )}
 
-      {/* PANEL KENDALI PENGURUS V6 (RINGKAS: 3 FORM UTAMA BENDAHARA) */}
+      {/* PANEL KENDALI PENGURUS V6.1 (RINGKAS: 3 FORM UTAMA BENDAHARA) */}
       {isAdminModalOpen && isAdminLoggedIn && (
         <div className="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
           <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden my-auto">
@@ -808,7 +840,7 @@ export default function App() {
             <div className="px-5 py-4 bg-gradient-to-r from-teal-900 to-emerald-800 text-white flex items-center justify-between">
               <div>
                 <span className="text-[10px] uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full font-bold">
-                  Panel Kendali Pengurus V6.0
+                  Panel Kendali Pengurus V6.1
                 </span>
                 <h2 className="text-base sm:text-lg font-extrabold mt-1">
                   Bendahara & Operasional CMR
@@ -983,13 +1015,15 @@ export default function App() {
                         className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold"
                       >
                         <option value="Perawatan Pos">Perawatan Pos & Lingkungan</option>
-                        <option value="Gaji Security">Gaji Security</option>
-                        <option value="Uang Sampah">Uang Sampah</option>
-                        <option value="Listrik & Air Pos">Listrik & Air Galon Pos</option>
-                        <option value="Konsumsi Pos">Konsumsi Pos</option>
+                        <option value="Gaji">Gaji & Kasbon Security</option>
+                        <option value="Sampah">Uang Sampah</option>
+                        <option value="Listrik">Listrik Pos</option>
+                        <option value="Air">Air Galon Pos</option>
+                        <option value="Konsumsi">Konsumsi Pos</option>
+                        <option value="Sosial">Dana Sosial</option>
                         <option value="Iuran Warga (IPL)">Iuran Warga (IPL)</option>
                         <option value="Parkir Fasum">Parkir Fasum</option>
-                        <option value="Proyek Cluster">Proyek / Perbaikan Cluster</option>
+                        <option value="Proyek">Proyek / Perbaikan Cluster</option>
                         <option value="Lainnya">Lainnya</option>
                       </select>
                     </div>
@@ -1022,7 +1056,7 @@ export default function App() {
                         <option value="-">-- Umum / Operasional Cluster --</option>
                         {housesList.map((h) => (
                           <option key={h.id} value={h.id}>
-                            {formatHouseIdentity(h, housesList)}
+                            {h.display_label}
                           </option>
                         ))}
                       </select>
@@ -1069,7 +1103,6 @@ export default function App() {
                     />
                   </div>
 
-                  {/* Upload Foto Nota / Struk Bukti */}
                   <div className="p-3.5 rounded-2xl bg-slate-50 border border-dashed border-slate-300">
                     <label className="block text-xs font-bold text-slate-700 mb-1">
                       📷 Upload Foto Nota / Kuitansi Bukti (Otomatis ke Drive Struk_Pengeluaran_Kas)
@@ -1130,7 +1163,7 @@ export default function App() {
                       >
                         {activeHousesList.map((h) => (
                           <option key={h.id} value={h.id}>
-                            {formatHouseIdentity(h, housesList)}
+                            {h.display_label}
                           </option>
                         ))}
                       </select>

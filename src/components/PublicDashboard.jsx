@@ -1,8 +1,8 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { compressImageToBase64 } from '../services/apiService';
 
 // ============================================================================
-// SAKLAR FITUR V6.0 (FEATURE FLAGS)
+// SAKLAR FITUR V6.1 (FEATURE FLAGS)
 // Ubah nilai false menjadi true di bawah ini jika sewaktu-waktu ingin
 // menampilkan kembali Tombol Darurat SOS atau 4 Panel Kamera CCTV di layar.
 // ============================================================================
@@ -14,7 +14,17 @@ const MONTH_LIST = [
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
 ];
 
-// Data Fallback Rekap Tutup Buku 5 Bulan (Urut Terbaru Oktober -> Juni)
+const MONTH_ORDER = {
+  Januari: 1, Februari: 2, Maret: 3, April: 4, Mei: 5, Juni: 6,
+  Juli: 7, Agustus: 8, September: 9, Oktober: 10, November: 11, Desember: 12
+};
+
+function extractCleanNum(rawVal) {
+  const digits = String(rawVal || '').replace(/[^0-9]/g, '');
+  return digits ? digits.padStart(2, '0') : '';
+}
+
+// Data Fallback Rekap Tutup Buku (Hanya dipakai saat Offline / Belum Ada Respon Server)
 const FALLBACK_CLOSINGS = [
   {
     id: 'CLS-2026-10',
@@ -37,139 +47,17 @@ const FALLBACK_CLOSINGS = [
     pengeluaran_proyek: 450000,
     sisa_saldo: 2069200,
     status_tutup_buku: 'CLOSED'
-  },
-  {
-    id: 'CLS-2026-08',
-    periode_bulan: 'Agustus',
-    periode_tahun: 2026,
-    saldo_awal: 2439200,
-    uang_masuk: 4350000,
-    total_pengeluaran: 4635000,
-    pengeluaran_proyek: 600000,
-    sisa_saldo: 2154200,
-    status_tutup_buku: 'CLOSED'
-  },
-  {
-    id: 'CLS-2026-07',
-    periode_bulan: 'Juli',
-    periode_tahun: 2026,
-    saldo_awal: 2219200,
-    uang_masuk: 4200000,
-    total_pengeluaran: 3980000,
-    pengeluaran_proyek: 0,
-    sisa_saldo: 2439200,
-    status_tutup_buku: 'CLOSED'
-  },
-  {
-    id: 'CLS-2026-06',
-    periode_bulan: 'Juni',
-    periode_tahun: 2026,
-    saldo_awal: 1989200,
-    uang_masuk: 4200000,
-    total_pengeluaran: 3970000,
-    pengeluaran_proyek: 0,
-    sisa_saldo: 2219200,
-    status_tutup_buku: 'CLOSED'
   }
 ];
 
-// Data Fallback Buku Kas (Urut Terbaru di Atas)
-const FALLBACK_LEDGER = [
-  { id: 'TX-202610-01', tanggal: '2026-10-28', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji Security', nominal: 1650000, keterangan: 'Gaji Security Pak Mulyadi (Full)', house_id: '-', url_bukti: '-', is_proyek: false, nama_proyek: '' },
-  { id: 'TX-202610-02', tanggal: '2026-10-28', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji Security', nominal: 1300000, keterangan: 'Pelunasan Gaji Pak Eko (Dipotong Kasbon Rp 350.000)', house_id: '-', url_bukti: '-', is_proyek: false, nama_proyek: '' },
-  { id: 'TX-202610-03', tanggal: '2026-10-15', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji Security', nominal: 350000, keterangan: 'Kasbon Gaji Pak Eko', house_id: '-', url_bukti: '-', is_proyek: false, nama_proyek: '' },
-  { id: 'TX-202610-04', tanggal: '2026-10-20', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Uang Sampah', nominal: 600000, keterangan: 'Retribusi Pengangkutan Sampah Lingkungan (Bang Adi)', house_id: '-', url_bukti: '-', is_proyek: false, nama_proyek: '' },
-  { id: 'TX-202610-05', tanggal: '2026-10-18', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Listrik & Air Pos', nominal: 225000, keterangan: 'Token Listrik Pos Security & Isi Ulang 4 Galon Air Pos', house_id: '-', url_bukti: '-', is_proyek: false, nama_proyek: '' },
-  { id: 'TX-202610-06', tanggal: '2026-10-14', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Perawatan Pos', nominal: 350000, keterangan: 'Penggantian Lampu Sorot Gerbang & Perbaikan MCB Pos', house_id: '-', url_bukti: '-', is_proyek: true, nama_proyek: 'Perbaikan Lampu Sorot & MCB Pos' },
-  { id: 'TX-202610-07', tanggal: '2026-10-12', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'OUT', kategori: 'Konsumsi Pos', nominal: 350000, keterangan: 'Kopi, Gula, Teh & Perlengkapan Pos Jaga Security', house_id: '-', url_bukti: '-', is_proyek: false, nama_proyek: '' },
-  { id: 'TX-202610-08', tanggal: '2026-10-10', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'IN', kategori: 'Iuran Warga (IPL)', nominal: 4000000, keterangan: 'Iuran IPL Warga 20 Unit Rumah Aktif @ Rp 200.000', house_id: '-', url_bukti: '-', is_proyek: false, nama_proyek: '' },
-  { id: 'TX-202610-09', tanggal: '2026-10-10', periode_bulan: 'Oktober', periode_tahun: 2026, tipe: 'IN', kategori: 'Parkir Fasum', nominal: 150000, keterangan: 'Kontribusi Parkir Fasum Bulanan', house_id: '-', url_bukti: '-', is_proyek: false, nama_proyek: '' },
-  { id: 'TX-202609-01', tanggal: '2026-09-28', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Gaji Security', nominal: 3200000, keterangan: 'Gaji 2 Personel Security (Pak Eko & Pak Mulyadi)', house_id: '-', url_bukti: '-', is_proyek: false, nama_proyek: '' },
-  { id: 'TX-202609-02', tanggal: '2026-09-20', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Uang Sampah', nominal: 635000, keterangan: 'Retribusi Sampah & Kebersihan Lingkungan', house_id: '-', url_bukti: '-', is_proyek: false, nama_proyek: '' },
-  { id: 'TX-202609-03', tanggal: '2026-09-14', periode_bulan: 'September', periode_tahun: 2026, tipe: 'OUT', kategori: 'Proyek Cluster', nominal: 450000, keterangan: 'Jasa Tukang Las & Perbaikan Roda Pagar Utama', house_id: '-', url_bukti: '-', is_proyek: true, nama_proyek: 'Perbaikan Las Roda Pagar Utama' },
-  { id: 'TX-202609-04', tanggal: '2026-09-10', periode_bulan: 'September', periode_tahun: 2026, tipe: 'IN', kategori: 'Iuran Warga (IPL)', nominal: 4200000, keterangan: 'Iuran IPL Warga 21 Unit Aktif @ Rp 200.000', house_id: '-', url_bukti: '-', is_proyek: false, nama_proyek: '' }
-];
-
-// Data Fallback 6 Slot Parkir Fasum Dinamis (Netral & Dapat Diubah Kapan Saja)
-const FALLBACK_PARKING_SLOTS = [
-  { slot_id: 'SLOT-01', nama_slot: 'Slot Parkir 01 (Area Fasum Depan)', house_id: 'H-06', nomor_polisi: 'B 106 CMR', jenis_paket: 'Parkir Bulanan (Rp 150.000)', status_slot: 'Terisi', catatan: '1 Unit Mobil' },
-  { slot_id: 'SLOT-02', nama_slot: 'Slot Parkir 02 (Area Fasum Depan)', house_id: 'H-16', nomor_polisi: 'B 116 CMR', jenis_paket: 'Parkir 2 Mobil (Rp 300.000)', status_slot: 'Terisi', catatan: 'Mobil ke-1' },
-  { slot_id: 'SLOT-03', nama_slot: 'Slot Parkir 03 (Area Fasum Tengah)', house_id: 'H-16', nomor_polisi: 'B 216 CMR', jenis_paket: 'Parkir 2 Mobil (Rp 300.000)', status_slot: 'Terisi', catatan: 'Mobil ke-2' },
-  { slot_id: 'SLOT-04', nama_slot: 'Slot Parkir 04 (Area Fasum Tengah)', house_id: 'H-19', nomor_polisi: 'B 119 CMR', jenis_paket: 'Parkir Weekend (Rp 50.000)', status_slot: 'Weekend', catatan: 'Parkir Akhir Pekan' },
-  { slot_id: 'SLOT-05', nama_slot: 'Slot Parkir 05 (Area Lapangan)', house_id: '-', nomor_polisi: '-', jenis_paket: 'Tersedia', status_slot: 'Kosong', catatan: 'Slot Kosong / Cadangan Tamu' },
-  { slot_id: 'SLOT-06', nama_slot: 'Slot Parkir 06 (Area Lapangan)', house_id: '-', nomor_polisi: '-', jenis_paket: 'Tersedia', status_slot: 'Kosong', catatan: 'Slot Kosong / Cadangan Tamu' }
-];
-
-// Data Fallback Log Security & Paket di Pos
-const FALLBACK_SECURITY_LOGS = [
-  {
-    id: 'SEC-20261118-01',
-    tanggal: '2026-11-18',
-    jam: '14:20',
-    nama_security: 'Pak Mulyadi',
-    shift: 'Pagi',
-    kategori_laporan: 'PAKET_SURAT',
-    sub_kategori: 'Paket Tiba di Pos (Belum Diambil)',
-    house_id: 'H-06',
-    nama_warga_tujuan: 'No. 06 / Pak Andy',
-    titik_patroli: 'Pos Utama Security',
-    cuaca_815: 'Cerah',
-    status_gerbang: 'Pintu Gerbang Kecil Ditutup Sesuai SOP',
-    detail_catatan: '1 Paket ekspedisi kardus sedang disimpan di meja Pos Security.',
-    url_foto: '-',
-    teks_wa: '*INFO PAKET TIBA DI POS SECURITY CMR*\nAssalamualaikum, selamat siang. Izin menginformasikan terdapat *1 Paket* tiba di Pos Security untuk *No. 06 / Pak Andy*.\n• Status Paket: *Paket Tiba di Pos (Belum Diambil)*\n• Petugas Jaga: *Pak Mulyadi*\n*Terima kasih* 🙏'
-  },
-  {
-    id: 'SEC-20261118-02',
-    tanggal: '2026-11-18',
-    jam: '10:15',
-    nama_security: 'Pak Mulyadi',
-    shift: 'Pagi',
-    kategori_laporan: 'PAKET_SURAT',
-    sub_kategori: 'Paket Sudah Diambil / Diantar ke Rumah',
-    house_id: 'H-13',
-    nama_warga_tujuan: 'No. 13 / Pak Hery',
-    titik_patroli: 'Pos Utama Security',
-    cuaca_815: 'Cerah',
-    status_gerbang: 'Pintu Gerbang Kecil Ditutup Sesuai SOP',
-    detail_catatan: 'Paket sudah diantar langsung ke rumah No. 13 / Pak Hery.',
-    url_foto: '-',
-    teks_wa: '*INFO PAKET WARGA CMR*\nAssalamualaikum, selamat pagi. Paket untuk *No. 13 / Pak Hery* sudah diantar langsung ke rumah warga oleh petugas jaga (*Pak Mulyadi*). *Terima kasih* 🙏'
-  },
-  {
-    id: 'SEC-20261118-03',
-    tanggal: '2026-11-18',
-    jam: '08:00',
-    nama_security: 'Pak Mulyadi',
-    shift: 'Pagi',
-    kategori_laporan: 'ABSEN_SHIFT',
-    sub_kategori: 'Serah Terima Malam ke Pagi (08:00)',
-    house_id: '-',
-    nama_warga_tujuan: '-',
-    titik_patroli: 'Pos Utama Security',
-    cuaca_815: 'Cerah',
-    status_gerbang: 'Pintu Gerbang Kecil Ditutup Sesuai SOP',
-    detail_catatan: 'Serah terima tugas jaga pagi dari Pak Eko (Malam) kepada Pak Mulyadi (Pagi), situasi aman kondusif.',
-    url_foto: '-',
-    teks_wa: '*ABSEN PERGANTIAN SHIFT SECURITY CMR*\nAssalamualaikum, selamat pagi. Izin melaporkan serah terima tugas jaga Cluster Mutiara Residence:\n• Petugas Shift Malam (Balik Kanan): *Pak Eko*\n• Petugas Shift Pagi (Masuk Jaga): *Pak Mulyadi*\n• Situasi: Aman kondusif tanpa taruna.\n*Terima kasih* 🙏🫡'
-  },
-  {
-    id: 'SEC-20261118-04',
-    tanggal: '2026-11-18',
-    jam: '04:45',
-    nama_security: 'Pak Eko',
-    shift: 'Malam',
-    kategori_laporan: 'PATROLI',
-    sub_kategori: 'Patroli Subuh 5 Titik (04:30 - 05:00)',
-    house_id: '-',
-    nama_warga_tujuan: '-',
-    titik_patroli: '5 Titik (Pos, Gerbang, Gang Depan, Gang Belakang, Lapangan)',
-    cuaca_815: 'Cerah',
-    status_gerbang: 'Pintu Utama & Kecil Tertutup Rapat',
-    detail_catatan: 'Patroli subuh pengecekan 5 titik area cluster aman terkendali, lampu jalan dimatikan bertahap.',
-    url_foto: '-',
-    teks_wa: '*LAPORAN PATROLI SECURITY CMR*\nAssalamualaikum, selamat pagi. Menjelang subuh izin lapor petugas jaga (*Pak Eko*) patroli keliling 5 titik area CMR. Situasi aman kondusif tanpa taruna, berikut 815 cuaca cerah. *Terima kasih* 🙏🫡'
-  }
+// Default 6 Slot Parkir Fasum: SELURUHNYA KOSONG (Menunggu Klik Check-In oleh Security)
+const EMPTY_PARKING_SLOTS = [
+  { slot_id: 'SLOT-01', slot_number: 1, posisi_layout: 'KIRI_VERTIKAL_1', nama_slot: 'Slot 01', status_slot: 'Kosong', house_id: '-', nama_pemilik: '-', nomor_polisi: '-', jenis_paket: 'Tersedia', waktu_masuk: '-', catatan: 'Kosong — Klik untuk Check-In', updated_by: 'SYSTEM' },
+  { slot_id: 'SLOT-02', slot_number: 2, posisi_layout: 'KIRI_VERTIKAL_2', nama_slot: 'Slot 02', status_slot: 'Kosong', house_id: '-', nama_pemilik: '-', nomor_polisi: '-', jenis_paket: 'Tersedia', waktu_masuk: '-', catatan: 'Kosong — Klik untuk Check-In', updated_by: 'SYSTEM' },
+  { slot_id: 'SLOT-03', slot_number: 3, posisi_layout: 'KIRI_VERTIKAL_3', nama_slot: 'Slot 03', status_slot: 'Kosong', house_id: '-', nama_pemilik: '-', nomor_polisi: '-', jenis_paket: 'Tersedia', waktu_masuk: '-', catatan: 'Kosong — Klik untuk Check-In', updated_by: 'SYSTEM' },
+  { slot_id: 'SLOT-04', slot_number: 4, posisi_layout: 'KIRI_VERTIKAL_4', nama_slot: 'Slot 04', status_slot: 'Kosong', house_id: '-', nama_pemilik: '-', nomor_polisi: '-', jenis_paket: 'Tersedia', waktu_masuk: '-', catatan: 'Kosong — Klik untuk Check-In', updated_by: 'SYSTEM' },
+  { slot_id: 'SLOT-05', slot_number: 5, posisi_layout: 'KANAN_ATAS_5', nama_slot: 'Slot 05', status_slot: 'Kosong', house_id: '-', nama_pemilik: '-', nomor_polisi: '-', jenis_paket: 'Tersedia', waktu_masuk: '-', catatan: 'Kosong — Klik untuk Check-In', updated_by: 'SYSTEM' },
+  { slot_id: 'SLOT-06', slot_number: 6, posisi_layout: 'KANAN_BAWAH_6', nama_slot: 'Slot 06', status_slot: 'Kosong', house_id: '-', nama_pemilik: '-', nomor_polisi: '-', jenis_paket: 'Tersedia', waktu_masuk: '-', catatan: 'Kosong — Klik untuk Check-In', updated_by: 'SYSTEM' }
 ];
 
 /**
@@ -180,7 +68,7 @@ function generateSecuritySchedules(monthName = 'November', year = 2026) {
   const monthIdx = Math.max(0, MONTH_LIST.indexOf(monthName));
   const daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
   const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-  const anchorSunday = new Date(2026, 10, 1); // Minggu 1 Nov 2026
+  const anchorSunday = new Date(2026, 10, 1);
   const list = [];
 
   for (let d = 1; d <= daysInMonth; d++) {
@@ -221,6 +109,7 @@ export default function PublicDashboard({
   isLoading = false,
   isRefreshing = false,
   isOnline = true,
+  hasServerData = false,
   liveClock = '',
   lastSyncTime = '',
   selectedMonth = 'November',
@@ -240,7 +129,7 @@ export default function PublicDashboard({
 }) {
   const sourceData = data || dashboardData || {};
 
-  // State Tab Navigasi (Mendukung kontrol dari App.jsx maupun internal)
+  // State Tab Navigasi (1 Menu Terpadu tanpa Bottom Bar HP)
   const [internalTab, setInternalTab] = useState('beranda');
   const activeTab = externalActiveTab || internalTab;
   const setActiveTab = externalSetActiveTab || setInternalTab;
@@ -249,8 +138,8 @@ export default function PublicDashboard({
   const [logoError, setLogoError] = useState(false);
   const [secretTapCount, setSecretTapCount] = useState(0);
 
-  // State Buka/Tutup Rincian Laporan Bulanan di Beranda
-  const [expandedMonth, setExpandedMonth] = useState('Oktober');
+  // Default buka rincian bulan berjalan (terbaru) di Beranda
+  const [expandedMonth, setExpandedMonth] = useState(selectedMonth || 'November');
 
   // State Filter Tab 22 Rumah
   const [searchRumah, setSearchRumah] = useState('');
@@ -260,16 +149,29 @@ export default function PublicDashboard({
   const [filterBulanKas, setFilterBulanKas] = useState('Semua');
   const [filterKategoriKas, setFilterKategoriKas] = useState('ALL');
 
-  // State Denah 6 Slot Parkir Dinamis
-  const [localParkingSlots, setLocalParkingSlots] = useState(null);
-  const [editingSlot, setEditingSlot] = useState(null);
+  // State Denah 6 Slot Parkir Dinamis (Klik oleh Security untuk Check-In / Check-Out)
+  const [optimisticSlots, setOptimisticSlots] = useState(null);
+  const [activeParkingModalSlot, setActiveParkingModalSlot] = useState(null);
   const [isSavingSlot, setIsSavingSlot] = useState(false);
 
   // State Pos Security & Daftar Paket di Pos
-  const [localSecurityLogs, setLocalSecurityLogs] = useState([]);
+  const [optimisticLogs, setOptimisticLogs] = useState([]);
   const [secSubTab, setSecSubTab] = useState('paket'); // 'paket' | 'lapor' | 'jadwal' | 'riwayat'
   const [copiedWaText, setCopiedWaText] = useState('');
   const [isSavingLog, setIsSavingLog] = useState(false);
+
+  // Reset optimistic state begitu data baru tiba dari server
+  useEffect(() => {
+    if (Array.isArray(sourceData.parking_slots) && sourceData.parking_slots.length > 0) {
+      setOptimisticSlots(null);
+    }
+  }, [sourceData.parking_slots]);
+
+  useEffect(() => {
+    if (Array.isArray(sourceData.security_logs) && hasServerData) {
+      setOptimisticLogs([]);
+    }
+  }, [sourceData.security_logs, hasServerData]);
 
   // Form Laporan Cepat Security & Paket Tiba di Pos
   const [secForm, setSecForm] = useState({
@@ -277,7 +179,7 @@ export default function PublicDashboard({
     shift: 'Pagi',
     kategori_laporan: 'PAKET_SURAT',
     sub_kategori: 'Paket Tiba di Pos (Belum Diambil)',
-    house_id: 'H-06',
+    house_id: 'H-01',
     titik_patroli: '5 Titik (Pos, Gerbang, Gang Depan, Gang Belakang, Lapangan)',
     cuaca_815: 'Cerah',
     status_gerbang: 'Pintu Gerbang Kecil Ditutup Sesuai SOP',
@@ -292,32 +194,22 @@ export default function PublicDashboard({
 
   const formatRp = (num) => 'Rp ' + Number(num || 0).toLocaleString('id-ID');
 
-  // Helper Standarisasi "No. XX / Nama Warga"
-  const getHouseLabel = (houseOrId) => {
-    if (typeof formatHouseIdentity === 'function') {
-      return formatHouseIdentity(houseOrId);
-    }
-    if (!houseOrId || houseOrId === '-') return '-';
-    if (typeof houseOrId === 'object') {
-      const no = String(houseOrId.nomor_rumah || houseOrId.id || '')
-        .replace(/^H-/i, '')
-        .replace(/^No\.?\s*/i, '')
-        .padStart(2, '0');
-      const nama = houseOrId.nama_kepala_keluarga || houseOrId.nama_warga || 'Warga';
-      return `No. ${no} / ${nama}`;
-    }
-    return String(houseOrId);
-  };
-
-  // Daftar 22 Rumah & 21 Rumah Aktif
+  // Daftar 22 Rumah (Diseragamkan bebas bug "No. No." & "undefined")
   const houses = useMemo(() => {
-    const raw = Array.isArray(sourceData.houses) && sourceData.houses.length > 0
-      ? sourceData.houses
-      : [];
-    return raw.map((h) => ({
-      ...h,
-      display_label: getHouseLabel(h)
-    }));
+    const raw = Array.isArray(sourceData.houses) ? sourceData.houses : [];
+    return raw
+      .map((h) => {
+        const cleanNum = extractCleanNum(h.nomor_rumah || h.id) || '00';
+        const cleanName = String(h.nama_warga || h.nama_kepala_keluarga || 'Warga').trim();
+        return {
+          ...h,
+          nomor_rumah: cleanNum,
+          nama_warga: cleanName,
+          nama_kepala_keluarga: cleanName,
+          display_label: `No. ${cleanNum} / ${cleanName}`
+        };
+      })
+      .sort((a, b) => Number(a.nomor_rumah) - Number(b.nomor_rumah));
   }, [sourceData.houses]);
 
   const activeHouses = useMemo(
@@ -328,36 +220,190 @@ export default function PublicDashboard({
     [houses]
   );
 
-  // Buku Kas & Rekap Bulanan
+  // Helper Standarisasi "No. XX / Nama Warga"
+  const getHouseLabel = (houseOrId) => {
+    if (!houseOrId || houseOrId === '-') return '-';
+
+    if (typeof houseOrId === 'object') {
+      const no = extractCleanNum(houseOrId.nomor_rumah || houseOrId.id) || '00';
+      const nama = String(houseOrId.nama_warga || houseOrId.nama_kepala_keluarga || 'Warga').trim();
+      return `No. ${no} / ${nama}`;
+    }
+
+    const rawStr = String(houseOrId).trim();
+    const digits = extractCleanNum(rawStr);
+    const matched = houses.find(
+      (h) =>
+        String(h.id || '').toUpperCase() === rawStr.toUpperCase() ||
+        (digits && h.nomor_rumah === digits)
+    );
+    if (matched) return matched.display_label;
+
+    if (typeof formatHouseIdentity === 'function') {
+      return formatHouseIdentity(houseOrId);
+    }
+    return rawStr;
+  };
+
+  // Buku Kas (100% Data Riil dari Spreadsheet saat online)
   const cashLedger = useMemo(() => {
-    return Array.isArray(sourceData.cash_ledger) && sourceData.cash_ledger.length > 0
-      ? sourceData.cash_ledger
-      : FALLBACK_LEDGER;
+    if (Array.isArray(sourceData.cash_ledger)) {
+      return sourceData.cash_ledger;
+    }
+    return [];
   }, [sourceData.cash_ledger]);
 
+  // Laporan Bulanan dengan KALKULASI LIVE untuk Bulan Berjalan (OPEN) — Fix November Rp 0
   const monthlyClosings = useMemo(() => {
-    return Array.isArray(sourceData.monthly_closings) && sourceData.monthly_closings.length > 0
-      ? sourceData.monthly_closings
-      : FALLBACK_CLOSINGS;
-  }, [sourceData.monthly_closings]);
+    const rawList =
+      Array.isArray(sourceData.monthly_closings) && sourceData.monthly_closings.length > 0
+        ? sourceData.monthly_closings.map((item) => ({ ...item }))
+        : hasServerData
+        ? []
+        : FALLBACK_CLOSINGS.map((item) => ({ ...item }));
 
-  // Denah 6 Slot Parkir
-  const parkingSlots = useMemo(() => {
-    if (localParkingSlots) return localParkingSlots;
-    if (Array.isArray(sourceData.parking_slots) && sourceData.parking_slots.length > 0) {
-      return sourceData.parking_slots;
+    // Pastikan bulan berjalan (selectedMonth) selalu tampil di daftar laporan Beranda
+    const hasSelected = rawList.some(
+      (c) =>
+        String(c.periode_bulan) === String(selectedMonth) &&
+        Number(c.periode_tahun || 2026) === Number(selectedYear)
+    );
+
+    if (!hasSelected && selectedMonth) {
+      const prevOct = rawList.find((c) => String(c.periode_bulan) === 'Oktober');
+      const saldoAwalFallback = prevOct ? Number(prevOct.sisa_saldo || 1394200) : 1394200;
+      rawList.unshift({
+        id: `CLS-${selectedYear}-${selectedMonth}`,
+        periode_bulan: selectedMonth,
+        periode_tahun: Number(selectedYear),
+        saldo_awal: saldoAwalFallback,
+        uang_masuk: 0,
+        total_pengeluaran: 0,
+        pengeluaran_proyek: 0,
+        sisa_saldo: saldoAwalFallback,
+        status_tutup_buku: 'OPEN'
+      });
     }
-    return FALLBACK_PARKING_SLOTS;
-  }, [localParkingSlots, sourceData.parking_slots]);
 
-  // Log Security & Paket di Pos (Gabungan Data Backend + Input Baru)
+    // Hitung LIVE dari cash_ledger untuk setiap bulan yang belum CLOSED (status OPEN / berjalan)
+    const computed = rawList.map((item) => {
+      const isClosed = String(item.status_tutup_buku || '').toUpperCase() === 'CLOSED';
+      const monthTx = cashLedger.filter(
+        (tx) =>
+          String(tx.periode_bulan) === String(item.periode_bulan) &&
+          Number(tx.periode_tahun || 2026) === Number(item.periode_tahun || 2026)
+      );
+
+      // Jika belum CLOSED (atau nilai closing masih 0 padahal sudah ada transaksi di buku kas), hitung live!
+      const shouldComputeLive =
+        !isClosed ||
+        (monthTx.length > 0 &&
+          Number(item.uang_masuk || 0) === 0 &&
+          Number(item.total_pengeluaran || 0) === 0);
+
+      if (!shouldComputeLive) return item;
+
+      let uangMasuk = 0;
+      let totalPengeluaran = 0;
+      let pengeluaranProyek = 0;
+
+      monthTx.forEach((tx) => {
+        const nom = Number(tx.nominal || 0);
+        const isProyek =
+          tx.is_proyek === true || String(tx.is_proyek || '').toUpperCase() === 'TRUE';
+        if (String(tx.tipe || '').toUpperCase() === 'IN') {
+          uangMasuk += nom;
+        } else {
+          totalPengeluaran += nom;
+          if (isProyek) pengeluaranProyek += nom;
+        }
+      });
+
+      const saldoAwal = Number(item.saldo_awal || 1394200);
+      const sisaSaldo = saldoAwal + uangMasuk - totalPengeluaran;
+
+      return {
+        ...item,
+        saldo_awal: saldoAwal,
+        uang_masuk: uangMasuk,
+        total_pengeluaran: totalPengeluaran,
+        pengeluaran_proyek: pengeluaranProyek,
+        sisa_saldo: sisaSaldo,
+        status_tutup_buku: isClosed ? 'CLOSED' : 'OPEN'
+      };
+    });
+
+    return computed.sort((a, b) => {
+      const yearDiff = Number(b.periode_tahun || 2026) - Number(a.periode_tahun || 2026);
+      if (yearDiff !== 0) return yearDiff;
+      return (MONTH_ORDER[b.periode_bulan] || 0) - (MONTH_ORDER[a.periode_bulan] || 0);
+    });
+  }, [sourceData.monthly_closings, cashLedger, selectedMonth, selectedYear, hasServerData]);
+
+  // Denah 6 Slot Parkir (Default SEMUA KOSONG, 100% sinkron dengan sheet parking_slots)
+  const parkingSlots = useMemo(() => {
+    if (optimisticSlots) return optimisticSlots;
+
+    const serverSlots = Array.isArray(sourceData.parking_slots) ? sourceData.parking_slots : [];
+    if (serverSlots.length === 0) return EMPTY_PARKING_SLOTS;
+
+    return EMPTY_PARKING_SLOTS.map((baseSlot, idx) => {
+      const matched =
+        serverSlots.find((s) => s.slot_id === baseSlot.slot_id) || serverSlots[idx] || {};
+      const rawStatus = String(matched.status_slot || 'Kosong');
+      const upperSt = rawStatus.toUpperCase();
+      const normStatus =
+        upperSt === 'TERISI'
+          ? 'Terisi'
+          : upperSt === 'WEEKEND'
+          ? 'Weekend'
+          : upperSt === 'TAMU'
+          ? 'Tamu'
+          : 'Kosong';
+
+      const houseId = normStatus === 'Kosong' ? '-' : (matched.house_id || '-');
+      const pemilikLabel =
+        normStatus === 'Kosong'
+          ? '-'
+          : houseId !== '-'
+          ? getHouseLabel(houseId)
+          : matched.nama_pemilik || 'Tamu / Non-Warga';
+
+      return {
+        ...baseSlot,
+        ...matched,
+        slot_id: baseSlot.slot_id,
+        slot_number: baseSlot.slot_number,
+        posisi_layout: matched.posisi_layout || baseSlot.posisi_layout,
+        nama_slot: matched.nama_slot || baseSlot.nama_slot,
+        status_slot: normStatus,
+        house_id: houseId,
+        nama_pemilik: pemilikLabel,
+        nomor_polisi: normStatus === 'Kosong' ? '-' : (matched.nomor_polisi || matched.plat_nomor || '-'),
+        jenis_paket: normStatus === 'Kosong' ? 'Tersedia' : (matched.jenis_paket || 'Parkir Bulanan (Rp 150.000)'),
+        waktu_masuk: normStatus === 'Kosong' ? '-' : (matched.waktu_masuk || '-'),
+        catatan: normStatus === 'Kosong' ? 'Kosong — Klik untuk Check-In' : (matched.catatan || '-')
+      };
+    });
+  }, [optimisticSlots, sourceData.parking_slots, houses]);
+
+  const occupiedParkingCount = parkingSlots.filter((s) => s.status_slot !== 'Kosong').length;
+
+  // Log Security & Paket di Pos (Hanya Data Nyata dari Server + Input Optimistic, tanpa dummy palsu)
   const securityLogs = useMemo(() => {
-    const base =
-      Array.isArray(sourceData.security_logs) && sourceData.security_logs.length > 0
-        ? sourceData.security_logs
-        : FALLBACK_SECURITY_LOGS;
-    return [...localSecurityLogs, ...base];
-  }, [localSecurityLogs, sourceData.security_logs]);
+    const serverLogs = Array.isArray(sourceData.security_logs) ? sourceData.security_logs : [];
+    const seenIds = new Set();
+    const merged = [];
+
+    [...optimisticLogs, ...serverLogs].forEach((log) => {
+      if (!log || !log.id) return;
+      if (seenIds.has(log.id)) return;
+      seenIds.add(log.id);
+      merged.push(log);
+    });
+
+    return merged;
+  }, [optimisticLogs, sourceData.security_logs]);
 
   // Filter Khusus Daftar Paket Warga di Pos Security
   const packageLogs = useMemo(() => {
@@ -378,7 +424,7 @@ export default function PublicDashboard({
     return generateSecuritySchedules(selectedMonth, selectedYear);
   }, [sourceData.security_schedules, selectedMonth, selectedYear]);
 
-  // Pengolahan Status IPL 22 Rumah pada Periode Terpilih
+  // Status IPL 22 Rumah pada Periode Terpilih
   const housesWithIpl = useMemo(() => {
     const iplList = Array.isArray(sourceData.ipl_status) ? sourceData.ipl_status : [];
     return houses.map((h) => {
@@ -391,17 +437,18 @@ export default function PublicDashboard({
           (!r.periode_bulan || r.periode_bulan === selectedMonth)
       );
 
-      // Cek juga di Buku Kas jika ada pembayaran IPL untuk rumah tsb pada bulan terpilih
       const ledgerIpl = cashLedger.find(
         (tx) =>
-          tx.tipe === 'IN' &&
-          String(tx.house_id).toUpperCase() === String(h.id).toUpperCase() &&
+          String(tx.tipe || '').toUpperCase() === 'IN' &&
+          String(tx.house_id || '').toUpperCase() === String(h.id).toUpperCase() &&
           tx.periode_bulan === selectedMonth
       );
 
-      const statusBayar = isNonAktif
+      let rawStatus = isNonAktif
         ? 'Tidak Aktif'
         : matchedIpl?.status_bayar || (ledgerIpl ? 'Lunas' : 'Belum Bayar');
+
+      if (rawStatus === 'Belum Lunas') rawStatus = 'Belum Bayar';
 
       const nominalBayar = isNonAktif
         ? 0
@@ -411,9 +458,9 @@ export default function PublicDashboard({
 
       return {
         ...h,
-        display_label: getHouseLabel(h),
+        display_label: h.display_label,
         is_non_aktif: isNonAktif,
-        status_bayar: statusBayar,
+        status_bayar: rawStatus,
         nominal_bayar: nominalBayar,
         tanggal_bayar: matchedIpl?.tanggal_bayar || ledgerIpl?.tanggal || '-',
         catatan:
@@ -446,7 +493,7 @@ export default function PublicDashboard({
     return matchSearch && matchStatus;
   });
 
-  // Pembentuk Rincian Kategori & Proyek per Bulan
+  // Pembentuk Rincian Kategori & Proyek per Bulan dari Buku Kas
   const getMonthlyBreakdown = (bulan, tahun = 2026) => {
     const items = cashLedger.filter(
       (tx) => tx.periode_bulan === bulan && Number(tx.periode_tahun || 2026) === Number(tahun)
@@ -459,9 +506,10 @@ export default function PublicDashboard({
       const nom = Number(tx.nominal || 0);
       const kat = tx.kategori || 'Lainnya';
       const ket = tx.keterangan || '-';
-      const isProyek = Boolean(tx.is_proyek) && String(tx.is_proyek).toUpperCase() !== 'FALSE';
+      const isProyek =
+        tx.is_proyek === true || String(tx.is_proyek || '').toUpperCase() === 'TRUE';
 
-      if (tx.tipe === 'IN') {
+      if (String(tx.tipe || '').toUpperCase() === 'IN') {
         pemasukanMap[kat] = (pemasukanMap[kat] || 0) + nom;
       } else {
         if (isProyek) {
@@ -491,16 +539,16 @@ export default function PublicDashboard({
     const matchKat =
       filterKategoriKas === 'ALL' ||
       (filterKategoriKas === 'PROYEK'
-        ? Boolean(item.is_proyek) && String(item.is_proyek).toUpperCase() !== 'FALSE'
-        : item.kategori === filterKategoriKas);
+        ? item.is_proyek === true || String(item.is_proyek || '').toUpperCase() === 'TRUE'
+        : String(item.kategori || '').toLowerCase().includes(filterKategoriKas.toLowerCase()));
     return matchBulan && matchKat;
   });
 
   const totalMasukFilter = filteredLedger
-    .filter((i) => i.tipe === 'IN')
+    .filter((i) => String(i.tipe || '').toUpperCase() === 'IN')
     .reduce((acc, cur) => acc + Number(cur.nominal || 0), 0);
   const totalKeluarFilter = filteredLedger
-    .filter((i) => i.tipe === 'OUT')
+    .filter((i) => String(i.tipe || '').toUpperCase() === 'OUT')
     .reduce((acc, cur) => acc + Number(cur.nominal || 0), 0);
 
   // Trigger Buka Lightbox Gambar di Dalam Aplikasi
@@ -529,14 +577,92 @@ export default function PublicDashboard({
     }
   };
 
+  // Buka Modal Check-In / Check-Out Slot Parkir oleh Security
+  const openParkingSlotModal = (slot) => {
+    const isCurrentlyEmpty = slot.status_slot === 'Kosong';
+    setActiveParkingModalSlot({
+      ...slot,
+      status_slot: isCurrentlyEmpty ? 'Terisi' : slot.status_slot,
+      house_id: isCurrentlyEmpty ? (activeHouses[0]?.id || 'H-01') : slot.house_id,
+      jenis_paket: isCurrentlyEmpty ? 'Parkir Bulanan (Rp 150.000)' : slot.jenis_paket,
+      nomor_polisi: isCurrentlyEmpty ? '' : (slot.nomor_polisi === '-' ? '' : slot.nomor_polisi),
+      catatan: isCurrentlyEmpty ? 'Kondisi kendaraan terparkir rapi & aman' : (slot.catatan === '-' ? '' : slot.catatan),
+      updated_by: slot.updated_by && slot.updated_by !== 'SYSTEM' ? slot.updated_by : 'Pak Eko',
+      shift: 'Malam',
+      catat_ke_log_security: true
+    });
+  };
+
+  // Simpan Check-In / Update Kondisi Slot Parkir
+  const handleSaveParkingSlot = async (e) => {
+    e.preventDefault();
+    if (!activeParkingModalSlot) return;
+    setIsSavingSlot(true);
+    try {
+      const payload = {
+        ...activeParkingModalSlot,
+        nama_pemilik:
+          activeParkingModalSlot.status_slot === 'Kosong'
+            ? '-'
+            : activeParkingModalSlot.house_id && activeParkingModalSlot.house_id !== '-'
+            ? getHouseLabel(activeParkingModalSlot.house_id)
+            : activeParkingModalSlot.nama_pemilik || 'Tamu / Non-Warga'
+      };
+
+      const updatedList = parkingSlots.map((s) =>
+        s.slot_id === payload.slot_id ? { ...s, ...payload } : s
+      );
+      setOptimisticSlots(updatedList);
+
+      if (typeof onUpdateParkingSlot === 'function') {
+        await onUpdateParkingSlot(payload);
+      }
+      setActiveParkingModalSlot(null);
+    } finally {
+      setIsSavingSlot(false);
+    }
+  };
+
+  // Tombol Cepat Check-Out (Kosongkan Slot Parkir)
+  const handleQuickCheckoutSlot = async () => {
+    if (!activeParkingModalSlot) return;
+    setIsSavingSlot(true);
+    try {
+      const checkoutPayload = {
+        slot_id: activeParkingModalSlot.slot_id,
+        status_slot: 'Kosong',
+        house_id: '-',
+        nama_pemilik: '-',
+        nomor_polisi: '-',
+        jenis_paket: 'Tersedia',
+        waktu_masuk: '-',
+        catatan: 'Kosong — Klik untuk Check-In',
+        updated_by: activeParkingModalSlot.updated_by || 'Pak Eko',
+        shift: activeParkingModalSlot.shift || 'Pagi',
+        catat_ke_log_security: Boolean(activeParkingModalSlot.catat_ke_log_security)
+      };
+
+      const updatedList = parkingSlots.map((s) =>
+        s.slot_id === checkoutPayload.slot_id ? { ...s, ...checkoutPayload } : s
+      );
+      setOptimisticSlots(updatedList);
+
+      if (typeof onUpdateParkingSlot === 'function') {
+        await onUpdateParkingSlot(checkoutPayload);
+      }
+      setActiveParkingModalSlot(null);
+    } finally {
+      setIsSavingSlot(false);
+    }
+  };
+
   // Generator Teks WA Otomatis untuk Laporan Security & Paket Pos
   const buildSecurityWaMessage = (formObj) => {
     const houseLabel =
       formObj.house_id && formObj.house_id !== '-' ? getHouseLabel(formObj.house_id) : '-';
-    const jamNow = new Date().toLocaleTimeString('id-ID', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    const jamNow = new Date()
+      .toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false })
+      .replace(/\./g, ':');
 
     if (formObj.kategori_laporan === 'PAKET_SURAT') {
       return `*INFO PAKET WARGA DI POS SECURITY CMR*\nAssalamualaikum, izin menginformasikan laporan paket/surat warga pukul ${jamNow} WIB:\n• Tujuan Rumah: *${houseLabel}*\n• Status Paket: *${formObj.sub_kategori}*\n• Petugas Pos: *${formObj.nama_security} (Shift ${formObj.shift})*\n• Catatan: ${formObj.detail_catatan || 'Disimpan dengan aman di meja Pos Security.'}\n*Terima kasih* 🙏`;
@@ -549,7 +675,6 @@ export default function PublicDashboard({
     return `*LAPORAN GIAT & PATROLI SECURITY CMR*\nAssalamualaikum, izin lapor petugas jaga (*${formObj.nama_security} - Shift ${formObj.shift}*) pukul ${jamNow} WIB:\n• Kategori: *${formObj.sub_kategori}*\n• Area / Titik: ${formObj.titik_patroli}\n• Situasi: ${formObj.detail_catatan || 'Aman terkendali tanpa taruna.'}\n• Cuaca 815: ${formObj.cuaca_815}\n*Terima kasih* 🙏🫡`;
   };
 
-  // Upload Foto Bukti pada Form Pos Security
   const handleSecPhotoChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -561,7 +686,6 @@ export default function PublicDashboard({
     }));
   };
 
-  // Simpan Laporan Pos Security / Paket Baru
   const handleSubmitSecurityForm = async (e) => {
     e.preventDefault();
     setIsSavingLog(true);
@@ -574,7 +698,9 @@ export default function PublicDashboard({
       const payload = {
         id: `SEC-${Date.now()}`,
         tanggal: now.toISOString().slice(0, 10),
-        jam: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+        jam: now
+          .toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', hour12: false })
+          .replace(/\./g, ':'),
         nama_security: secForm.nama_security,
         shift: secForm.shift,
         kategori_laporan: secForm.kategori_laporan,
@@ -595,7 +721,7 @@ export default function PublicDashboard({
         teks_wa: waText
       };
 
-      setLocalSecurityLogs((prev) => [payload, ...prev]);
+      setOptimisticLogs((prev) => [payload, ...prev]);
       setCopiedWaText(waText);
 
       if (navigator.clipboard) {
@@ -621,7 +747,6 @@ export default function PublicDashboard({
     }
   };
 
-  // Tandai Paket di Pos Sudah Diambil oleh Warga
   const handleMarkPackagePickedUp = async (pkgItem) => {
     const updatedItem = {
       ...pkgItem,
@@ -629,7 +754,7 @@ export default function PublicDashboard({
       detail_catatan: `${pkgItem.detail_catatan} (Sudah diterima warga)`
     };
 
-    setLocalSecurityLogs((prev) => {
+    setOptimisticLogs((prev) => {
       const exists = prev.some((item) => item.id === pkgItem.id);
       if (exists) {
         return prev.map((item) => (item.id === pkgItem.id ? updatedItem : item));
@@ -641,28 +766,8 @@ export default function PublicDashboard({
       try {
         await onInputSecurityLog(updatedItem);
       } catch (err) {
-        console.warn('Update status paket tersimpan secara lokal:', err.message);
+        console.warn('Update status paket tersimpan lokal:', err.message);
       }
-    }
-  };
-
-  // Simpan Perubahan Denah 6 Slot Parkir Fasum
-  const handleSaveParkingSlot = async (e) => {
-    e.preventDefault();
-    if (!editingSlot) return;
-    setIsSavingSlot(true);
-    try {
-      const updatedSlots = parkingSlots.map((s) =>
-        s.slot_id === editingSlot.slot_id ? editingSlot : s
-      );
-      setLocalParkingSlots(updatedSlots);
-
-      if (typeof onUpdateParkingSlot === 'function') {
-        await onUpdateParkingSlot(editingSlot);
-      }
-      setEditingSlot(null);
-    } finally {
-      setIsSavingSlot(false);
     }
   };
 
@@ -689,13 +794,85 @@ export default function PublicDashboard({
     { id: 'beranda', label: 'Beranda', icon: '🏠' },
     { id: 'rumah', label: '22 Rumah', icon: '🏘️' },
     { id: 'mutasi', label: 'Buku Kas', icon: '📑' },
-    { id: 'parkir', label: 'Parkir', icon: '🅿️' },
+    { id: 'parkir', label: 'Parkir', icon: '🅿️', badge: occupiedParkingCount },
     { id: 'keamanan', label: 'Pos Security', icon: '🛡️', badge: waitingPackagesCount }
   ];
 
+  // Komponen Kartu Slot Denah Horizontal
+  const renderParkingSlotCard = (slot) => {
+    const isEmpty = slot.status_slot === 'Kosong';
+    const isWeekend = slot.status_slot === 'Weekend';
+    const isTamu = slot.status_slot === 'Tamu';
+
+    return (
+      <button
+        key={slot.slot_id}
+        type="button"
+        onClick={() => openParkingSlotModal(slot)}
+        className={`w-full text-left p-3.5 rounded-2xl border-2 transition flex flex-col justify-between min-h-[118px] cursor-pointer hover:shadow-md ${
+          isEmpty
+            ? 'bg-slate-50/80 border-dashed border-slate-300 hover:border-teal-600 hover:bg-teal-50/30'
+            : isWeekend
+            ? 'bg-amber-50 border-amber-300 hover:border-amber-500'
+            : isTamu
+            ? 'bg-sky-50 border-sky-300 hover:border-sky-500'
+            : 'bg-emerald-50 border-emerald-400 hover:border-emerald-600'
+        }`}
+      >
+        <div className="flex items-center justify-between gap-2 w-full">
+          <span className="font-black text-xs text-slate-900">
+            🅿️ {slot.nama_slot || slot.slot_id}
+          </span>
+          <span
+            className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full shrink-0 ${
+              isEmpty
+                ? 'bg-slate-200 text-slate-600'
+                : isWeekend
+                ? 'bg-amber-200 text-amber-900'
+                : isTamu
+                ? 'bg-sky-200 text-sky-900'
+                : 'bg-emerald-200 text-emerald-900'
+            }`}
+          >
+            {slot.status_slot}
+          </span>
+        </div>
+
+        <div className="my-2">
+          {isEmpty ? (
+            <p className="text-xs font-bold text-slate-400">
+              + Klik untuk Check-In Parkir
+            </p>
+          ) : (
+            <>
+              <p className="font-extrabold text-xs sm:text-sm text-teal-950 line-clamp-1">
+                {slot.house_id && slot.house_id !== '-'
+                  ? getHouseLabel(slot.house_id)
+                  : slot.nama_pemilik}
+              </p>
+              <p className="text-[11px] font-semibold text-slate-600 mt-0.5">
+                {slot.nomor_polisi && slot.nomor_polisi !== '-' ? `${slot.nomor_polisi} • ` : ''}
+                {slot.jenis_paket}
+              </p>
+            </>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1.5 border-t border-slate-200/70 w-full">
+          <span className="truncate">
+            {isEmpty ? 'Tersedia' : `Masuk: ${slot.waktu_masuk || '-'}`}
+          </span>
+          <span className="font-extrabold text-teal-800 shrink-0 ml-2">
+            {isEmpty ? 'Check-In →' : 'Update / Out →'}
+          </span>
+        </div>
+      </button>
+    );
+  };
+
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-800 pb-24 md:pb-12">
-      {/* HEADER UTAMA + STATUS ONLINE REAL-TIME & TOMBOL REFRESH */}
+    <div className="min-h-screen bg-slate-100 text-slate-800 pb-10">
+      {/* HEADER UTAMA + STATUS LIVE ONLINE & TOMBOL REFRESH */}
       <header className="bg-gradient-to-r from-teal-900 via-teal-800 to-emerald-800 text-white shadow-md sticky top-0 z-30">
         {/* Bar Status Live: Titik Lampu Hijau + Jam Detik WIB + Tombol Refresh */}
         <div className="bg-black/25 border-b border-white/10">
@@ -725,7 +902,7 @@ export default function PublicDashboard({
                 {isRefreshing
                   ? 'Menyinkronkan Database...'
                   : isOnline
-                  ? 'Online • Real Cash V6.0'
+                  ? 'Online • Real Cash V6.1'
                   : 'Mode Cadangan Lokal'}
               </span>
               {lastSyncTime && (
@@ -754,7 +931,7 @@ export default function PublicDashboard({
           </div>
         </div>
 
-        {/* Bar Navigasi Utama */}
+        {/* Bar Identitas Aplikasi & Navigasi Desktop */}
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
           <div
             onClick={handleLogoTap}
@@ -778,7 +955,7 @@ export default function PublicDashboard({
                   {sourceData.app_name || 'C-Money'}
                 </span>
                 <span className="text-[10px] bg-emerald-400/20 border border-emerald-300/40 px-2 py-0.5 rounded-full font-bold">
-                  V6.0 • Transparan
+                  V6.1 • Transparan
                 </span>
               </div>
               <p className="text-xs text-teal-100 line-clamp-1">
@@ -794,7 +971,7 @@ export default function PublicDashboard({
                 key={item.id}
                 type="button"
                 onClick={() => setActiveTab(item.id)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                   activeTab === item.id
                     ? 'bg-white text-teal-900 shadow-sm'
                     : 'text-teal-100 hover:bg-white/10'
@@ -816,14 +993,14 @@ export default function PublicDashboard({
             <button
               type="button"
               onClick={() => onOpenQris && onOpenQris(activeHouses[0] || null)}
-              className="hidden sm:flex items-center gap-1.5 bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-extrabold text-xs px-3.5 py-2 rounded-xl shadow transition"
+              className="hidden sm:flex items-center gap-1.5 bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-extrabold text-xs px-3.5 py-2 rounded-xl shadow transition cursor-pointer"
             >
               📲 Bayar QRIS
             </button>
             <button
               type="button"
               onClick={triggerAdminOpen}
-              className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-xs font-bold transition"
+              className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-xs font-bold transition cursor-pointer"
             >
               {isAdminLoggedIn ? '⚙️ Panel Pengurus' : '🔒 Pengurus'}
             </button>
@@ -831,216 +1008,243 @@ export default function PublicDashboard({
         </div>
       </header>
 
-      {/* KONTEN UTAMA 2 KOLOM (KIRI: SALDO KAS NYATA & PINTASAN, KANAN: 5 TAB MENU) */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-5 grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* KOLOM KIRI: KARTU SALDO KAS NYATA (REAL CASH) & PINTASAN */}
-        <div className="lg:col-span-4 space-y-4">
-          {/* Kartu Saldo Kas Aktif Cluster (100% Real Cash Tanpa Embel-Embel Titipan) */}
-          <div className="bg-gradient-to-br from-teal-800 via-teal-900 to-slate-900 text-white rounded-3xl p-5 shadow-lg relative overflow-hidden">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] uppercase tracking-wider text-teal-200 font-bold">
-                Saldo Uang Kas Nyata (Real Cash)
-              </span>
+      {/* KONTEN UTAMA FULL-WIDTH (ATAS: RINGKASAN SALDO & 1 MENU TERPADU, BAWAH: KONTEN TAB PENUH) */}
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-5 space-y-5">
+        {/* BAGIAN ATAS: KARTU SALDO KAS NYATA + CARD PAKET POS + 1 MENU UTAMA TERPADU */}
+        <section className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+          {/* Kiri (7 Kolom di Desktop): Kartu Saldo Kas Nyata (100% Real Cash) */}
+          <div className="lg:col-span-7 bg-gradient-to-br from-teal-800 via-teal-900 to-slate-900 text-white rounded-3xl p-5 shadow-lg flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[11px] uppercase tracking-wider text-teal-200 font-bold">
+                  Saldo Uang Kas Nyata (Real Cash)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowBalance(!showBalance)}
+                  className="text-xs text-teal-300 hover:text-white underline font-semibold cursor-pointer"
+                >
+                  {showBalance ? 'Sembunyikan' : 'Tampilkan'}
+                </button>
+              </div>
+
+              <div className="flex flex-wrap items-baseline justify-between gap-3 mt-1.5">
+                <div className="text-3xl sm:text-4xl font-black tracking-tight">
+                  {showBalance ? formatRp(sourceData.current_balance ?? 1394200) : 'Rp ••••••••'}
+                </div>
+
+                {/* Pilihan Cepat Periode Buku */}
+                <div className="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-xl border border-white/10 text-xs">
+                  <span className="text-teal-200 font-semibold">Buku IPL:</span>
+                  <select
+                    value={selectedMonth}
+                    onChange={(e) => {
+                      const nextMonth = e.target.value;
+                      setExpandedMonth(nextMonth);
+                      if (onChangePeriod) onChangePeriod(nextMonth, selectedYear);
+                    }}
+                    className="bg-transparent text-emerald-300 font-extrabold focus:outline-none cursor-pointer"
+                  >
+                    {MONTH_LIST.map((m) => (
+                      <option key={m} value={m} className="text-slate-900">
+                        {m} {selectedYear}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 pt-3.5 border-t border-white/15 flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div className="inline-flex items-center gap-1.5 bg-emerald-500/20 border border-emerald-400/30 px-3 py-1 rounded-full text-emerald-200 font-bold">
+                <span>●</span>
+                <span>
+                  IPL {selectedMonth}: {totalLunasCount}/{activeHouses.length || 21} Rumah Aktif
+                  Lunas
+                </span>
+              </div>
+              <div className="flex items-center gap-4 text-[11px] text-teal-100">
+                <span>
+                  Tarif Dasar:{' '}
+                  <strong className="text-emerald-300">
+                    {formatRp(sourceData.default_ipl_amount || 200000)}
+                  </strong>
+                </span>
+                <span>•</span>
+                <span>
+                  <strong>21</strong> Aktif • <strong>1</strong> Non-Aktif
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Kanan (5 Kolom di Desktop): Card Daftar Paket Pos (Bubble Angka Saja) + 1 Menu Terpadu */}
+          <div className="lg:col-span-5 flex flex-col justify-between gap-3">
+            {/* Card Daftar Paket di Pos Security (Bubble Oranye Angka Saja, Tanpa Kata "Menunggu") */}
+            <div
+              onClick={() => {
+                setActiveTab('keamanan');
+                setSecSubTab('paket');
+              }}
+              className="bg-white rounded-3xl p-4 shadow-sm border border-amber-200/80 flex items-center justify-between gap-3 cursor-pointer hover:border-amber-400 transition"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center text-xl font-bold shrink-0">
+                  📦
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-extrabold text-xs sm:text-sm text-slate-800">
+                      Daftar Paket di Pos Security
+                    </h3>
+                    <span className="min-w-[22px] h-[22px] px-1.5 rounded-full bg-amber-500 text-white text-[11px] font-black inline-flex items-center justify-center shadow-sm">
+                      {waitingPackagesCount}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Cek kiriman paket warga & foto bukti di Pos Security
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs font-extrabold text-teal-800 shrink-0">Lihat →</span>
+            </div>
+
+            {/* 1 MENU UTAMA TERPADU (6 TOMBOL: QRIS + 5 TAB UTAMA — PENGGANTI BOTTOM BAR HP & BANNER HIJAU) */}
+            <div className="bg-white rounded-3xl shadow-sm p-3 grid grid-cols-6 gap-1 text-center border border-slate-200/70">
               <button
                 type="button"
-                onClick={() => setShowBalance(!showBalance)}
-                className="text-xs text-teal-300 hover:text-white underline font-semibold"
+                onClick={() => onOpenQris && onOpenQris(activeHouses[0] || null)}
+                className="flex flex-col items-center group cursor-pointer"
               >
-                {showBalance ? 'Sembunyikan' : 'Tampilkan'}
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-teal-700 text-white flex items-center justify-center text-base sm:text-lg shadow group-hover:scale-105 transition">
+                  📲
+                </div>
+                <span className="text-[10px] font-extrabold text-teal-900 mt-1 leading-tight">
+                  QRIS IPL
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('beranda')}
+                className="flex flex-col items-center group cursor-pointer"
+              >
+                <div
+                  className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center text-base sm:text-lg border transition ${
+                    activeTab === 'beranda'
+                      ? 'bg-teal-800 text-white border-teal-800 shadow-sm'
+                      : 'bg-slate-50 text-slate-700 border-slate-200'
+                  }`}
+                >
+                  🏠
+                </div>
+                <span className="text-[10px] font-bold text-slate-700 mt-1 leading-tight">
+                  Beranda
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('rumah')}
+                className="flex flex-col items-center group cursor-pointer"
+              >
+                <div
+                  className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center text-base sm:text-lg border transition ${
+                    activeTab === 'rumah'
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                      : 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                  }`}
+                >
+                  🏘️
+                </div>
+                <span className="text-[10px] font-bold text-slate-700 mt-1 leading-tight">
+                  22 Rumah
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('mutasi')}
+                className="flex flex-col items-center group cursor-pointer"
+              >
+                <div
+                  className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center text-base sm:text-lg border transition ${
+                    activeTab === 'mutasi'
+                      ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
+                      : 'bg-amber-50 text-amber-700 border-amber-100'
+                  }`}
+                >
+                  📑
+                </div>
+                <span className="text-[10px] font-bold text-slate-700 mt-1 leading-tight">
+                  Buku Kas
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('parkir')}
+                className="flex flex-col items-center group relative cursor-pointer"
+              >
+                <div
+                  className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center text-base sm:text-lg border transition ${
+                    activeTab === 'parkir'
+                      ? 'bg-sky-600 text-white border-sky-600 shadow-sm'
+                      : 'bg-sky-50 text-sky-700 border-sky-100'
+                  }`}
+                >
+                  🅿️
+                </div>
+                {occupiedParkingCount > 0 && (
+                  <span className="absolute -top-1 right-1 bg-sky-600 text-white text-[9px] font-black min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center">
+                    {occupiedParkingCount}
+                  </span>
+                )}
+                <span className="text-[10px] font-bold text-slate-700 mt-1 leading-tight">
+                  Parkir
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab('keamanan')}
+                className="flex flex-col items-center group relative cursor-pointer"
+              >
+                <div
+                  className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center text-base sm:text-lg border transition ${
+                    activeTab === 'keamanan'
+                      ? 'bg-teal-900 text-white border-teal-900 shadow-sm'
+                      : 'bg-slate-100 text-slate-700 border-slate-200'
+                  }`}
+                >
+                  🛡️
+                </div>
+                {waitingPackagesCount > 0 && (
+                  <span className="absolute -top-1 right-1 bg-amber-500 text-white text-[9px] font-black min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center">
+                    {waitingPackagesCount}
+                  </span>
+                )}
+                <span className="text-[10px] font-bold text-slate-700 mt-1 leading-tight">
+                  Security
+                </span>
               </button>
             </div>
-
-            <div className="text-3xl font-black mt-1.5 tracking-tight">
-              {showBalance ? formatRp(sourceData.current_balance || 1394200) : 'Rp ••••••••'}
-            </div>
-
-            {/* Pilihan Cepat Periode Buku */}
-            <div className="mt-3 flex items-center justify-between gap-2 bg-white/10 px-3 py-1.5 rounded-xl border border-white/10 text-xs">
-              <span className="text-teal-200 font-semibold">Periode Buku IPL:</span>
-              <select
-                value={selectedMonth}
-                onChange={(e) =>
-                  onChangePeriod && onChangePeriod(e.target.value, selectedYear)
-                }
-                className="bg-transparent text-emerald-300 font-extrabold focus:outline-none cursor-pointer"
-              >
-                {MONTH_LIST.map((m) => (
-                  <option key={m} value={m} className="text-slate-900">
-                    {m} {selectedYear}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="mt-3 inline-flex items-center gap-1.5 text-[11px] bg-emerald-500/20 border border-emerald-400/30 px-2.5 py-1 rounded-full text-emerald-200 font-bold">
-              <span>●</span>
-              <span>
-                IPL {selectedMonth}: {totalLunasCount}/{activeHouses.length || 21} Rumah Aktif Lunas
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 mt-4 pt-3.5 border-t border-white/15 text-xs">
-              <div>
-                <p className="text-teal-200 text-[11px]">Tarif Dasar IPL</p>
-                <p className="font-extrabold text-emerald-300 mt-0.5">
-                  {formatRp(sourceData.default_ipl_amount || 200000)} / bln
-                </p>
-              </div>
-              <div>
-                <p className="text-teal-200 text-[11px]">Unit Hunian CMR</p>
-                <p className="font-extrabold text-white mt-0.5">
-                  21 Aktif • 1 Non-Aktif
-                </p>
-              </div>
-            </div>
           </div>
+        </section>
 
-          {/* Notifikasi Cepat Paket Warga di Pos Security */}
-          <div
-            onClick={() => {
-              setActiveTab('keamanan');
-              setSecSubTab('paket');
-            }}
-            className="bg-white rounded-3xl p-4 shadow-sm border border-amber-200/80 flex items-center justify-between gap-3 cursor-pointer hover:border-amber-400 transition"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center text-xl font-bold shrink-0">
-                📦
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <h3 className="font-extrabold text-xs text-slate-800">
-                    Daftar Paket di Pos Security
-                  </h3>
-                  <span className="bg-amber-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
-                    {waitingPackagesCount} Menunggu
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Cek kiriman paket untuk No. XX / Nama Warga
-                </p>
-              </div>
-            </div>
-            <span className="text-xs font-extrabold text-teal-800 shrink-0">Lihat →</span>
-          </div>
-
-          {/* Pintasan Cepat 5 Menu */}
-          <div className="bg-white rounded-3xl shadow-sm p-3.5 grid grid-cols-5 gap-1.5 text-center border border-slate-200/70">
-            <button
-              type="button"
-              onClick={() => onOpenQris && onOpenQris(activeHouses[0] || null)}
-              className="flex flex-col items-center group"
-            >
-              <div className="w-11 h-11 rounded-2xl bg-teal-700 text-white flex items-center justify-center text-lg shadow group-hover:scale-105 transition">
-                📲
-              </div>
-              <span className="text-[10px] font-extrabold text-teal-900 mt-1">QRIS IPL</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('rumah')}
-              className="flex flex-col items-center group"
-            >
-              <div
-                className={`w-11 h-11 rounded-2xl flex items-center justify-center text-lg border transition ${
-                  activeTab === 'rumah'
-                    ? 'bg-emerald-600 text-white border-emerald-600'
-                    : 'bg-emerald-50 text-emerald-700 border-emerald-100'
-                }`}
-              >
-                🏘️
-              </div>
-              <span className="text-[10px] font-bold text-slate-700 mt-1">22 Rumah</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('mutasi')}
-              className="flex flex-col items-center group"
-            >
-              <div
-                className={`w-11 h-11 rounded-2xl flex items-center justify-center text-lg border transition ${
-                  activeTab === 'mutasi'
-                    ? 'bg-amber-500 text-white border-amber-500'
-                    : 'bg-amber-50 text-amber-700 border-amber-100'
-                }`}
-              >
-                📑
-              </div>
-              <span className="text-[10px] font-bold text-slate-700 mt-1">Buku Kas</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('parkir')}
-              className="flex flex-col items-center group"
-            >
-              <div
-                className={`w-11 h-11 rounded-2xl flex items-center justify-center text-lg border transition ${
-                  activeTab === 'parkir'
-                    ? 'bg-sky-600 text-white border-sky-600'
-                    : 'bg-sky-50 text-sky-700 border-sky-100'
-                }`}
-              >
-                🅿️
-              </div>
-              <span className="text-[10px] font-bold text-slate-700 mt-1">6 Parkir</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActiveTab('keamanan')}
-              className="flex flex-col items-center group"
-            >
-              <div
-                className={`w-11 h-11 rounded-2xl flex items-center justify-center text-lg border transition ${
-                  activeTab === 'keamanan'
-                    ? 'bg-teal-800 text-white border-teal-800'
-                    : 'bg-slate-100 text-slate-700 border-slate-200'
-                }`}
-              >
-                🛡️
-              </div>
-              <span className="text-[10px] font-bold text-slate-700 mt-1">Security</span>
-            </button>
-          </div>
-
-          {/* Banner CTA Bayar QRIS & Parkir */}
-          <div
-            onClick={() => onOpenQris && onOpenQris(activeHouses[0] || null)}
-            className="bg-gradient-to-r from-emerald-600 to-teal-700 text-white rounded-3xl p-4 flex items-center justify-between cursor-pointer shadow-sm hover:shadow-md transition"
-          >
-            <div>
-              <span className="text-[10px] uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full font-bold">
-                QRIS Resmi CMR • Bebas Admin
-              </span>
-              <h3 className="font-extrabold text-sm mt-1">
-                Bayar IPL & Paket Parkir ({selectedMonth})
-              </h3>
-              <p className="text-xs text-emerald-100">
-                Pilih No. XX / Nama Warga & unggah bukti transfer
-              </p>
-            </div>
-            <div className="bg-white text-teal-900 font-extrabold text-xs px-3.5 py-2 rounded-xl shadow shrink-0">
-              Buka QRIS →
-            </div>
-          </div>
-        </div>
-
-        {/* KOLOM KANAN: AREA KONTEN 5 TAB UTAMA */}
-        <div className="lg:col-span-8 space-y-5">
-          {/* ================= TAB 1: BERANDA (LAPORAN KAS BULANAN & PAKET TERBARU DI POS) ================= */}
+        {/* ================= AREA KONTEN TAB AKTIF (FULL-WIDTH 100%) ================= */}
+        <section className="space-y-5">
+          {/* ================= TAB 1: BERANDA (LAPORAN KAS BULANAN LIVE + PAKET AKTIF) ================= */}
           {activeTab === 'beranda' && (
             <div className="space-y-4">
-              {/* Ringkasan Paket yang Sedang Menunggu di Pos Security */}
+              {/* Ringkasan Paket Aktif di Pos (Hanya tampil jika benar-benar ada paket menunggu di server) */}
               {waitingPackagesCount > 0 && (
                 <div className="bg-amber-50 border border-amber-200 rounded-3xl p-4">
                   <div className="flex items-center justify-between mb-2.5">
-                    <h4 className="font-extrabold text-amber-950 text-xs sm:text-sm flex items-center gap-1.5">
-                      <span>📦</span>
-                      <span>
-                        Paket Warga Menunggu Diambil di Pos Security ({waitingPackagesCount})
+                    <h4 className="font-extrabold text-amber-950 text-xs sm:text-sm flex items-center gap-2">
+                      <span>📦 Paket di Pos Security</span>
+                      <span className="min-w-[20px] h-[20px] px-1.5 rounded-full bg-amber-500 text-white text-[11px] font-black inline-flex items-center justify-center">
+                        {waitingPackagesCount}
                       </span>
                     </h4>
                     <button
@@ -1049,17 +1253,17 @@ export default function PublicDashboard({
                         setActiveTab('keamanan');
                         setSecSubTab('paket');
                       }}
-                      className="text-xs font-extrabold text-teal-800 hover:underline"
+                      className="text-xs font-extrabold text-teal-800 hover:underline cursor-pointer"
                     >
                       Kelola Semua Paket →
                     </button>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                     {packageLogs
                       .filter(
                         (p) => !String(p.sub_kategori || '').toLowerCase().includes('sudah')
                       )
-                      .slice(0, 4)
+                      .slice(0, 6)
                       .map((pkg) => (
                         <div
                           key={pkg.id}
@@ -1088,7 +1292,7 @@ export default function PublicDashboard({
                                   `${pkg.tanggal} • ${pkg.jam} WIB`
                                 )
                               }
-                              className="px-2.5 py-1.5 rounded-xl bg-teal-50 text-teal-800 border border-teal-200 font-bold text-[11px] shrink-0"
+                              className="px-2.5 py-1.5 rounded-xl bg-teal-50 text-teal-800 border border-teal-200 font-bold text-[11px] shrink-0 cursor-pointer"
                             >
                               🖼️ Foto
                             </button>
@@ -1099,7 +1303,7 @@ export default function PublicDashboard({
                 </div>
               )}
 
-              {/* Laporan & Rincian Kas Bulanan (Urut Terbaru di Atas) */}
+              {/* Laporan & Rincian Kas Bulanan (Urut Terbaru di Atas & Live untuk Bulan Berjalan) */}
               <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/70">
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                   <div>
@@ -1107,8 +1311,8 @@ export default function PublicDashboard({
                       Laporan & Rincian Buku Kas Bulanan (Uang Kas Nyata)
                     </h4>
                     <p className="text-xs text-slate-500">
-                      Urut dari periode terbaru • Klik kartu bulan untuk melihat rincian per
-                      kategori & proyek
+                      Urut dari periode terbaru • Bulan berjalan dihitung otomatis dari Buku Kas
+                      (Live)
                     </p>
                   </div>
                   <span className="text-xs bg-teal-50 text-teal-800 border border-teal-200 px-3 py-1 rounded-full font-bold">
@@ -1118,7 +1322,11 @@ export default function PublicDashboard({
 
                 <div className="space-y-3">
                   {monthlyClosings.map((item) => {
-                    const maxVal = 5200000;
+                    const maxVal = Math.max(
+                      5200000,
+                      Number(item.uang_masuk || 0),
+                      Number(item.total_pengeluaran || 0)
+                    );
                     const inPct = Math.min(
                       100,
                       Math.round((Number(item.uang_masuk || 0) / maxVal) * 100)
@@ -1128,6 +1336,8 @@ export default function PublicDashboard({
                       Math.round((Number(item.total_pengeluaran || 0) / maxVal) * 100)
                     );
                     const isExpanded = expandedMonth === item.periode_bulan;
+                    const isLiveOpen =
+                      String(item.status_tutup_buku || '').toUpperCase() !== 'CLOSED';
                     const breakdown = getMonthlyBreakdown(
                       item.periode_bulan,
                       item.periode_tahun
@@ -1145,10 +1355,15 @@ export default function PublicDashboard({
                           className="p-4 cursor-pointer hover:bg-slate-100/70 transition space-y-2.5"
                         >
                           <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-extrabold text-slate-900 text-sm">
                                 {item.periode_bulan} {item.periode_tahun}
                               </span>
+                              {isLiveOpen && (
+                                <span className="text-[10px] font-extrabold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+                                  ● Berjalan (Live)
+                                </span>
+                              )}
                               <span className="text-[11px] text-slate-500">
                                 (Saldo Awal: {formatRp(item.saldo_awal)})
                               </span>
@@ -1171,7 +1386,7 @@ export default function PublicDashboard({
                               </div>
                               <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
                                 <div
-                                  className="h-full bg-emerald-500 rounded-full"
+                                  className="h-full bg-emerald-500 rounded-full transition-all"
                                   style={{ width: `${inPct}%` }}
                                 />
                               </div>
@@ -1188,7 +1403,7 @@ export default function PublicDashboard({
                               </div>
                               <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
                                 <div
-                                  className="h-full bg-rose-500 rounded-full"
+                                  className="h-full bg-rose-500 rounded-full transition-all"
                                   style={{ width: `${outPct}%` }}
                                 />
                               </div>
@@ -1246,7 +1461,7 @@ export default function PublicDashboard({
                               </div>
                             )}
 
-                            {Object.keys(breakdown.pengeluaranMap).length > 0 && (
+                            {Object.keys(breakdown.pengeluaranMap).length > 0 ? (
                               <div>
                                 <p className="font-extrabold text-slate-700 mb-1.5">
                                   Rincian Pengeluaran per Kategori:
@@ -1269,7 +1484,7 @@ export default function PublicDashboard({
                                           {group.details.map((d, idx) => (
                                             <span
                                               key={idx}
-                                              className="inline-flex items-center gap-1 bg-white px-2 py-0.5 rounded-md border border-slate-200"
+                                              className="inline-flex items-center gap-1.5 bg-white px-2.5 py-1 rounded-lg border border-slate-200"
                                             >
                                               <span>{d.text}</span>
                                               {d.url_bukti && d.url_bukti !== '-' && (
@@ -1282,7 +1497,7 @@ export default function PublicDashboard({
                                                       d.text
                                                     )
                                                   }
-                                                  className="text-teal-700 font-extrabold hover:underline"
+                                                  className="text-teal-700 font-extrabold hover:underline cursor-pointer"
                                                 >
                                                   [🖼️ Bukti]
                                                 </button>
@@ -1295,6 +1510,11 @@ export default function PublicDashboard({
                                   })}
                                 </div>
                               </div>
+                            ) : (
+                              <p className="text-[11px] text-slate-400 italic">
+                                Belum ada catatan pengeluaran pada periode {item.periode_bulan}{' '}
+                                {item.periode_tahun}.
+                              </p>
                             )}
                           </div>
                         )}
@@ -1315,8 +1535,7 @@ export default function PublicDashboard({
                     🏘️ Status Iuran 22 Unit Rumah CMR ({selectedMonth} {selectedYear})
                   </h4>
                   <p className="text-xs text-slate-500">
-                    Format Identitas Seragam No. XX / Nama Warga • 21 Unit Aktif & 1 Non-Aktif (No.
-                    04 BPR)
+                    21 Unit Aktif & 1 Unit Non-Aktif (No. 04 — Dijual Pihak BPR)
                   </p>
                 </div>
 
@@ -1326,7 +1545,7 @@ export default function PublicDashboard({
                     placeholder="Cari No. XX / Nama Warga..."
                     value={searchRumah}
                     onChange={(e) => setSearchRumah(e.target.value)}
-                    className="border border-slate-200 rounded-xl px-3 py-2 bg-slate-50 flex-1"
+                    className="border border-slate-200 rounded-xl px-3 py-2 bg-slate-50 flex-1 sm:w-56"
                   />
                   <select
                     value={filterStatusIpl}
@@ -1346,7 +1565,7 @@ export default function PublicDashboard({
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                 {filteredHouses.map((h) => {
                   const isLunas = h.status_bayar === 'Lunas';
                   const isWaiting = h.status_bayar === 'Menunggu Validasi';
@@ -1422,7 +1641,7 @@ export default function PublicDashboard({
                                   )}`
                                 )
                               }
-                              className="px-2.5 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 font-extrabold transition"
+                              className="px-2.5 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 font-extrabold transition cursor-pointer"
                             >
                               🖼️ Bukti
                             </button>
@@ -1432,7 +1651,7 @@ export default function PublicDashboard({
                             <button
                               type="button"
                               onClick={() => onOpenQris && onOpenQris(h)}
-                              className="bg-teal-800 hover:bg-teal-900 text-white font-bold px-2.5 py-1 rounded-lg shadow-sm transition"
+                              className="bg-teal-800 hover:bg-teal-900 text-white font-bold px-2.5 py-1 rounded-lg shadow-sm transition cursor-pointer"
                             >
                               Bayar QRIS →
                             </button>
@@ -1446,7 +1665,7 @@ export default function PublicDashboard({
             </div>
           )}
 
-          {/* ================= TAB 3: BUKU KAS (MUTASI KAS NYATA + TOMBOL LIGHTBOX BUKTI) ================= */}
+          {/* ================= TAB 3: BUKU KAS (MUTASI KAS NYATA + LIGHTBOX BUKTI) ================= */}
           {activeTab === 'mutasi' && (
             <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/70 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1482,13 +1701,15 @@ export default function PublicDashboard({
                     className="border border-slate-200 rounded-xl px-3 py-2 font-bold bg-slate-50"
                   >
                     <option value="ALL">Semua Kategori ({filteredLedger.length})</option>
-                    <option value="Iuran Warga (IPL)">Iuran Warga (IPL)</option>
-                    <option value="Parkir Fasum">Parkir Fasum</option>
-                    <option value="Gaji Security">Gaji Security</option>
-                    <option value="Uang Sampah">Uang Sampah</option>
-                    <option value="Perawatan Pos">Perawatan Pos</option>
-                    <option value="Listrik & Air Pos">Listrik & Air Pos</option>
-                    <option value="Konsumsi Pos">Konsumsi Pos</option>
+                    <option value="Iuran">Iuran Warga (IPL)</option>
+                    <option value="Parkir">Parkir Fasum</option>
+                    <option value="Gaji">Gaji & Kasbon Security</option>
+                    <option value="Sampah">Uang Sampah</option>
+                    <option value="Perawatan">Perawatan Pos</option>
+                    <option value="Listrik">Listrik Pos</option>
+                    <option value="Air">Air Galon Pos</option>
+                    <option value="Konsumsi">Konsumsi Pos</option>
+                    <option value="Sosial">Dana Sosial</option>
                     <option value="PROYEK">Khusus Proyek Cluster</option>
                   </select>
                 </div>
@@ -1510,290 +1731,166 @@ export default function PublicDashboard({
               </div>
 
               <div className="space-y-2.5">
-                {filteredLedger.map((tx) => {
-                  const isProyek =
-                    Boolean(tx.is_proyek) && String(tx.is_proyek).toUpperCase() !== 'FALSE';
-                  const hasProof = tx.url_bukti && tx.url_bukti !== '-';
-                  const houseText =
-                    tx.house_id && tx.house_id !== '-' ? getHouseLabel(tx.house_id) : '';
+                {filteredLedger.length === 0 ? (
+                  <p className="text-xs text-slate-400 text-center py-8">
+                    Tidak ada mutasi kas yang cocok dengan filter ini.
+                  </p>
+                ) : (
+                  filteredLedger.map((tx) => {
+                    const isProyek =
+                      tx.is_proyek === true ||
+                      String(tx.is_proyek || '').toUpperCase() === 'TRUE';
+                    const hasProof = tx.url_bukti && tx.url_bukti !== '-';
+                    const houseText =
+                      tx.house_id && tx.house_id !== '-' && tx.house_id !== 'ALL'
+                        ? getHouseLabel(tx.house_id)
+                        : '';
 
-                  return (
-                    <div
-                      key={tx.id}
-                      className="p-3.5 rounded-2xl border border-slate-100 hover:bg-slate-50 transition flex items-center justify-between gap-3 text-xs"
-                    >
-                      <div className="flex items-start gap-3">
-                        <div
-                          className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold shrink-0 ${
-                            tx.tipe === 'IN'
-                              ? 'bg-emerald-100 text-emerald-700'
-                              : 'bg-rose-100 text-rose-700'
-                          }`}
-                        >
-                          {tx.tipe === 'IN' ? '↓' : '↑'}
+                    return (
+                      <div
+                        key={tx.id}
+                        className="p-3.5 rounded-2xl border border-slate-100 hover:bg-slate-50 transition flex items-center justify-between gap-3 text-xs"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div
+                            className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold shrink-0 ${
+                              String(tx.tipe || '').toUpperCase() === 'IN'
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : 'bg-rose-100 text-rose-700'
+                            }`}
+                          >
+                            {String(tx.tipe || '').toUpperCase() === 'IN' ? '↓' : '↑'}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-extrabold text-slate-800">{tx.kategori}</span>
+                              <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-semibold">
+                                {tx.periode_bulan} {tx.periode_tahun || 2026}
+                              </span>
+                              {houseText && (
+                                <span className="text-[10px] bg-teal-50 text-teal-800 border border-teal-200 px-2 py-0.5 rounded-md font-bold">
+                                  {houseText}
+                                </span>
+                              )}
+                              {isProyek && (
+                                <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md font-bold">
+                                  Proyek: {tx.nama_proyek || tx.keterangan}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-slate-700 font-medium mt-0.5">{tx.keterangan}</p>
+                            <div className="flex items-center gap-3 mt-1 flex-wrap">
+                              <span className="text-[10px] text-slate-400">
+                                Tanggal: {tx.tanggal} • ID: {tx.id}
+                              </span>
+                              {hasProof && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    triggerLightbox(
+                                      tx.url_bukti,
+                                      `Bukti Transaksi — ${tx.kategori}`,
+                                      `${tx.keterangan} (${formatRp(tx.nominal)})`
+                                    )
+                                  }
+                                  className="inline-flex items-center gap-1 text-[11px] font-extrabold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-2 py-0.5 rounded-lg transition cursor-pointer"
+                                >
+                                  🖼️ Lihat Foto Bukti
+                                </button>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-extrabold text-slate-800">{tx.kategori}</span>
-                            <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-semibold">
-                              {tx.periode_bulan} {tx.periode_tahun || 2026}
-                            </span>
-                            {houseText && (
-                              <span className="text-[10px] bg-teal-50 text-teal-800 border border-teal-200 px-2 py-0.5 rounded-md font-bold">
-                                {houseText}
-                              </span>
-                            )}
-                            {isProyek && (
-                              <span className="text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md font-bold">
-                                Proyek: {tx.nama_proyek || tx.keterangan}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-slate-700 font-medium mt-0.5">{tx.keterangan}</p>
-                          <div className="flex items-center gap-3 mt-1">
-                            <span className="text-[10px] text-slate-400">
-                              Tanggal: {tx.tanggal} • ID: {tx.id}
-                            </span>
-                            {hasProof && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  triggerLightbox(
-                                    tx.url_bukti,
-                                    `Bukti Transaksi — ${tx.kategori}`,
-                                    `${tx.keterangan} (${formatRp(tx.nominal)})`
-                                  )
-                                }
-                                className="inline-flex items-center gap-1 text-[11px] font-extrabold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 px-2 py-0.5 rounded-lg transition"
-                              >
-                                🖼️ Lihat Foto Bukti
-                              </button>
-                            )}
-                          </div>
+
+                        <div className="text-right shrink-0">
+                          <span
+                            className={`font-extrabold text-sm ${
+                              String(tx.tipe || '').toUpperCase() === 'IN'
+                                ? 'text-emerald-700'
+                                : 'text-rose-600'
+                            }`}
+                          >
+                            {String(tx.tipe || '').toUpperCase() === 'IN' ? '+' : '-'}{' '}
+                            {formatRp(tx.nominal)}
+                          </span>
                         </div>
                       </div>
-
-                      <div className="text-right shrink-0">
-                        <span
-                          className={`font-extrabold text-sm ${
-                            tx.tipe === 'IN' ? 'text-emerald-700' : 'text-rose-600'
-                          }`}
-                        >
-                          {tx.tipe === 'IN' ? '+' : '-'} {formatRp(tx.nominal)}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+                )}
               </div>
             </div>
           )}
 
-          {/* ================= TAB 4: DENAH 6 SLOT PARKIR FASUM DINAMIS (NETRAL) ================= */}
+          {/* ================= TAB 4: DENAH HORIZONTAL 6 SLOT PARKIR FASUM (DEFAULT KOSONG, KLIK SECURITY) ================= */}
           {activeTab === 'parkir' && (
-            <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/70 space-y-4">
+            <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/70 space-y-5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
                   <h4 className="font-extrabold text-slate-800 text-base">
-                    🅿️ Denah 6 Slot Parkir Fasum Cluster Mutiara Residence
+                    🅿️ Denah 6 Slot Parkir Fasum CMR (Check-In / Check-Out oleh Security)
                   </h4>
                   <p className="text-xs text-slate-500">
-                    Tarif Netral: 1 Mobil Rp 150.000/bln • 2 Mobil Rp 300.000/bln • Weekend Rp
-                    50.000/bln
+                    Seluruh slot bebas & dinamis • Security cukup klik kotak slot untuk mencatat
+                    kendaraan masuk/keluar & melaporkan kondisinya
                   </p>
                 </div>
-                <span className="text-xs bg-sky-50 text-sky-800 border border-sky-200 px-3 py-1 rounded-full font-bold">
-                  6 Slot Fasum Dinamis
-                </span>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-1 rounded-full font-bold">
+                    Terisi: {occupiedParkingCount}/6
+                  </span>
+                  <span className="bg-slate-100 text-slate-700 border border-slate-200 px-3 py-1 rounded-full font-bold">
+                    Kosong: {6 - occupiedParkingCount}
+                  </span>
+                </div>
               </div>
 
-              {/* Grid 6 Slot Parkir */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                {parkingSlots.map((slot) => {
-                  const isOccupied = slot.status_slot === 'Terisi';
-                  const isWeekend = slot.status_slot === 'Weekend';
-                  const assignedHouseLabel =
-                    slot.house_id && slot.house_id !== '-'
-                      ? getHouseLabel(slot.house_id)
-                      : 'Belum Ada Penghuni';
-
-                  return (
-                    <div
-                      key={slot.slot_id}
-                      className={`p-4 rounded-2xl border flex flex-col justify-between transition ${
-                        isOccupied
-                          ? 'bg-emerald-50/40 border-emerald-200'
-                          : isWeekend
-                          ? 'bg-amber-50/40 border-amber-200'
-                          : 'bg-slate-50 border-slate-200'
-                      }`}
-                    >
-                      <div>
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs font-black text-slate-800">
-                            {slot.nama_slot}
-                          </span>
-                          <span
-                            className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
-                              isOccupied
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : isWeekend
-                                ? 'bg-amber-100 text-amber-800'
-                                : 'bg-slate-200 text-slate-700'
-                            }`}
-                          >
-                            {slot.status_slot}
-                          </span>
-                        </div>
-
-                        <p className="font-extrabold text-teal-900 text-xs sm:text-sm mt-2">
-                          {assignedHouseLabel}
-                        </p>
-                        <p className="text-[11px] text-slate-600 font-semibold mt-0.5">
-                          Paket: {slot.jenis_paket || '-'}
-                        </p>
-                        {slot.nomor_polisi && slot.nomor_polisi !== '-' && (
-                          <p className="text-[11px] text-slate-500 mt-0.5">
-                            Nopol / Ket: {slot.nomor_polisi} ({slot.catatan || '-'})
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="mt-3 pt-2.5 border-t border-slate-200/70 flex items-center justify-between">
-                        <span className="text-[10px] text-slate-400 font-mono">
-                          {slot.slot_id}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setEditingSlot({ ...slot })}
-                          className="text-[11px] font-extrabold text-teal-800 hover:underline"
-                        >
-                          ✏️ Ubah Slot
-                        </button>
-                      </div>
+              {/* DENAH VISUAL HORIZONTAL: KIRI 4 SLOT (01-04) | JALUR AKSES | KANAN 2 SLOT ATAS-BAWAH (05-06) */}
+              <div className="p-4 sm:p-5 rounded-3xl bg-slate-100/90 border border-slate-200 space-y-4">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+                  {/* SISI KIRI: 4 SLOT PARKIR (01 - 04) */}
+                  <div className="lg:col-span-7 bg-white rounded-2xl p-3.5 border border-slate-200 space-y-2.5">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="font-extrabold text-slate-700 uppercase tracking-wider">
+                        Area Kiri Fasum (4 Slot: 01 – 04)
+                      </span>
+                      <span className="text-slate-400">Klik slot untuk update</span>
                     </div>
-                  );
-                })}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {parkingSlots.slice(0, 4).map((slot) => renderParkingSlotCard(slot))}
+                    </div>
+                  </div>
+
+                  {/* JALUR AKSES TENGAH */}
+                  <div className="lg:col-span-1 flex lg:flex-col items-center justify-center py-2 lg:py-0 rounded-2xl bg-slate-200/70 border border-dashed border-slate-300 text-slate-500 text-[10px] font-extrabold tracking-widest uppercase">
+                    <span className="lg:-rotate-90 whitespace-nowrap">
+                      ⬆️ Jalur Akses Mobil ⬇️
+                    </span>
+                  </div>
+
+                  {/* SISI KANAN: 2 SLOT PARKIR ATAS-BAWAH (05 - 06) */}
+                  <div className="lg:col-span-4 bg-white rounded-2xl p-3.5 border border-slate-200 flex flex-col justify-between space-y-2.5">
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="font-extrabold text-slate-700 uppercase tracking-wider">
+                        Area Kanan (2 Slot: 05 – 06)
+                      </span>
+                      <span className="text-slate-400">Atas & Bawah</span>
+                    </div>
+                    <div className="grid grid-cols-1 gap-2.5 flex-1">
+                      {parkingSlots.slice(4, 6).map((slot) => renderParkingSlotCard(slot))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Keterangan Tarif Kontribusi Netral */}
+                <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600 px-1">
+                  <span>
+                    💡 <strong>Tarif Kontribusi Parkir Fasum:</strong> 1 Mobil Rp 150.000/bln • 2
+                    Mobil Rp 300.000/bln • Weekend Rp 50.000/bln
+                  </span>
+                  <span className="text-slate-400">Bebas dikunci — Siapa cepat & dinamis</span>
+                </div>
               </div>
-
-              {/* Form Edit Slot Parkir Dinamis (Muncul Saat Klik "Ubah Slot") */}
-              {editingSlot && (
-                <form
-                  onSubmit={handleSaveParkingSlot}
-                  className="p-4 rounded-2xl bg-slate-50 border border-teal-200 space-y-3 text-xs"
-                >
-                  <div className="flex items-center justify-between">
-                    <h5 className="font-extrabold text-teal-950">
-                      ✏️ Atur Pengguna {editingSlot.nama_slot}
-                    </h5>
-                    <button
-                      type="button"
-                      onClick={() => setEditingSlot(null)}
-                      className="text-slate-500 font-bold"
-                    >
-                      ✕ Batal
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                      <label className="block font-bold text-slate-600 mb-1">
-                        No. Rumah / Nama Warga
-                      </label>
-                      <select
-                        value={editingSlot.house_id}
-                        onChange={(e) =>
-                          setEditingSlot({ ...editingSlot, house_id: e.target.value })
-                        }
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-bold"
-                      >
-                        <option value="-">-- Kosong / Tidak Terisi --</option>
-                        {activeHouses.map((h) => (
-                          <option key={h.id} value={h.id}>
-                            {h.display_label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block font-bold text-slate-600 mb-1">Status Slot</label>
-                      <select
-                        value={editingSlot.status_slot}
-                        onChange={(e) =>
-                          setEditingSlot({ ...editingSlot, status_slot: e.target.value })
-                        }
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-bold"
-                      >
-                        <option value="Terisi">Terisi (Bulanan)</option>
-                        <option value="Weekend">Weekend (Akhir Pekan)</option>
-                        <option value="Kosong">Kosong / Tersedia</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block font-bold text-slate-600 mb-1">
-                        Paket Kontribusi Parkir
-                      </label>
-                      <select
-                        value={editingSlot.jenis_paket}
-                        onChange={(e) =>
-                          setEditingSlot({ ...editingSlot, jenis_paket: e.target.value })
-                        }
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white font-bold"
-                      >
-                        <option value="Parkir Bulanan (Rp 150.000)">
-                          Parkir 1 Mobil (Rp 150.000)
-                        </option>
-                        <option value="Parkir 2 Mobil (Rp 300.000)">
-                          Parkir 2 Mobil (Rp 300.000)
-                        </option>
-                        <option value="Parkir Weekend (Rp 50.000)">
-                          Parkir Weekend (Rp 50.000)
-                        </option>
-                        <option value="Tersedia">Tersedia / Kosong</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block font-bold text-slate-600 mb-1">
-                        Nomor Polisi / Identitas Kendaraan
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Contoh: B 1234 XYZ"
-                        value={editingSlot.nomor_polisi}
-                        onChange={(e) =>
-                          setEditingSlot({ ...editingSlot, nomor_polisi: e.target.value })
-                        }
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block font-bold text-slate-600 mb-1">Catatan Slot</label>
-                      <input
-                        type="text"
-                        placeholder="Contoh: Mobil ke-1 / Parkir Malam"
-                        value={editingSlot.catatan}
-                        onChange={(e) =>
-                          setEditingSlot({ ...editingSlot, catatan: e.target.value })
-                        }
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white"
-                      />
-                    </div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isSavingSlot}
-                    className="w-full py-2.5 rounded-xl bg-teal-800 hover:bg-teal-900 text-white font-extrabold shadow"
-                  >
-                    {isSavingSlot ? 'Menyimpan Slot...' : '💾 Simpan Perubahan Slot Parkir'}
-                  </button>
-                </form>
-              )}
             </div>
           )}
 
@@ -1805,14 +1902,14 @@ export default function PublicDashboard({
                 <button
                   type="button"
                   onClick={() => setSecSubTab('paket')}
-                  className={`py-2.5 px-3 rounded-2xl font-extrabold transition flex items-center justify-center gap-1.5 ${
+                  className={`py-2.5 px-3 rounded-2xl font-extrabold transition flex items-center justify-center gap-1.5 cursor-pointer ${
                     secSubTab === 'paket'
                       ? 'bg-teal-800 text-white shadow'
                       : 'text-slate-600 hover:bg-slate-100'
                   }`}
                 >
                   <span>📦 Paket di Pos</span>
-                  <span className="bg-amber-400 text-slate-950 text-[10px] font-black px-1.5 py-0.2 rounded-full">
+                  <span className="min-w-[20px] h-[20px] px-1.5 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black inline-flex items-center justify-center">
                     {waitingPackagesCount}
                   </span>
                 </button>
@@ -1820,7 +1917,7 @@ export default function PublicDashboard({
                 <button
                   type="button"
                   onClick={() => setSecSubTab('lapor')}
-                  className={`py-2.5 px-3 rounded-2xl font-extrabold transition ${
+                  className={`py-2.5 px-3 rounded-2xl font-extrabold transition cursor-pointer ${
                     secSubTab === 'lapor'
                       ? 'bg-teal-800 text-white shadow'
                       : 'text-slate-600 hover:bg-slate-100'
@@ -1832,7 +1929,7 @@ export default function PublicDashboard({
                 <button
                   type="button"
                   onClick={() => setSecSubTab('jadwal')}
-                  className={`py-2.5 px-3 rounded-2xl font-extrabold transition ${
+                  className={`py-2.5 px-3 rounded-2xl font-extrabold transition cursor-pointer ${
                     secSubTab === 'jadwal'
                       ? 'bg-teal-800 text-white shadow'
                       : 'text-slate-600 hover:bg-slate-100'
@@ -1844,7 +1941,7 @@ export default function PublicDashboard({
                 <button
                   type="button"
                   onClick={() => setSecSubTab('riwayat')}
-                  className={`py-2.5 px-3 rounded-2xl font-extrabold transition ${
+                  className={`py-2.5 px-3 rounded-2xl font-extrabold transition cursor-pointer ${
                     secSubTab === 'riwayat'
                       ? 'bg-teal-800 text-white shadow'
                       : 'text-slate-600 hover:bg-slate-100'
@@ -1863,8 +1960,7 @@ export default function PublicDashboard({
                         📦 Daftar Paket & Surat Warga di Pos Security
                       </h4>
                       <p className="text-xs text-slate-500">
-                        Transparansi kiriman paket warga • Pak Eko & Pak Mulyadi dapat langsung
-                        mencatat paket tiba beserta foto
+                        Pak Eko & Pak Mulyadi dapat langsung mencatat paket tiba beserta foto
                       </p>
                     </div>
                     <button
@@ -1877,98 +1973,111 @@ export default function PublicDashboard({
                         }));
                         setSecSubTab('lapor');
                       }}
-                      className="px-3.5 py-2 rounded-xl bg-teal-800 hover:bg-teal-900 text-white text-xs font-extrabold shadow-sm"
+                      className="px-3.5 py-2 rounded-xl bg-teal-800 hover:bg-teal-900 text-white text-xs font-extrabold shadow-sm cursor-pointer"
                     >
                       + Catat Paket Baru Tiba
                     </button>
                   </div>
 
-                  <div className="space-y-2.5">
-                    {packageLogs.map((pkg) => {
-                      const isDelivered = String(pkg.sub_kategori || '')
-                        .toLowerCase()
-                        .includes('sudah');
-                      const houseIdentity =
-                        pkg.house_id && pkg.house_id !== '-'
-                          ? getHouseLabel(pkg.house_id)
-                          : pkg.nama_warga_tujuan;
-                      const hasPhoto = pkg.url_foto && pkg.url_foto !== '-';
+                  {packageLogs.length === 0 ? (
+                    <div className="p-8 rounded-2xl bg-slate-50 border border-dashed border-slate-200 text-center text-xs text-slate-500">
+                      <p className="text-2xl mb-1">📭</p>
+                      <p className="font-bold text-slate-700">
+                        Belum ada paket yang tercatat di Pos Security.
+                      </p>
+                      <p className="text-[11px] mt-0.5">
+                        Klik tombol <strong>+ Catat Paket Baru Tiba</strong> saat kurir menitipkan
+                        paket warga.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {packageLogs.map((pkg) => {
+                        const isDelivered = String(pkg.sub_kategori || '')
+                          .toLowerCase()
+                          .includes('sudah');
+                        const houseIdentity =
+                          pkg.house_id && pkg.house_id !== '-'
+                            ? getHouseLabel(pkg.house_id)
+                            : pkg.nama_warga_tujuan;
+                        const hasPhoto = pkg.url_foto && pkg.url_foto !== '-';
 
-                      return (
-                        <div
-                          key={pkg.id}
-                          className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
-                            isDelivered
-                              ? 'bg-slate-50 border-slate-200'
-                              : 'bg-amber-50/50 border-amber-300'
-                          }`}
-                        >
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-black text-slate-900 text-sm">
-                                {houseIdentity}
-                              </span>
-                              <span
-                                className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full ${
-                                  isDelivered
-                                    ? 'bg-emerald-100 text-emerald-800'
-                                    : 'bg-amber-200 text-amber-950'
-                                }`}
-                              >
-                                {isDelivered ? '✅ Sudah Diambil / Diantar' : '📦 Menunggu di Pos'}
-                              </span>
+                        return (
+                          <div
+                            key={pkg.id}
+                            className={`p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
+                              isDelivered
+                                ? 'bg-slate-50 border-slate-200'
+                                : 'bg-amber-50/50 border-amber-300'
+                            }`}
+                          >
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-black text-slate-900 text-sm">
+                                  {houseIdentity}
+                                </span>
+                                <span
+                                  className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full ${
+                                    isDelivered
+                                      ? 'bg-emerald-100 text-emerald-800'
+                                      : 'bg-amber-200 text-amber-950'
+                                  }`}
+                                >
+                                  {isDelivered ? '✅ Sudah Diambil / Diantar' : '📦 Di Pos'}
+                                </span>
+                              </div>
+                              <p className="text-slate-700 font-medium">{pkg.detail_catatan}</p>
+                              <p className="text-[11px] text-slate-400">
+                                Dicatat oleh: {pkg.nama_security} (Shift {pkg.shift}) •{' '}
+                                {pkg.tanggal} pukul {pkg.jam} WIB
+                              </p>
                             </div>
-                            <p className="text-slate-700 font-medium">{pkg.detail_catatan}</p>
-                            <p className="text-[11px] text-slate-400">
-                              Dicatat oleh: {pkg.nama_security} (Shift {pkg.shift}) • {pkg.tanggal}{' '}
-                              pukul {pkg.jam} WIB
-                            </p>
+
+                            <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                              {hasPhoto && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    triggerLightbox(
+                                      pkg.url_foto,
+                                      `Foto Paket — ${houseIdentity}`,
+                                      `${pkg.detail_catatan} (${pkg.tanggal} ${pkg.jam} WIB)`
+                                    )
+                                  }
+                                  className="px-3 py-1.5 rounded-xl bg-white border border-teal-200 text-teal-800 font-extrabold hover:bg-teal-50 cursor-pointer"
+                                >
+                                  🖼️ Lihat Foto
+                                </button>
+                              )}
+
+                              {pkg.teks_wa && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard?.writeText(pkg.teks_wa);
+                                    setCopiedWaText(pkg.teks_wa);
+                                  }}
+                                  className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold cursor-pointer"
+                                >
+                                  📋 Salin WA
+                                </button>
+                              )}
+
+                              {!isDelivered && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleMarkPackagePickedUp(pkg)}
+                                  className="px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold shadow-sm cursor-pointer"
+                                >
+                                  ✓ Tandai Sudah Diambil
+                                </button>
+                              )}
+                            </div>
                           </div>
-
-                          <div className="flex items-center gap-2 shrink-0 flex-wrap">
-                            {hasPhoto && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  triggerLightbox(
-                                    pkg.url_foto,
-                                    `Foto Paket — ${houseIdentity}`,
-                                    `${pkg.detail_catatan} (${pkg.tanggal} ${pkg.jam} WIB)`
-                                  )
-                                }
-                                className="px-3 py-1.5 rounded-xl bg-white border border-teal-200 text-teal-800 font-extrabold hover:bg-teal-50"
-                              >
-                                🖼️ Lihat Foto
-                              </button>
-                            )}
-
-                            {pkg.teks_wa && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  navigator.clipboard?.writeText(pkg.teks_wa);
-                                  setCopiedWaText(pkg.teks_wa);
-                                }}
-                                className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold"
-                              >
-                                📋 Salin WA
-                              </button>
-                            )}
-
-                            {!isDelivered && (
-                              <button
-                                type="button"
-                                onClick={() => handleMarkPackagePickedUp(pkg)}
-                                className="px-3 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold shadow-sm"
-                              >
-                                ✓ Tandai Sudah Diambil
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -2120,7 +2229,7 @@ export default function PublicDashboard({
                     <button
                       type="submit"
                       disabled={isSavingLog}
-                      className="w-full py-3 rounded-xl bg-teal-800 hover:bg-teal-900 text-white font-extrabold shadow-md transition"
+                      className="w-full py-3 rounded-xl bg-teal-800 hover:bg-teal-900 text-white font-extrabold shadow-md transition cursor-pointer"
                     >
                       {isSavingLog
                         ? 'Menyimpan Laporan...'
@@ -2137,7 +2246,7 @@ export default function PublicDashboard({
                         <button
                           type="button"
                           onClick={() => navigator.clipboard?.writeText(copiedWaText)}
-                          className="px-2.5 py-1 rounded-lg bg-emerald-700 text-white font-bold"
+                          className="px-2.5 py-1 rounded-lg bg-emerald-700 text-white font-bold cursor-pointer"
                         >
                           Salin Ulang
                         </button>
@@ -2150,7 +2259,7 @@ export default function PublicDashboard({
                 </div>
               )}
 
-              {/* SUB-TAB 3: KALENDER JADWAL ROTASI SECURITY (READ-ONLY & BERSIH) */}
+              {/* SUB-TAB 3: KALENDER JADWAL ROTASI SECURITY (READ-ONLY — EDIT VIA SPREADSHEET) */}
               {secSubTab === 'jadwal' && (
                 <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/70 space-y-4">
                   <div>
@@ -2210,78 +2319,84 @@ export default function PublicDashboard({
               {secSubTab === 'riwayat' && (
                 <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/70 space-y-3">
                   <h4 className="font-extrabold text-slate-800 text-base">
-                    📋 Riwayat Log Patroli, Absen Shift, & Aktivitas Pos
+                    📋 Riwayat Log Patroli, Parkir, Absen Shift, & Aktivitas Pos
                   </h4>
-                  <div className="space-y-2.5">
-                    {securityLogs.map((log) => {
-                      const hasPhoto =
-                        (log.url_foto && log.url_foto !== '-') ||
-                        (log.url_bukti && log.url_bukti !== '-');
-                      const photoUrl = log.url_foto !== '-' ? log.url_foto : log.url_bukti;
+                  {securityLogs.length === 0 ? (
+                    <p className="text-xs text-slate-400 text-center py-6">
+                      Belum ada riwayat log pos yang tersimpan.
+                    </p>
+                  ) : (
+                    <div className="space-y-2.5">
+                      {securityLogs.map((log) => {
+                        const hasPhoto =
+                          (log.url_foto && log.url_foto !== '-') ||
+                          (log.url_bukti && log.url_bukti !== '-');
+                        const photoUrl = log.url_foto !== '-' ? log.url_foto : log.url_bukti;
 
-                      return (
-                        <div
-                          key={log.id}
-                          className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
-                        >
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-extrabold text-teal-900">
-                                {log.nama_security} (Shift {log.shift})
-                              </span>
-                              <span className="text-[10px] font-bold bg-white border border-slate-200 px-2 py-0.5 rounded-md">
-                                {log.sub_kategori}
-                              </span>
-                              {log.house_id && log.house_id !== '-' && (
-                                <span className="text-[10px] font-extrabold bg-teal-100 text-teal-900 px-2 py-0.5 rounded-md">
-                                  {getHouseLabel(log.house_id)}
+                        return (
+                          <div
+                            key={log.id}
+                            className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                          >
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-extrabold text-teal-900">
+                                  {log.nama_security} (Shift {log.shift})
                                 </span>
+                                <span className="text-[10px] font-bold bg-white border border-slate-200 px-2 py-0.5 rounded-md">
+                                  {log.sub_kategori}
+                                </span>
+                                {log.house_id && log.house_id !== '-' && (
+                                  <span className="text-[10px] font-extrabold bg-teal-100 text-teal-900 px-2 py-0.5 rounded-md">
+                                    {getHouseLabel(log.house_id)}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-slate-700">{log.detail_catatan}</p>
+                              <p className="text-[10px] text-slate-400">
+                                {log.tanggal} • {log.jam} WIB • {log.titik_patroli}
+                              </p>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                              {hasPhoto && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    triggerLightbox(
+                                      photoUrl,
+                                      `Foto Log Security — ${log.sub_kategori}`,
+                                      `${log.nama_security} (${log.tanggal} ${log.jam} WIB)`
+                                    )
+                                  }
+                                  className="px-3 py-1.5 rounded-xl bg-white border border-teal-200 text-teal-800 font-extrabold cursor-pointer"
+                                >
+                                  🖼️ Lihat Foto
+                                </button>
+                              )}
+                              {log.teks_wa && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard?.writeText(log.teks_wa);
+                                    setCopiedWaText(log.teks_wa);
+                                  }}
+                                  className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold cursor-pointer"
+                                >
+                                  📋 Salin WA
+                                </button>
                               )}
                             </div>
-                            <p className="text-slate-700">{log.detail_catatan}</p>
-                            <p className="text-[10px] text-slate-400">
-                              {log.tanggal} • {log.jam} WIB • {log.titik_patroli}
-                            </p>
                           </div>
-
-                          <div className="flex items-center gap-2 shrink-0">
-                            {hasPhoto && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  triggerLightbox(
-                                    photoUrl,
-                                    `Foto Log Security — ${log.sub_kategori}`,
-                                    `${log.nama_security} (${log.tanggal} ${log.jam} WIB)`
-                                  )
-                                }
-                                className="px-3 py-1.5 rounded-xl bg-white border border-teal-200 text-teal-800 font-extrabold"
-                              >
-                                🖼️ Lihat Foto
-                              </button>
-                            )}
-                            {log.teks_wa && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  navigator.clipboard?.writeText(log.teks_wa);
-                                  setCopiedWaText(log.teks_wa);
-                                }}
-                                className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold"
-                              >
-                                📋 Salin WA
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* ===================================================================== */}
-              {/* FITUR OPSIONAL DENGAN SAKLAR KODE (DEFAULT: DISEMBUNYIKAN / FALSE)    */}
+              {/* FITUR OPSIONAL DENGAN SAKLAR KODE (DEFAULT: FALSE / DISEMBUNYIKAN)   */}
               {/* ===================================================================== */}
               {SHOW_SOS_BUTTON && (
                 <div className="bg-gradient-to-br from-rose-600 to-red-800 text-white rounded-3xl p-5 shadow-md">
@@ -2349,71 +2464,215 @@ export default function PublicDashboard({
               )}
             </div>
           )}
-        </div>
+        </section>
       </main>
 
-      {/* BOTTOM NAVIGATION BAR (KHUSUS HP / MOBILE < 768px) */}
-      <div className="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 px-3 py-2 flex justify-between items-center text-[11px] z-30 shadow-lg">
-        <button
-          type="button"
-          onClick={() => setActiveTab('beranda')}
-          className={`flex flex-col items-center ${
-            activeTab === 'beranda' ? 'text-teal-800 font-extrabold' : 'text-slate-400'
-          }`}
+      {/* MODAL CHECK-IN / CHECK-OUT SLOT PARKIR OLEH SECURITY */}
+      {activeParkingModalSlot && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
+          onClick={() => setActiveParkingModalSlot(null)}
         >
-          <span className="text-base">🏠</span>
-          <span>Beranda</span>
-        </button>
+          <div
+            className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-200 my-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="px-5 py-4 bg-gradient-to-r from-teal-900 to-sky-900 text-white flex items-center justify-between">
+              <div>
+                <span className="text-[10px] uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full font-bold">
+                  Kontrol Parkir Security (Tanpa Login)
+                </span>
+                <h3 className="text-base font-extrabold mt-1">
+                  🅿️ {activeParkingModalSlot.nama_slot || activeParkingModalSlot.slot_id}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveParkingModalSlot(null)}
+                className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center font-bold text-sm cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
 
-        <button
-          type="button"
-          onClick={() => setActiveTab('rumah')}
-          className={`flex flex-col items-center ${
-            activeTab === 'rumah' ? 'text-teal-800 font-extrabold' : 'text-slate-400'
-          }`}
-        >
-          <span className="text-base">🏘️</span>
-          <span>22 Rumah</span>
-        </button>
+            <form onSubmit={handleSaveParkingSlot} className="p-5 space-y-3.5 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-600 mb-1">
+                    Petugas Security Pelapor
+                  </label>
+                  <select
+                    value={activeParkingModalSlot.updated_by || 'Pak Eko'}
+                    onChange={(e) =>
+                      setActiveParkingModalSlot({
+                        ...activeParkingModalSlot,
+                        updated_by: e.target.value
+                      })
+                    }
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 font-bold"
+                  >
+                    <option value="Pak Eko">Pak Eko</option>
+                    <option value="Pak Mulyadi">Pak Mulyadi</option>
+                    <option value="Pengurus CMR">Pengurus CMR</option>
+                  </select>
+                </div>
 
-        <button
-          type="button"
-          onClick={() => onOpenQris && onOpenQris(activeHouses[0] || null)}
-          className="flex flex-col items-center -mt-5"
-        >
-          <div className="w-12 h-12 rounded-full bg-teal-800 text-white flex items-center justify-center shadow-lg border-4 border-white text-lg">
-            📲
+                <div>
+                  <label className="block font-bold text-slate-600 mb-1">Status Slot</label>
+                  <select
+                    value={activeParkingModalSlot.status_slot}
+                    onChange={(e) =>
+                      setActiveParkingModalSlot({
+                        ...activeParkingModalSlot,
+                        status_slot: e.target.value
+                      })
+                    }
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 font-bold"
+                  >
+                    <option value="Terisi">🟢 Terisi (Parkir Warga)</option>
+                    <option value="Weekend">🟡 Weekend (Akhir Pekan)</option>
+                    <option value="Tamu">🔵 Tamu / Sementara</option>
+                    <option value="Kosong">⚪ Kosong (Check-Out)</option>
+                  </select>
+                </div>
+              </div>
+
+              {activeParkingModalSlot.status_slot !== 'Kosong' && (
+                <>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-bold text-slate-600 mb-1">
+                        Rumah Pemilik Kendaraan
+                      </label>
+                      <select
+                        value={activeParkingModalSlot.house_id}
+                        onChange={(e) =>
+                          setActiveParkingModalSlot({
+                            ...activeParkingModalSlot,
+                            house_id: e.target.value
+                          })
+                        }
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 font-bold"
+                      >
+                        <option value="-">-- Tamu / Non-Warga --</option>
+                        {activeHouses.map((h) => (
+                          <option key={h.id} value={h.id}>
+                            {h.display_label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-600 mb-1">
+                        Paket Kontribusi Parkir
+                      </label>
+                      <select
+                        value={activeParkingModalSlot.jenis_paket}
+                        onChange={(e) =>
+                          setActiveParkingModalSlot({
+                            ...activeParkingModalSlot,
+                            jenis_paket: e.target.value
+                          })
+                        }
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 font-bold"
+                      >
+                        <option value="Parkir Bulanan (Rp 150.000)">
+                          Parkir 1 Mobil (Rp 150.000)
+                        </option>
+                        <option value="Parkir 2 Mobil (Rp 300.000)">
+                          Parkir 2 Mobil (Rp 300.000)
+                        </option>
+                        <option value="Parkir Weekend (Rp 50.000)">
+                          Parkir Weekend (Rp 50.000)
+                        </option>
+                        <option value="Tamu Sementara">Tamu / Acara Sementara</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-bold text-slate-600 mb-1">
+                        Nomor Polisi / Jenis Mobil
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Contoh: B 1234 XYZ / Avanza Hitam"
+                        value={activeParkingModalSlot.nomor_polisi || ''}
+                        onChange={(e) =>
+                          setActiveParkingModalSlot({
+                            ...activeParkingModalSlot,
+                            nomor_polisi: e.target.value
+                          })
+                        }
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-bold text-slate-600 mb-1">
+                        Laporan Kondisi Parkir
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Contoh: Terparkir rapi, kaca tertutup"
+                        value={activeParkingModalSlot.catatan || ''}
+                        onChange={(e) =>
+                          setActiveParkingModalSlot({
+                            ...activeParkingModalSlot,
+                            catatan: e.target.value
+                          })
+                        }
+                        className="w-full px-3 py-2 rounded-xl border border-slate-200"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div className="p-3 rounded-xl bg-sky-50 border border-sky-200">
+                <label className="flex items-center gap-2 font-bold text-sky-950 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(activeParkingModalSlot.catat_ke_log_security)}
+                    onChange={(e) =>
+                      setActiveParkingModalSlot({
+                        ...activeParkingModalSlot,
+                        catat_ke_log_security: e.target.checked
+                      })
+                    }
+                    className="rounded text-teal-700"
+                  />
+                  Catat otomatis laporan kondisi parkir ini ke Log Pos Security
+                </label>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="submit"
+                  disabled={isSavingSlot}
+                  className="flex-1 py-2.5 rounded-xl bg-teal-800 hover:bg-teal-900 text-white font-extrabold shadow transition cursor-pointer"
+                >
+                  {isSavingSlot ? 'Menyimpan...' : '💾 Simpan Check-In / Kondisi'}
+                </button>
+
+                {parkingSlots.find((s) => s.slot_id === activeParkingModalSlot.slot_id)
+                  ?.status_slot !== 'Kosong' && (
+                  <button
+                    type="button"
+                    disabled={isSavingSlot}
+                    onClick={handleQuickCheckoutSlot}
+                    className="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold shadow transition cursor-pointer"
+                  >
+                    🚗 Check-Out
+                  </button>
+                )}
+              </div>
+            </form>
           </div>
-          <span className="text-[10px] font-extrabold text-teal-900">QRIS</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('mutasi')}
-          className={`flex flex-col items-center ${
-            activeTab === 'mutasi' ? 'text-teal-800 font-extrabold' : 'text-slate-400'
-          }`}
-        >
-          <span className="text-base">📑</span>
-          <span>Buku Kas</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('keamanan')}
-          className={`flex flex-col items-center relative ${
-            activeTab === 'keamanan' ? 'text-teal-800 font-extrabold' : 'text-slate-400'
-          }`}
-        >
-          <span className="text-base">🛡️</span>
-          <span>Pos & Paket</span>
-          {waitingPackagesCount > 0 && (
-            <span className="absolute -top-1 right-1 bg-amber-500 text-white text-[9px] font-black px-1.5 rounded-full">
-              {waitingPackagesCount}
-            </span>
-          )}
-        </button>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

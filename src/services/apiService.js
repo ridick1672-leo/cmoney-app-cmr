@@ -6,7 +6,7 @@
 
 const BACKEND_PROVIDER = import.meta.env.VITE_BACKEND_PROVIDER || 'gas';
 // PENTING: Pastikan link /exec Google Apps Script Anda terpasang di dalam tanda kutip di bawah ini:
-const GAS_WEBAPP_URL = import.meta.env.VITE_GAS_WEBAPP_URL || 'https://script.google.com/macros/s/AKfycbwbPCY01E6AcGUwPXKIcnOkhQWCW5nAc-9EB9H9y3jBe-WY6UZ7lM9Etw3BAs55u0K0YQ/exec';
+const GAS_WEBAPP_URL = import.meta.env.VITE_GAS_WEBAPP_URL || 'https://script.google.com/macros/s/AKfycby6JUeKxL_Co_KOT_xWIrCEz6_pLUce-wzPMeYgm8cU6mqT29kW_1hWMBJX8VxocX31gA/exec';
 
 export const MONTH_LIST_ID = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',

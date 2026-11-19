@@ -6,9 +6,6 @@ const MONTH_NAMES = [
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
 ];
 
-/**
- * Penentu Otomatis Periode Buku Berdasarkan Cut-Off Tanggal 25
- */
 function getDefaultSmartPeriod() {
   const now = new Date();
   const day = now.getDate();
@@ -28,9 +25,11 @@ function getDefaultSmartPeriod() {
   };
 }
 
-/**
- * Pilihan Paket Pembayaran QRIS V6.0 (Netral & 100% Uang Kas Nyata)
- */
+function extractCleanNum(rawVal) {
+  const digits = String(rawVal || '').replace(/[^0-9]/g, '');
+  return digits ? digits.padStart(2, '0') : '00';
+}
+
 const QRIS_PACKAGES_V6 = [
   {
     id: 'IPL_ONLY',
@@ -102,26 +101,29 @@ export default function QrisPaymentModal({
     );
   }, [houses]);
 
-  // Helper Format Seragam "No. XX / Nama Warga"
+  // Helper V6.1: Format Seragam "No. XX / Nama Warga" (Anti-Bug "No. No." & "undefined")
   const getHouseLabel = (houseObjOrId) => {
     if (typeof formatHouseIdentity === 'function') {
       return formatHouseIdentity(houseObjOrId);
     }
     if (!houseObjOrId) return '-';
     if (typeof houseObjOrId === 'object') {
-      const num = String(houseObjOrId.nomor_rumah || houseObjOrId.id || '')
-        .replace(/^H-/i, '')
-        .replace(/^No\.?\s*/i, '')
-        .padStart(2, '0');
-      const name = houseObjOrId.nama_kepala_keluarga || 'Warga';
+      const num = extractCleanNum(houseObjOrId.nomor_rumah || houseObjOrId.id);
+      const name = String(
+        houseObjOrId.nama_warga || houseObjOrId.nama_kepala_keluarga || 'Warga'
+      ).trim();
       return `No. ${num} / ${name}`;
     }
+    const cleanNum = extractCleanNum(houseObjOrId);
     const found = activeHouses.find(
-      (h) => String(h.id).toUpperCase() === String(houseObjOrId).toUpperCase()
+      (h) =>
+        String(h.id).toUpperCase() === String(houseObjOrId).toUpperCase() ||
+        extractCleanNum(h.nomor_rumah || h.id) === cleanNum
     );
     if (found) {
-      const num = String(found.nomor_rumah || found.id).replace(/^H-/i, '').padStart(2, '0');
-      return `No. ${num} / ${found.nama_kepala_keluarga}`;
+      const num = extractCleanNum(found.nomor_rumah || found.id);
+      const name = String(found.nama_warga || found.nama_kepala_keluarga || 'Warga').trim();
+      return `No. ${num} / ${name}`;
     }
     return String(houseObjOrId);
   };
@@ -145,7 +147,6 @@ export default function QrisPaymentModal({
   const [errorMsg, setErrorMsg] = useState('');
   const [qrisImgError, setQrisImgError] = useState(false);
 
-  // Sinkronisasi rumah terpilih saat modal dibuka dari kartu 22 Rumah
   useEffect(() => {
     if (selectedHouse?.id && selectedHouse.id !== 'H-04') {
       setHouseId(selectedHouse.id);
@@ -166,7 +167,6 @@ export default function QrisPaymentModal({
     }
   };
 
-  // Handler Pilih & Kompresi Foto Bukti Transfer/QRIS
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -183,7 +183,6 @@ export default function QrisPaymentModal({
     }
   };
 
-  // Handler Kirim Bukti Pembayaran ke Google Drive & Spreadsheet
   const handleSubmitProof = async (e) => {
     e.preventDefault();
     setErrorMsg('');
@@ -282,7 +281,6 @@ export default function QrisPaymentModal({
         {/* ISI MODAL */}
         <div className="p-5 overflow-y-auto space-y-5">
           {submitResult ? (
-            /* TAMPILAN SUKSES TERKIRIM + TOMBOL LIHAT BUKTI DI LIGHTBOX */
             <div className="p-6 rounded-3xl bg-emerald-50 border border-emerald-200 text-center space-y-4">
               <div className="w-14 h-14 rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-2xl mx-auto shadow-md">
                 ✓
@@ -356,9 +354,8 @@ export default function QrisPaymentModal({
               </div>
             </div>
           ) : (
-            /* FORM PEMBAYARAN QRIS 2 KOLOM (KIRI: GAMBAR QRIS, KANAN: PILIHAN RUMAH & PAKET) */
             <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
-              {/* KOLOM KIRI (5 KOLOM): KODE QRIS STATIS RESMI CMR */}
+              {/* KOLOM KIRI: KODE QRIS STATIS RESMI CMR */}
               <div className="md:col-span-5 bg-slate-50 rounded-3xl p-4 border border-slate-200/80 text-center space-y-3">
                 <div className="inline-block bg-teal-900 text-white text-[11px] font-extrabold px-3 py-1 rounded-full">
                   {qrisMerchantName}
@@ -413,7 +410,7 @@ export default function QrisPaymentModal({
                 </a>
               </div>
 
-              {/* KOLOM KANAN (7 KOLOM): PILIH RUMAH, PAKET NETRAL, & UPLOAD BUKTI */}
+              {/* KOLOM KANAN: PILIH RUMAH, PAKET NETRAL, & UPLOAD BUKTI */}
               <form onSubmit={handleSubmitProof} className="md:col-span-7 space-y-3.5 text-xs">
                 {errorMsg && (
                   <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 font-bold">
@@ -421,7 +418,6 @@ export default function QrisPaymentModal({
                   </div>
                 )}
 
-                {/* Pilih Rumah (No. XX / Nama Warga) & Periode Bulan Buku */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block font-extrabold text-slate-700 mb-1">
@@ -434,7 +430,7 @@ export default function QrisPaymentModal({
                     >
                       {activeHouses.map((h) => (
                         <option key={h.id} value={h.id}>
-                          {getHouseLabel(h)}
+                          {h.display_label || getHouseLabel(h)}
                         </option>
                       ))}
                     </select>
@@ -468,7 +464,6 @@ export default function QrisPaymentModal({
                   </div>
                 </div>
 
-                {/* Pilihan Paket Pembayaran Netral (100% Real Cash) */}
                 <div>
                   <label className="block font-extrabold text-slate-700 mb-1.5">
                     3. Pilih Paket Pembayaran (Uang Kas Nyata)
@@ -512,7 +507,6 @@ export default function QrisPaymentModal({
                   </div>
                 </div>
 
-                {/* Nominal Uang Riil & Catatan Tambahan */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block font-extrabold text-slate-700 mb-1">
@@ -541,7 +535,6 @@ export default function QrisPaymentModal({
                   </div>
                 </div>
 
-                {/* Unggah Foto Screenshot Bukti Transfer */}
                 <div className="p-3.5 rounded-2xl bg-slate-50 border border-dashed border-slate-300 space-y-2">
                   <label className="block font-extrabold text-slate-700">
                     4. 📷 Unggah Screenshot Bukti Transfer / QRIS
