@@ -101,7 +101,7 @@ export default function QrisPaymentModal({
     );
   }, [houses]);
 
-  // Helper V6.1: Format Seragam "No. XX / Nama Warga" (Anti-Bug "No. No." & "undefined")
+  // Helper V6.3: Format Seragam "No. XX / Nama Warga"
   const getHouseLabel = (houseObjOrId) => {
     if (typeof formatHouseIdentity === 'function') {
       return formatHouseIdentity(houseObjOrId);
@@ -138,10 +138,11 @@ export default function QrisPaymentModal({
   const [nominalBayar, setNominalBayar] = useState(200000);
   const [catatanWarga, setCatatanWarga] = useState('');
 
-  // State Bukti Transfer & Status Pengiriman
+  // State Bukti Transfer (Opsional / Tidak Wajib) & Status Pengiriman
   const [fileBase64, setFileBase64] = useState('');
   const [fileName, setFileName] = useState('');
   const [isCompressing, setIsCompressing] = useState(false);
+  const [photoError, setPhotoError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
@@ -169,15 +170,27 @@ export default function QrisPaymentModal({
 
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
-    if (!file) return;
     setErrorMsg('');
+    setPhotoError('');
+
+    if (!file) {
+      setFileBase64('');
+      setFileName('');
+      return;
+    }
+
     setIsCompressing(true);
     try {
-      const compressed = await compressImageToBase64(file);
+      const compressed = await compressImageToBase64(file, 900, 0.76);
       setFileBase64(compressed);
       setFileName(file.name);
     } catch (err) {
-      setErrorMsg('Gagal memproses gambar bukti pembayaran. Silakan coba foto lain.');
+      setPhotoError(
+        err.message ||
+          'Foto gagal diproses. Anda bisa memilih foto lain atau hapus foto untuk kirim tanpa lampiran.'
+      );
+      setFileBase64('');
+      setFileName('');
     } finally {
       setIsCompressing(false);
     }
@@ -187,8 +200,13 @@ export default function QrisPaymentModal({
     e.preventDefault();
     setErrorMsg('');
 
-    if (!fileBase64) {
-      setErrorMsg('Mohon pilih atau unggah foto screenshot bukti pembayaran QRIS terlebih dahulu.');
+    if (isCompressing) {
+      setErrorMsg('Tunggu sebentar, foto bukti masih dalam proses kompresi...');
+      return;
+    }
+
+    if (photoError) {
+      setErrorMsg('Foto yang dipilih bermasalah. Silakan pilih ulang atau klik Hapus untuk kirim tanpa foto.');
       return;
     }
 
@@ -200,10 +218,13 @@ export default function QrisPaymentModal({
     setIsSubmitting(true);
     try {
       const houseIdentity = getHouseLabel(houseId);
+      const hasPhoto = Boolean(fileBase64);
       const packageSummary = `${selectedPackage.title} (${formatRp(nominalBayar)})`;
       const finalNote = catatanWarga
-        ? `${packageSummary} — ${catatanWarga} [${houseIdentity}]`
-        : `${packageSummary} [${houseIdentity}]`;
+        ? `${packageSummary} — ${catatanWarga} [${houseIdentity}]${
+            hasPhoto ? '' : ' [Tanpa Foto]'
+          }`
+        : `${packageSummary} [${houseIdentity}]${hasPhoto ? '' : ' [Tanpa Foto]'}`;
 
       const payload = {
         house_id: houseId,
@@ -212,26 +233,35 @@ export default function QrisPaymentModal({
         periode_tahun: Number(periodeTahun),
         paket_id: selectedPackage.id,
         paket_label: selectedPackage.title,
+        nominal: Number(nominalBayar),
         nominal_bayar: Number(nominalBayar),
         catatan: finalNote,
-        file_name: fileName || `QRIS_${periodeBulan}_${houseId}.jpg`,
-        file_base64: fileBase64
+        expect_photo: hasPhoto,
+        file_name: hasPhoto ? fileName || `QRIS_${periodeBulan}_${houseId}.jpg` : '',
+        file_base64: hasPhoto ? fileBase64 : ''
       };
 
       const submitFn = onUploadProof || onConfirmQrisProof;
       if (typeof submitFn === 'function') {
         const res = await submitFn(payload);
         if (res && res.status === 'success') {
+          const savedProofUrl =
+            res.url_bukti && res.url_bukti !== '-'
+              ? res.url_bukti
+              : hasPhoto
+              ? fileBase64
+              : '';
           setSubmitResult({
             houseIdentity,
             periodeBulan,
             periodeTahun,
             nominal: Number(nominalBayar),
             paketTitle: selectedPackage.title,
-            urlBukti: res.url_bukti || fileBase64
+            hasPhoto: Boolean(savedProofUrl),
+            urlBukti: savedProofUrl
           });
         } else {
-          setErrorMsg(res?.message || 'Gagal mengirim bukti pembayaran ke server.');
+          setErrorMsg(res?.message || 'Gagal mengirim konfirmasi pembayaran ke server.');
         }
       } else {
         setSubmitResult({
@@ -240,7 +270,8 @@ export default function QrisPaymentModal({
           periodeTahun,
           nominal: Number(nominalBayar),
           paketTitle: selectedPackage.title,
-          urlBukti: fileBase64
+          hasPhoto,
+          urlBukti: hasPhoto ? fileBase64 : ''
         });
       }
     } catch (err) {
@@ -272,7 +303,7 @@ export default function QrisPaymentModal({
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center font-bold text-sm"
+            className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center font-bold text-sm cursor-pointer"
           >
             ✕
           </button>
@@ -287,22 +318,24 @@ export default function QrisPaymentModal({
               </div>
               <div>
                 <h3 className="text-base sm:text-lg font-extrabold text-emerald-950">
-                  Bukti Pembayaran Berhasil Terkirim!
+                  Konfirmasi Pembayaran Berhasil Dicatat!
                 </h3>
                 <p className="text-xs text-emerald-800 mt-1">
-                  Terima kasih, bukti transfer untuk{' '}
-                  <span className="font-extrabold">{submitResult.houseIdentity}</span> telah
-                  tersimpan di Google Drive & tercatat pada Buku{' '}
+                  Terima kasih, konfirmasi untuk{' '}
+                  <span className="font-extrabold">{submitResult.houseIdentity}</span> pada Buku{' '}
                   <span className="font-extrabold">
                     {submitResult.periodeBulan} {submitResult.periodeTahun}
-                  </span>
-                  .
+                  </span>{' '}
+                  telah masuk (Menunggu Validasi Pengurus)
+                  {submitResult.hasPhoto
+                    ? ' beserta bukti foto di Google Drive.'
+                    : ' tanpa lampiran foto.'}
                 </p>
               </div>
 
               <div className="max-w-md mx-auto p-3.5 rounded-2xl bg-white border border-emerald-200/80 text-xs space-y-1.5 text-left">
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Identitas Rumah:</span>
+                  <span className="text-slate-500">Identitas Warga:</span>
                   <span className="font-extrabold text-slate-900">
                     {submitResult.houseIdentity}
                   </span>
@@ -323,10 +356,16 @@ export default function QrisPaymentModal({
                     {submitResult.periodeBulan} {submitResult.periodeTahun}
                   </span>
                 </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Lampiran Bukti:</span>
+                  <span className="font-bold text-slate-700">
+                    {submitResult.hasPhoto ? '✅ Tersimpan di Drive' : '— Tanpa Foto'}
+                  </span>
+                </div>
               </div>
 
               <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
-                {submitResult.urlBukti && (
+                {submitResult.hasPhoto && submitResult.urlBukti && (
                   <button
                     type="button"
                     onClick={() => {
@@ -338,7 +377,7 @@ export default function QrisPaymentModal({
                         );
                       }
                     }}
-                    className="px-4 py-2.5 rounded-xl bg-teal-800 hover:bg-teal-900 text-white text-xs font-extrabold shadow"
+                    className="px-4 py-2.5 rounded-xl bg-teal-800 hover:bg-teal-900 text-white text-xs font-extrabold shadow cursor-pointer"
                   >
                     🖼️ Lihat Foto Bukti di Layar
                   </button>
@@ -347,7 +386,7 @@ export default function QrisPaymentModal({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-extrabold"
+                  className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-extrabold cursor-pointer"
                 >
                   Selesai & Tutup
                 </button>
@@ -410,7 +449,7 @@ export default function QrisPaymentModal({
                 </a>
               </div>
 
-              {/* KOLOM KANAN: PILIH RUMAH, PAKET NETRAL, & UPLOAD BUKTI */}
+              {/* KOLOM KANAN: PILIH WARGA, PAKET NETRAL, & UPLOAD BUKTI (OPSIONAL) */}
               <form onSubmit={handleSubmitProof} className="md:col-span-7 space-y-3.5 text-xs">
                 {errorMsg && (
                   <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 font-bold">
@@ -476,7 +515,7 @@ export default function QrisPaymentModal({
                           key={pkg.id}
                           type="button"
                           onClick={() => handleSelectPackage(pkg)}
-                          className={`p-2.5 rounded-2xl border text-left transition flex items-center justify-between gap-2 ${
+                          className={`p-2.5 rounded-2xl border text-left transition flex items-center justify-between gap-2 cursor-pointer ${
                             isSelected
                               ? 'bg-teal-900 text-white border-teal-900 shadow-sm'
                               : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-200'
@@ -527,7 +566,7 @@ export default function QrisPaymentModal({
                     </label>
                     <input
                       type="text"
-                      placeholder="Contoh: Transfer via BCA / Mandiri"
+                      placeholder="Contoh: Transfer via BCA / Tunai"
                       value={catatanWarga}
                       onChange={(e) => setCatatanWarga(e.target.value)}
                       className="w-full px-3 py-2 rounded-xl border border-slate-200"
@@ -535,21 +574,48 @@ export default function QrisPaymentModal({
                   </div>
                 </div>
 
+                {/* UNGGAH BUKTI TRANSFER: OPSIONAL (TIDAK WAJIB) */}
                 <div className="p-3.5 rounded-2xl bg-slate-50 border border-dashed border-slate-300 space-y-2">
-                  <label className="block font-extrabold text-slate-700">
-                    4. 📷 Unggah Screenshot Bukti Transfer / QRIS
-                  </label>
+                  <div className="flex items-center justify-between gap-2">
+                    <label className="block font-extrabold text-slate-700">
+                      4. 📷 Screenshot Bukti Transfer / QRIS{' '}
+                      <span className="text-teal-700 font-bold">(Opsional)</span>
+                    </label>
+                    {!fileBase64 && (
+                      <span className="text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full font-bold shrink-0">
+                        Tidak Wajib
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500">
+                    Boleh langsung klik kirim konfirmasi tanpa foto, atau lampirkan bukti untuk
+                    arsip otomatis di Drive.
+                  </p>
+
                   <input
                     type="file"
                     accept="image/*"
                     onChange={handleFileChange}
-                    className="w-full text-xs text-slate-600"
+                    className="w-full text-xs text-slate-600 file:mr-2.5 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-slate-800 file:text-white hover:file:bg-slate-700 cursor-pointer"
                   />
 
                   {isCompressing && (
                     <p className="text-[11px] text-amber-700 font-bold">
                       ⏳ Mengompresi ukuran gambar agar cepat diunggah...
                     </p>
+                  )}
+
+                  {photoError && (
+                    <div className="flex items-center justify-between gap-2 text-[11px] text-rose-600 font-bold">
+                      <span>⚠️ {photoError}</span>
+                      <button
+                        type="button"
+                        onClick={() => setPhotoError('')}
+                        className="underline shrink-0 cursor-pointer"
+                      >
+                        Abaikan
+                      </button>
+                    </div>
                   )}
 
                   {fileBase64 && !isCompressing && (
@@ -570,7 +636,8 @@ export default function QrisPaymentModal({
                         />
                         <div>
                           <p className="font-extrabold text-emerald-800 text-[11px]">
-                            ✓ Foto bukti siap dikirim ke Drive
+                            ✓ Foto bukti siap dikirim (~
+                            {Math.round((fileBase64.length * 3) / 4 / 1024)} KB)
                           </p>
                           <p className="text-[10px] text-slate-500">
                             Klik gambar untuk memperbesar pratinjau
@@ -582,8 +649,9 @@ export default function QrisPaymentModal({
                         onClick={() => {
                           setFileBase64('');
                           setFileName('');
+                          setPhotoError('');
                         }}
-                        className="text-rose-600 font-bold hover:underline"
+                        className="text-rose-600 font-bold hover:underline cursor-pointer"
                       >
                         Hapus
                       </button>
@@ -594,11 +662,17 @@ export default function QrisPaymentModal({
                 <button
                   type="submit"
                   disabled={isSubmitting || isCompressing}
-                  className="w-full py-3 rounded-xl bg-teal-800 hover:bg-teal-900 disabled:opacity-60 text-white font-extrabold text-xs sm:text-sm shadow-md transition"
+                  className="w-full py-3 rounded-xl bg-teal-800 hover:bg-teal-900 disabled:opacity-60 text-white font-extrabold text-xs sm:text-sm shadow-md transition cursor-pointer"
                 >
-                  {isSubmitting
-                    ? 'Menyimpan Bukti ke Google Drive...'
-                    : `✅ Kirim Bukti Pembayaran (${getHouseLabel(houseId)})`}
+                  {isCompressing
+                    ? '⏳ Memproses Foto...'
+                    : isSubmitting
+                    ? fileBase64
+                      ? 'Menyimpan Bukti ke Google Drive...'
+                      : 'Mengirim Konfirmasi Pembayaran...'
+                    : fileBase64
+                    ? `✅ Kirim Konfirmasi + Bukti (${getHouseLabel(houseId)})`
+                    : `✅ Kirim Konfirmasi Pembayaran (${getHouseLabel(houseId)})`}
                 </button>
               </form>
             </div>

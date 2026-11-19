@@ -1,7 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import PublicDashboard from './components/PublicDashboard';
 import QrisPaymentModal from './components/QrisPaymentModal';
-import { CMoneyAPI, compressImageToBase64 } from './services/apiService';
+import {
+  CMoneyAPI,
+  compressImageToBase64,
+  EXPECTED_BACKEND_VERSION,
+  getActiveGasUrlBadge
+} from './services/apiService';
 
 const MONTH_NAMES = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -9,7 +14,7 @@ const MONTH_NAMES = [
 ];
 
 /**
- * Helper V6.2: Penentu Otomatis Periode Buku berdasarkan Cut-Off Tanggal 25
+ * Helper V6.3: Penentu Otomatis Periode Buku berdasarkan Cut-Off Tanggal 25
  * Tanggal 1-24 -> Bulan Berjalan | Tanggal 25-31 -> Bulan Berikutnya
  */
 function getSmartPeriod(cutoffDay = 25) {
@@ -40,7 +45,7 @@ function getSmartPeriod(cutoffDay = 25) {
 }
 
 /**
- * Helper V6.2: Konversi URL Google Drive menjadi Direct Image URL untuk In-App Lightbox
+ * Helper V6.3: Konversi URL Google Drive menjadi Direct Image URL untuk In-App Lightbox
  */
 export function getDirectDriveImageUrl(url) {
   if (!url || url === '-' || typeof url !== 'string') return '';
@@ -60,7 +65,7 @@ export function getDirectDriveImageUrl(url) {
 }
 
 /**
- * Helper V6.2: Ekstrak Daftar URL Foto (Mendukung String Tunggal, Pemisah " | ", maupun Array)
+ * Helper V6.3: Ekstrak Daftar URL Foto (Mendukung String Tunggal, Pemisah " | ", maupun Array)
  */
 export function parseLightboxPhotos(urlOrUrls) {
   if (!urlOrUrls) return [];
@@ -85,7 +90,7 @@ export function parseLightboxPhotos(urlOrUrls) {
 }
 
 /**
- * Helper V6.2: Ekstrak 2 Digit Nomor Rumah Murni (Anti-Bug "No. No. 01")
+ * Helper V6.3: Ekstrak 2 Digit Nomor Rumah Murni (Anti-Bug "No. No. 01")
  */
 export function extractCleanHouseNum(rawVal) {
   const digits = String(rawVal || '').replace(/[^0-9]/g, '');
@@ -93,7 +98,7 @@ export function extractCleanHouseNum(rawVal) {
 }
 
 /**
- * Data Cadangan (Fallback) 22 Unit Rumah CMR — 100% Sesuai Sheet `houses` CMR_Database_Master
+ * Data Cadangan (Fallback) 22 Unit Rumah CMR — Sesuai Sheet `houses` CMR_Database_Master
  */
 const FALLBACK_HOUSES = [
   { id: 'H-01', nomor_rumah: '01', nama_warga: 'Pak Suharso', nama_kepala_keluarga: 'Pak Suharso', alias_keluarga: 'Pak Suharso / Ibu Aira', status_huni: 'Aktif', tarif_ipl: 200000 },
@@ -121,7 +126,7 @@ const FALLBACK_HOUSES = [
 ];
 
 /**
- * Helper V6.2: Standarisasi Format "No. XX / Nama Warga" (Anti-Bug "No. No." & "undefined")
+ * Helper V6.3: Standarisasi Format "No. XX / Nama Warga" (Anti-Bug "No. No." & "undefined")
  */
 export function formatHouseIdentity(houseOrId, housesList = FALLBACK_HOUSES) {
   if (!houseOrId || houseOrId === '-') return '-';
@@ -186,7 +191,7 @@ function normalizeHousesArray(rawHouses) {
 }
 
 /**
- * Pilihan Paket Pembayaran Netral V6.2 (100% Uang Kas Nyata)
+ * Pilihan Paket Pembayaran Netral V6.3 (100% Uang Kas Nyata)
  */
 const PAYMENT_PACKAGES_V6 = [
   {
@@ -235,6 +240,7 @@ const PAYMENT_PACKAGES_V6 = [
 
 export default function App() {
   const smartPeriod = getSmartPeriod(25);
+  const activeGasUrlBadge = getActiveGasUrlBadge();
 
   // State Utama Dashboard & Periode
   const [selectedMonth, setSelectedMonth] = useState(smartPeriod.bookMonth);
@@ -254,7 +260,7 @@ export default function App() {
   const [isQrisModalOpen, setIsQrisModalOpen] = useState(false);
   const [selectedHouseForQris, setSelectedHouseForQris] = useState(null);
 
-  // Modal In-App Lightbox V6.2 (Slider Multi-Foto + Swipe HP + Keyboard)
+  // Modal In-App Lightbox V6.3 (Slider Multi-Foto + Swipe HP + Keyboard)
   const [lightboxState, setLightboxState] = useState(null);
   const touchStartXRef = useRef(null);
 
@@ -438,13 +444,18 @@ export default function App() {
     fetchDashboard(selectedMonth, selectedYear);
   }, [fetchDashboard, selectedMonth, selectedYear]);
 
+  // Deteksi Kecocokan Versi Backend (Anti Salah Sambung Deployment GAS)
+  const backendVersion = dashboardData?.backend_version || '';
+  const isBackendOutdated =
+    hasServerData && backendVersion !== EXPECTED_BACKEND_VERSION;
+
   // Daftar Rumah yang Sudah Diseragamkan ("No. XX / Nama Warga")
   const housesList = dashboardData?.houses || normalizeHousesArray(FALLBACK_HOUSES);
   const activeHousesList = housesList.filter(
     (h) => String(h.status_huni || 'Aktif').toLowerCase() !== 'tidak aktif' && h.id !== 'H-04'
   );
 
-  // Buka Pop-up Slider Lightbox Multi-Foto (Mendukung 1 URL, Pemisah " | ", maupun Array URL)
+  // Buka Pop-up Slider Lightbox Multi-Foto
   const handleOpenLightbox = (
     urlOrUrls,
     title = 'Bukti Transaksi / Foto',
@@ -462,7 +473,6 @@ export default function App() {
     });
   };
 
-  // Navigasi Slide Lightbox
   const handlePrevLightbox = () => {
     setLightboxState((prev) =>
       prev
@@ -477,7 +487,6 @@ export default function App() {
     );
   };
 
-  // Handler Swipe Touch di Layar HP untuk Lightbox Multi-Foto
   const handleLightboxTouchStart = (e) => {
     touchStartXRef.current = e.touches?.[0]?.clientX ?? null;
   };
@@ -497,13 +506,11 @@ export default function App() {
     touchStartXRef.current = null;
   };
 
-  // Buka Pop-up QRIS Warga
   const handleOpenQris = (houseObj = null) => {
     setSelectedHouseForQris(houseObj);
     setIsQrisModalOpen(true);
   };
 
-  // Klik Tombol Pengurus di Header
   const handleAdminButtonClick = () => {
     if (isAdminLoggedIn) {
       setIsAdminModalOpen(true);
@@ -512,7 +519,6 @@ export default function App() {
     }
   };
 
-  // Proses Login Pengurus
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setLoginError('');
@@ -589,7 +595,6 @@ export default function App() {
     }
   };
 
-  // Perubahan Pilihan Paket Pembayaran di Form 2 Pengurus
   const handleSelectPaymentPackage = (paketId) => {
     const pkg = PAYMENT_PACKAGES_V6.find((p) => p.id === paketId) || PAYMENT_PACKAGES_V6[0];
     setIplForm((prev) => ({
@@ -676,7 +681,7 @@ export default function App() {
     }
   };
 
-  // Submit Form 2: Validasi Status Lunas IPL & Parkir Warga (Atomik / Fail-Safe + Auto-Jurnal)
+  // Submit Form 2: Validasi Status Lunas IPL & Parkir Warga (Selaras Kolom `nominal` V6.3)
   const handleSubmitIplUpdate = async (e) => {
     e.preventDefault();
     if (isCompressingIplPhoto) {
@@ -705,6 +710,7 @@ export default function App() {
         periode_bulan: iplForm.periode_bulan,
         periode_tahun: Number(iplForm.periode_tahun),
         status_bayar: iplForm.status_bayar,
+        nominal: Number(iplForm.nominal_bayar),
         nominal_bayar: Number(iplForm.nominal_bayar),
         paket_bayar: selectedPkg.label,
         auto_jurnal: Boolean(iplForm.auto_jurnal_kas),
@@ -716,9 +722,12 @@ export default function App() {
       });
 
       if (res && res.status === 'success') {
+        const journalInfo = res.auto_ledger_id
+          ? ' & otomatis dicatat ke Buku Kas (Saldo Live terupdate)!'
+          : '!';
         setAdminStatusMsg({
           type: 'success',
-          text: `Status ${houseIdentity} (${iplForm.periode_bulan}) berhasil divalidasi menjadi ${iplForm.status_bayar}!`
+          text: `Status ${houseIdentity} (${iplForm.periode_bulan}) berhasil diperbarui menjadi ${iplForm.status_bayar}${journalInfo}`
         });
         setIplForm((prev) => ({
           ...prev,
@@ -792,7 +801,7 @@ export default function App() {
     }
   };
 
-  // Handler Publik: Upload Bukti QRIS Mandiri oleh Warga
+  // Handler Publik: Konfirmasi Bayar QRIS Mandiri oleh Warga (Foto Opsional)
   const handlePublicUploadIplProof = async (proofPayload) => {
     const res = await CMoneyAPI.uploadIplProof(proofPayload);
     if (res && res.status === 'success') {
@@ -832,7 +841,10 @@ export default function App() {
         isRefreshing={isRefreshing}
         isOnline={isOnline}
         hasServerData={hasServerData}
-        backendVersion={dashboardData?.backend_version || ''}
+        backendVersion={backendVersion}
+        expectedBackendVersion={EXPECTED_BACKEND_VERSION}
+        isBackendOutdated={isBackendOutdated}
+        activeGasUrlBadge={activeGasUrlBadge}
         liveClock={liveClock}
         lastSyncTime={lastSyncTime}
         selectedMonth={selectedMonth}
@@ -853,7 +865,7 @@ export default function App() {
         formatHouseIdentity={(hOrId) => formatHouseIdentity(hOrId, housesList)}
       />
 
-      {/* MODAL PEMBAYARAN QRIS WARGA */}
+      {/* MODAL PEMBAYARAN QRIS WARGA (FOTO OPSIONAL) */}
       {isQrisModalOpen && (
         <QrisPaymentModal
           isOpen={isQrisModalOpen}
@@ -871,7 +883,7 @@ export default function App() {
         />
       )}
 
-      {/* MODAL IN-APP LIGHTBOX SLIDER V6.2 (MENDUKUNG MULTI-FOTO, PANAH, THUMBNAIL, & SWIPE HP) */}
+      {/* MODAL IN-APP LIGHTBOX SLIDER V6.3 (MENDUKUNG MULTI-FOTO, PANAH, THUMBNAIL, & SWIPE HP) */}
       {lightboxState && activeLightboxPhoto && (
         <div
           className="fixed inset-0 z-[90] bg-slate-900/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5"
@@ -1065,19 +1077,31 @@ export default function App() {
         </div>
       )}
 
-      {/* PANEL KENDALI PENGURUS V6.2 (RINGKAS: 3 FORM UTAMA BENDAHARA + FAIL-SAFE UPLOAD) */}
+      {/* PANEL KENDALI PENGURUS V6.3 (DIAGNOSTIK GAS URL + 3 FORM UTAMA BENDAHARA) */}
       {isAdminModalOpen && isAdminLoggedIn && (
         <div className="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
           <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden my-auto">
-            {/* Header Panel Pengurus */}
+            {/* Header Panel Pengurus + Badge Diagnostik Versi & Ujung Link GAS */}
             <div className="px-5 py-4 bg-gradient-to-r from-teal-900 to-emerald-800 text-white flex items-center justify-between gap-2">
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-[10px] uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full font-bold">
-                    Panel Pengurus V6.2
+                    Panel Pengurus V6.3
                   </span>
-                  <span className="text-[10px] font-mono bg-emerald-400/25 border border-emerald-300/40 px-2 py-0.5 rounded-full font-bold text-emerald-100">
-                    GAS API: {dashboardData?.backend_version || 'memuat...'}
+                  <span
+                    className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold border ${
+                      isBackendOutdated
+                        ? 'bg-amber-400 text-slate-950 border-amber-300'
+                        : 'bg-emerald-400/25 border-emerald-300/40 text-emerald-100'
+                    }`}
+                  >
+                    GAS API: {backendVersion || 'lama'}
+                  </span>
+                  <span
+                    title="Potongan ujung URL Web App dari src/config/gasConfig.js"
+                    className="text-[10px] font-mono bg-black/25 border border-white/15 px-2 py-0.5 rounded-full text-teal-100"
+                  >
+                    URL: {activeGasUrlBadge}
                   </span>
                 </div>
                 <h2 className="text-base sm:text-lg font-extrabold mt-1">
@@ -1109,7 +1133,17 @@ export default function App() {
               </div>
             </div>
 
-            {/* Bar Pintasan Navigasi ke Layar Utama (Menu 22 Rumah -> Warga) */}
+            {/* Peringatan Otomatis di Panel Pengurus Jika API GAS Belum v6.3 */}
+            {isBackendOutdated && (
+              <div className="px-5 py-2.5 bg-amber-50 border-b border-amber-200 text-xs text-amber-950 font-semibold">
+                ⚠️ Server GAS terdeteksi <strong>{backendVersion || 'versi lama'}</strong> (seharusnya{' '}
+                <strong>{EXPECTED_BACKEND_VERSION}</strong>). Cocokkan link di{' '}
+                <code className="bg-amber-100 px-1 rounded">src/config/gasConfig.js</code> dengan URL
+                Web App pada <em>Manage deployments</em> Apps Script.
+              </div>
+            )}
+
+            {/* Bar Pintasan Navigasi ke Layar Utama */}
             <div className="px-5 py-2 bg-slate-100 border-b border-slate-200 flex items-center justify-between flex-wrap gap-2 text-xs">
               <span className="font-semibold text-slate-500">Buka Cepat Menu Utama:</span>
               <div className="flex items-center gap-1.5 flex-wrap">
@@ -1525,7 +1559,7 @@ export default function App() {
                         className="rounded text-teal-700"
                       />
                       Otomatis catat Rp {Number(iplForm.nominal_bayar || 0).toLocaleString('id-ID')}{' '}
-                      ke Buku Kas ({iplForm.periode_bulan})
+                      ke Buku Kas ({iplForm.periode_bulan}) saat status Lunas
                     </label>
                   </div>
 
@@ -1605,7 +1639,7 @@ export default function App() {
                       ? '⏳ Memproses Foto...'
                       : isSubmittingAdmin
                       ? 'Memvalidasi & Mencatat Kas...'
-                      : `✅ Simpan Status Lunas (${formatHouseIdentity(
+                      : `✅ Simpan Status (${formatHouseIdentity(
                           iplForm.house_id,
                           housesList
                         )})`}

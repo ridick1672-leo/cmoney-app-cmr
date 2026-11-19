@@ -2,7 +2,7 @@ import React, { useState, useRef, useMemo } from 'react';
 import { compressMultipleImagesToBase64 } from '../services/apiService';
 
 // ============================================================================
-// SAKLAR FITUR V6.2 (FEATURE FLAGS)
+// SAKLAR FITUR V6.3 (FEATURE FLAGS)
 // Ubah nilai false menjadi true di bawah ini jika sewaktu-waktu ingin
 // menampilkan kembali Tombol Darurat SOS atau 4 Panel Kamera CCTV di layar.
 // ============================================================================
@@ -27,7 +27,7 @@ function extractCleanNum(rawVal) {
 }
 
 /**
- * Helper V6.2: Ekstrak Array URL Foto dari Log Security (Kompatibel 1 Foto & Multi-Foto " | ")
+ * Helper V6.3: Ekstrak Array URL Foto dari Log Security (Kompatibel 1 Foto & Multi-Foto " | ")
  */
 function getLogPhotoUrls(log) {
   if (!log) return [];
@@ -89,7 +89,6 @@ const TITIK_PATROLI_OPTIONS = [
   'Jalur Belakang & Keliling Blok'
 ];
 
-// Warna Badge Pembeda Tiap Kategori pada Kartu Log Pos Security
 const LOG_CATEGORY_BADGE = {
   PAKET_SURAT: { label: '📦 Paket', cls: 'bg-amber-100 text-amber-900 border-amber-200' },
   PATROLI: { label: '🔦 Patroli', cls: 'bg-emerald-100 text-emerald-900 border-emerald-200' },
@@ -102,7 +101,6 @@ const LOG_CATEGORY_BADGE = {
   IZIN_POS: { label: '🕌 Izin Pos', cls: 'bg-violet-100 text-violet-900 border-violet-200' }
 };
 
-// Data Fallback Rekap Tutup Buku (Hanya dipakai saat Offline / Belum Ada Respon Server)
 const FALLBACK_CLOSINGS = [
   {
     id: 'CLS-2026-10',
@@ -128,7 +126,6 @@ const FALLBACK_CLOSINGS = [
   }
 ];
 
-// Default 6 Slot Parkir Fasum: SELURUHNYA KOSONG (Menunggu Klik Check-In oleh Security)
 const EMPTY_PARKING_SLOTS = [
   { slot_id: 'SLOT-01', slot_number: 1, posisi_layout: 'KIRI_VERTIKAL_1', nama_slot: 'Slot 01', status_slot: 'Kosong', house_id: '-', nama_pemilik: '-', nomor_polisi: '-', jenis_paket: 'Tersedia', waktu_masuk: '-', catatan: 'Kosong — Klik untuk Check-In', updated_by: 'SYSTEM' },
   { slot_id: 'SLOT-02', slot_number: 2, posisi_layout: 'KIRI_VERTIKAL_2', nama_slot: 'Slot 02', status_slot: 'Kosong', house_id: '-', nama_pemilik: '-', nomor_polisi: '-', jenis_paket: 'Tersedia', waktu_masuk: '-', catatan: 'Kosong — Klik untuk Check-In', updated_by: 'SYSTEM' },
@@ -169,6 +166,8 @@ function generateSecuritySchedules(monthName = 'November', year = 2026) {
       id: `SCH-${dateStr}`,
       tanggal: dateStr,
       hari: dayNames[dow],
+      periode_bulan: monthName,
+      periode_tahun: year,
       shift_pagi: shiftPagi,
       shift_malam: shiftMalam,
       status_jadwal: statusJadwal
@@ -185,6 +184,9 @@ export default function PublicDashboard({
   isOnline = true,
   hasServerData = false,
   backendVersion = '',
+  expectedBackendVersion = 'v6.3',
+  isBackendOutdated = false,
+  activeGasUrlBadge = '',
   liveClock = '',
   lastSyncTime = '',
   selectedMonth = 'November',
@@ -224,13 +226,16 @@ export default function PublicDashboard({
   const [filterBulanKas, setFilterBulanKas] = useState('Semua');
   const [filterKategoriKas, setFilterKategoriKas] = useState('ALL');
 
-  // State Denah 6 Slot Parkir Dinamis (Tanpa Optimistic UI Palsu)
+  // State Filter Jadwal Shift Security (Default: Bulan Terpilih)
+  const [scheduleFilterMode, setScheduleFilterMode] = useState('SELECTED_MONTH');
+
+  // State Denah 6 Slot Parkir Dinamis (Verifikasi Respon Nyata Server)
   const [activeParkingModalSlot, setActiveParkingModalSlot] = useState(null);
   const [isSavingSlot, setIsSavingSlot] = useState(false);
   const [parkingFeedback, setParkingFeedback] = useState({ type: '', text: '' });
 
   // State Pos Security, Daftar Paket & Multi-Foto (Maks. 5 Foto)
-  const [secSubTab, setSecSubTab] = useState('paket'); // 'paket' | 'lapor' | 'jadwal' | 'riwayat'
+  const [secSubTab, setSecSubTab] = useState('paket');
   const [filterLogCategory, setFilterLogCategory] = useState('ALL');
   const [copiedWaText, setCopiedWaText] = useState('');
   const [isSavingLog, setIsSavingLog] = useState(false);
@@ -355,7 +360,6 @@ export default function PublicDashboard({
       });
     }
 
-    // Hitung berantai dari terlama ke terbaru agar saldo_awal bulan OPEN selalu akurat
     const chronological = rawList.sort((a, b) => {
       const yDiff = Number(a.periode_tahun || 2026) - Number(b.periode_tahun || 2026);
       if (yDiff !== 0) return yDiff;
@@ -414,7 +418,7 @@ export default function PublicDashboard({
     });
   }, [sourceData.monthly_closings, cashLedger, selectedMonth, selectedYear, hasServerData]);
 
-  // CARD BESAR SALDO 100% LIVE (SUMBER KEBENARAN TUNGGAL — SELALU SAMA DENGAN RINCIAN BULAN BERJALAN)
+  // CARD BESAR SALDO 100% LIVE (SUMBER KEBENARAN TUNGGAL)
   const liveCurrentBalance = useMemo(() => {
     if (!hasServerData && cashLedger.length === 0) {
       return Number(sourceData.current_balance ?? 1394200);
@@ -506,7 +510,7 @@ export default function PublicDashboard({
 
   const occupiedParkingCount = parkingSlots.filter((s) => s.status_slot !== 'Kosong').length;
 
-  // Log Security & Paket di Pos (100% Data Nyata dari Spreadsheet — Tanpa Optimistic Palsu)
+  // Log Security & Paket di Pos (100% Data Nyata dari Spreadsheet)
   const securityLogs = useMemo(() => {
     return Array.isArray(sourceData.security_logs) ? sourceData.security_logs : [];
   }, [sourceData.security_logs]);
@@ -526,14 +530,39 @@ export default function PublicDashboard({
     ).length;
   }, [packageLogs]);
 
+  // JADWAL SHIFT SECURITY V6.3: FILTER OTOMATIS SESUAI BULAN TERPILIH (selectedMonth)
   const securitySchedules = useMemo(() => {
-    if (Array.isArray(sourceData.security_schedules) && sourceData.security_schedules.length > 0) {
-      return sourceData.security_schedules;
-    }
-    return generateSecuritySchedules(selectedMonth, selectedYear);
-  }, [sourceData.security_schedules, selectedMonth, selectedYear]);
+    const rawFromServer = Array.isArray(sourceData.security_schedules)
+      ? sourceData.security_schedules
+      : [];
 
-  // Status IPL Daftar Warga pada Periode Terpilih
+    if (rawFromServer.length === 0) {
+      return generateSecuritySchedules(selectedMonth, selectedYear);
+    }
+
+    if (scheduleFilterMode === 'ALL') {
+      return rawFromServer;
+    }
+
+    const targetMonthNum = String(MONTH_ORDER[selectedMonth] || 11).padStart(2, '0');
+    const targetPrefix = `${selectedYear}-${targetMonthNum}`;
+
+    const filtered = rawFromServer.filter((sch) => {
+      if (sch.periode_bulan) {
+        return (
+          String(sch.periode_bulan).toLowerCase() === String(selectedMonth).toLowerCase() &&
+          Number(sch.periode_tahun || selectedYear) === Number(selectedYear)
+        );
+      }
+      return String(sch.tanggal || '').startsWith(targetPrefix);
+    });
+
+    return filtered.length > 0
+      ? filtered
+      : generateSecuritySchedules(selectedMonth, selectedYear);
+  }, [sourceData.security_schedules, selectedMonth, selectedYear, scheduleFilterMode]);
+
+  // Status IPL Daftar Warga pada Periode Terpilih (Selaras Kolom `nominal` V6.3)
   const housesWithIpl = useMemo(() => {
     const iplList = Array.isArray(sourceData.ipl_status) ? sourceData.ipl_status : [];
     return houses.map((h) => {
@@ -561,7 +590,13 @@ export default function PublicDashboard({
 
       const nominalBayar = isNonAktif
         ? 0
-        : Number(matchedIpl?.nominal_bayar || matchedIpl?.nominal || ledgerIpl?.nominal || 200000);
+        : Number(
+            matchedIpl?.nominal ||
+              matchedIpl?.nominal_bayar ||
+              ledgerIpl?.nominal ||
+              h.tarif_ipl ||
+              200000
+          );
 
       const urlBukti = matchedIpl?.url_bukti || ledgerIpl?.url_bukti || '-';
 
@@ -660,7 +695,7 @@ export default function PublicDashboard({
     .filter((i) => String(i.tipe || '').toUpperCase() === 'OUT')
     .reduce((acc, cur) => acc + Number(cur.nominal || 0), 0);
 
-  // Trigger Buka Lightbox Slider (Mendukung 1 URL maupun Array Multi-Foto)
+  // Trigger Buka Lightbox Slider
   const triggerLightbox = (urlOrUrls, title, subtitle = '', initialIndex = 0) => {
     if (!urlOrUrls || urlOrUrls === '-') return;
     if (Array.isArray(urlOrUrls) && urlOrUrls.length === 0) return;
@@ -705,7 +740,6 @@ export default function PublicDashboard({
     });
   };
 
-  // Simpan Check-In / Update Kondisi Slot Parkir (Verifikasi Respon Nyata Server)
   const handleSaveParkingSlot = async (e) => {
     e.preventDefault();
     if (!activeParkingModalSlot) return;
@@ -744,7 +778,6 @@ export default function PublicDashboard({
     }
   };
 
-  // Tombol Cepat Check-Out (Kosongkan Slot Parkir — Verifikasi Respon Nyata Server)
   const handleQuickCheckoutSlot = async () => {
     if (!activeParkingModalSlot) return;
     setIsSavingSlot(true);
@@ -796,7 +829,12 @@ export default function PublicDashboard({
       ...prev,
       kategori_laporan: catId,
       sub_kategori: firstPreset,
-      house_id: catId === 'PAKET_SURAT' ? (prev.house_id !== '-' ? prev.house_id : (activeHouses[0]?.id || 'H-01')) : '-'
+      house_id:
+        catId === 'PAKET_SURAT'
+          ? prev.house_id !== '-'
+            ? prev.house_id
+            : activeHouses[0]?.id || 'H-01'
+          : '-'
     }));
   };
 
@@ -825,7 +863,7 @@ export default function PublicDashboard({
     return `*LAPORAN PATROLI SECURITY CMR*\nAssalamualaikum, izin lapor petugas jaga (*${formObj.nama_security} - Shift ${formObj.shift}*) pukul ${jamNow} WIB:\n• Giat: *${formObj.sub_kategori}*\n• Titik Pantau: ${formObj.titik_patroli}\n• Situasi: ${formObj.detail_catatan || 'Aman kondusif tanpa taruna.'}\n• Cuaca 815: ${formObj.cuaca_815}\n*Terima kasih* 🙏🫡`;
   };
 
-  // Handler Pilih Multi-Foto Security (Maksimal 5 Foto — Bisa Tambah Bertahap)
+  // Handler Pilih Multi-Foto Security (Maksimal 5 Foto)
   const handleSecPhotosChange = async (e) => {
     const selectedFiles = e.target.files;
     if (!selectedFiles || selectedFiles.length === 0) return;
@@ -873,7 +911,7 @@ export default function PublicDashboard({
     setSecPhotos((prev) => prev.filter((p) => p.id !== photoId));
   };
 
-  // Submit Form Security (100% Verifikasi Respon Nyata Server & Google Drive — Anti Data Palsu)
+  // Submit Form Security (Verifikasi Respon Nyata Server & Google Drive)
   const handleSubmitSecurityForm = async (e) => {
     e.preventDefault();
     if (isCompressingSecPhotos) {
@@ -954,7 +992,7 @@ export default function PublicDashboard({
     }
   };
 
-  // Tandai Paket di Pos Sudah Diambil oleh Warga (Verifikasi Respon Nyata Server)
+  // Tandai Paket di Pos Sudah Diambil oleh Warga
   const handleMarkPackagePickedUp = async (pkgItem) => {
     setUpdatingPkgId(pkgItem.id);
     setSecFeedback({ type: '', text: '' });
@@ -1003,7 +1041,6 @@ export default function PublicDashboard({
     setSosProgress(0);
   };
 
-  // Navigasi Utama: Menu "22 Rumah" diubah menjadi "Warga"
   const navItems = [
     { id: 'beranda', label: 'Beranda', icon: '🏠' },
     { id: 'rumah', label: 'Warga', icon: '🏘️' },
@@ -1095,6 +1132,8 @@ export default function PublicDashboard({
                   className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
                     isRefreshing
                       ? 'bg-amber-400'
+                      : isBackendOutdated
+                      ? 'bg-amber-400'
                       : isOnline
                       ? 'bg-emerald-400'
                       : 'bg-rose-400'
@@ -1104,17 +1143,23 @@ export default function PublicDashboard({
                   className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
                     isRefreshing
                       ? 'bg-amber-400'
+                      : isBackendOutdated
+                      ? 'bg-amber-400'
                       : isOnline
                       ? 'bg-emerald-400'
                       : 'bg-rose-500'
                   }`}
                 />
               </span>
-              <span className="font-bold text-emerald-200">
+              <span
+                className={`font-bold ${
+                  isBackendOutdated ? 'text-amber-300' : 'text-emerald-200'
+                }`}
+              >
                 {isRefreshing
                   ? 'Menyinkronkan Database...'
                   : isOnline
-                  ? `Online • Real Cash ${backendVersion ? `(${backendVersion})` : 'V6.2'}`
+                  ? `Online • API ${backendVersion || 'lama'}`
                   : 'Mode Cadangan Lokal'}
               </span>
               {lastSyncTime && (
@@ -1167,7 +1212,7 @@ export default function PublicDashboard({
                   {sourceData.app_name || 'C-Money'}
                 </span>
                 <span className="text-[10px] bg-emerald-400/20 border border-emerald-300/40 px-2 py-0.5 rounded-full font-bold">
-                  V6.2 • Transparan
+                  V6.3 • Transparan
                 </span>
               </div>
               <p className="text-xs text-teal-100 line-clamp-1">
@@ -1222,6 +1267,30 @@ export default function PublicDashboard({
 
       {/* KONTEN UTAMA FULL-WIDTH */}
       <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-5 space-y-5">
+        {/* BANNER PERINGATAN OTOMATIS JIKA API GAS YANG TERHUBUNG BELUM v6.3 */}
+        {isBackendOutdated && (
+          <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-300 text-amber-950 text-xs flex flex-wrap items-center justify-between gap-2 shadow-sm">
+            <div>
+              <p className="font-extrabold">
+                ⚠️ Koneksi Server GAS Terdeteksi Versi Lama ({backendVersion || 'tanpa versi'}) —
+                Target: {expectedBackendVersion}
+              </p>
+              <p className="text-[11px] text-amber-900 mt-0.5">
+                URL aktif saat ini: <strong className="font-mono">{activeGasUrlBadge}</strong>.
+                Perbarui link di <code className="bg-amber-100 px-1 rounded">src/config/gasConfig.js</code>{' '}
+                agar sama dengan URL pada <em>Manage deployments</em> Apps Script, lalu Commit &amp; Push.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onRefresh}
+              className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold shrink-0 cursor-pointer"
+            >
+              🔄 Cek Ulang
+            </button>
+          </div>
+        )}
+
         {/* BAGIAN ATAS: KARTU SALDO LIVE + CARD PAKET POS + 1 MENU UTAMA TERPADU */}
         <section className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
           {/* Kiri (7 Kolom): Kartu Saldo Kas Nyata (100% LIVE dari Buku Kas) */}
@@ -1314,7 +1383,7 @@ export default function PublicDashboard({
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    Cek kiriman paket warga & foto bukti di Pos Security
+                    Cek kiriman paket warga &amp; foto bukti di Pos Security
                   </p>
                 </div>
               </div>
@@ -1522,7 +1591,7 @@ export default function PublicDashboard({
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                   <div>
                     <h4 className="font-extrabold text-slate-800 text-base">
-                      Laporan & Rincian Buku Kas Bulanan (Uang Kas Nyata)
+                      Laporan &amp; Rincian Buku Kas Bulanan (Uang Kas Nyata)
                     </h4>
                     <p className="text-xs text-slate-500">
                       Urut dari periode terbaru • Bulan berjalan dihitung otomatis (Live) dari Buku
@@ -1740,7 +1809,7 @@ export default function PublicDashboard({
             </div>
           )}
 
-          {/* ================= TAB 2: DAFTAR WARGA CMR (SEBELUMNYA "22 RUMAH") ================= */}
+          {/* ================= TAB 2: DAFTAR WARGA CMR ================= */}
           {activeTab === 'rumah' && (
             <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/70 space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1749,7 +1818,7 @@ export default function PublicDashboard({
                     🏘️ Daftar Warga CMR — Status IPL ({selectedMonth} {selectedYear})
                   </h4>
                   <p className="text-xs text-slate-500">
-                    21 Hunian Aktif & 1 Unit Non-Aktif (No. 04 — Dijual Pihak BPR)
+                    21 Hunian Aktif &amp; 1 Unit Non-Aktif (No. 04 — Dijual Pihak BPR)
                   </p>
                 </div>
 
@@ -1829,6 +1898,8 @@ export default function PublicDashboard({
                             ? 'Bebas Tagihan IPL (Unit BPR)'
                             : isLunas
                             ? `Uang Masuk: ${formatRp(h.nominal_bayar)}`
+                            : isWaiting
+                            ? `Konfirmasi: ${formatRp(h.nominal_bayar)}`
                             : `Tagihan Dasar: ${formatRp(h.tarif_ipl || 200000)}`}
                         </p>
                       </div>
@@ -1837,7 +1908,7 @@ export default function PublicDashboard({
                         <span className="text-slate-400 truncate">
                           {isNonAktif
                             ? 'BPR'
-                            : isLunas && h.tanggal_bayar !== '-'
+                            : (isLunas || isWaiting) && h.tanggal_bayar !== '-'
                             ? `Tgl: ${h.tanggal_bayar}`
                             : `${selectedMonth} ${selectedYear}`}
                         </span>
@@ -1917,7 +1988,7 @@ export default function PublicDashboard({
                     <option value="ALL">Semua Kategori ({filteredLedger.length})</option>
                     <option value="Iuran">Iuran Warga (IPL)</option>
                     <option value="Parkir">Parkir Fasum</option>
-                    <option value="Gaji">Gaji & Kasbon Security</option>
+                    <option value="Gaji">Gaji &amp; Kasbon Security</option>
                     <option value="Sampah">Uang Sampah</option>
                     <option value="Perawatan">Perawatan Pos</option>
                     <option value="Listrik">Listrik Pos</option>
@@ -2045,8 +2116,8 @@ export default function PublicDashboard({
                     🅿️ Denah 6 Slot Parkir Fasum CMR (Check-In / Check-Out oleh Security)
                   </h4>
                   <p className="text-xs text-slate-500">
-                    Seluruh slot bebas & dinamis • Security cukup klik kotak slot untuk mencatat
-                    kendaraan masuk/keluar & melaporkan kondisinya
+                    Seluruh slot bebas &amp; dinamis • Security cukup klik kotak slot untuk mencatat
+                    kendaraan masuk/keluar &amp; melaporkan kondisinya
                   </p>
                 </div>
                 <div className="flex items-center gap-2 text-xs">
@@ -2084,7 +2155,7 @@ export default function PublicDashboard({
                       <span className="font-extrabold text-slate-700 uppercase tracking-wider">
                         Area Kanan (2 Slot: 05 – 06)
                       </span>
-                      <span className="text-slate-400">Atas & Bawah</span>
+                      <span className="text-slate-400">Atas &amp; Bawah</span>
                     </div>
                     <div className="grid grid-cols-1 gap-2.5 flex-1">
                       {parkingSlots.slice(4, 6).map((slot) => renderParkingSlotCard(slot))}
@@ -2097,7 +2168,7 @@ export default function PublicDashboard({
                     💡 <strong>Tarif Kontribusi Parkir Fasum:</strong> 1 Mobil Rp 150.000/bln • 2
                     Mobil Rp 300.000/bln • Weekend Rp 50.000/bln
                   </span>
-                  <span className="text-slate-400">Bebas dikunci — Siapa cepat & dinamis</span>
+                  <span className="text-slate-400">Bebas dikunci — Siapa cepat &amp; dinamis</span>
                 </div>
               </div>
             </div>
@@ -2138,7 +2209,7 @@ export default function PublicDashboard({
                       : 'text-slate-600 hover:bg-slate-100'
                   }`}
                 >
-                  📝 Input Laporan & Paket
+                  📝 Input Laporan &amp; Paket
                 </button>
 
                 <button
@@ -2184,10 +2255,10 @@ export default function PublicDashboard({
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
                       <h4 className="font-extrabold text-slate-800 text-base">
-                        📦 Daftar Paket & Surat Warga di Pos Security
+                        📦 Daftar Paket &amp; Surat Warga di Pos Security
                       </h4>
                       <p className="text-xs text-slate-500">
-                        Pak Eko & Pak Mulyadi dapat langsung mencatat paket tiba beserta foto
+                        Pak Eko &amp; Pak Mulyadi dapat langsung mencatat paket tiba beserta foto
                         (tersimpan di Drive Log_Absensi_Security)
                       </p>
                     </div>
@@ -2316,16 +2387,15 @@ export default function PublicDashboard({
                 <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/70 space-y-4">
                   <div>
                     <h4 className="font-extrabold text-slate-800 text-base">
-                      📝 Form Laporan Cepat Pos Security & Paket Warga (Tanpa Login)
+                      📝 Form Laporan Cepat Pos Security &amp; Paket Warga (Tanpa Login)
                     </h4>
                     <p className="text-xs text-slate-500">
-                      Tinggal pilih kategori & tombol cepat • Mendukung upload hingga{' '}
+                      Tinggal pilih kategori &amp; tombol cepat • Mendukung upload hingga{' '}
                       <strong>{MAX_SECURITY_PHOTOS} foto</strong> sekaligus ke Google Drive
                     </p>
                   </div>
 
                   <form onSubmit={handleSubmitSecurityForm} className="space-y-4 text-xs">
-                    {/* Langkah 1: Petugas & Shift (Ringkas 2 Kolom) */}
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block font-bold text-slate-600 mb-1">
@@ -2356,7 +2426,6 @@ export default function PublicDashboard({
                       </div>
                     </div>
 
-                    {/* Langkah 2: Pilih Jenis Laporan (4 Tombol Cepat) */}
                     <div>
                       <label className="block font-bold text-slate-600 mb-1.5">
                         3. Jenis Laporan Pos
@@ -2382,7 +2451,6 @@ export default function PublicDashboard({
                       </div>
                     </div>
 
-                    {/* Langkah 3: Tombol Preset Cepat Sesuai Kategori Terpilih */}
                     <div>
                       <label className="block font-bold text-slate-600 mb-1.5">
                         4. Pilih Kegiatan / Status Cepat (Tinggal Tap)
@@ -2408,7 +2476,6 @@ export default function PublicDashboard({
                       </div>
                     </div>
 
-                    {/* KOLOM KONDISIONAL 1: Rumah Warga Tujuan (Hanya Muncul di Paket & Kendala/Tamu) */}
                     {(secForm.kategori_laporan === 'PAKET_SURAT' ||
                       secForm.kategori_laporan === 'ANOMALI_FASILITAS') && (
                       <div>
@@ -2434,7 +2501,6 @@ export default function PublicDashboard({
                       </div>
                     )}
 
-                    {/* KOLOM KONDISIONAL 2: Titik Patroli & Cuaca 815 (Khusus Patroli & Absen Shift) */}
                     {(secForm.kategori_laporan === 'PATROLI' ||
                       secForm.kategori_laporan === 'ABSEN_SHIFT') && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
@@ -2506,7 +2572,6 @@ export default function PublicDashboard({
                       </div>
                     )}
 
-                    {/* Catatan Singkat Tambahan (Opsional) */}
                     <div>
                       <label className="block font-bold text-slate-600 mb-1">
                         Catatan Tambahan (Opsional — boleh dikosongkan)
@@ -2636,17 +2701,48 @@ export default function PublicDashboard({
                 </div>
               )}
 
-              {/* SUB-TAB 3: KALENDER JADWAL ROTASI SECURITY */}
+              {/* SUB-TAB 3: KALENDER JADWAL ROTASI SECURITY (TERFILTER PER BULAN TERPILIH V6.3) */}
               {secSubTab === 'jadwal' && (
                 <div className="bg-white rounded-3xl p-5 shadow-sm border border-slate-200/70 space-y-4">
-                  <div>
-                    <h4 className="font-extrabold text-slate-800 text-base">
-                      📅 Jadwal Rotasi Mingguan Security ({selectedMonth} {selectedYear})
-                    </h4>
-                    <p className="text-xs text-slate-500">
-                      Minggu–Kamis: 2 Shift Normal • Jumat Malam: Libur • Sabtu: Rotasi Shift Pagi
-                      & Malam Libur
-                    </p>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <h4 className="font-extrabold text-slate-800 text-base">
+                        📅 Jadwal Rotasi Shift Security (
+                        {scheduleFilterMode === 'ALL'
+                          ? 'Semua Periode'
+                          : `${selectedMonth} ${selectedYear}`}
+                        )
+                      </h4>
+                      <p className="text-xs text-slate-500">
+                        Minggu–Kamis: 2 Shift Normal • Jumat Malam: Libur • Sabtu: Rotasi Shift Pagi
+                        &amp; Malam Libur
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 text-xs bg-slate-100 p-1 rounded-xl border border-slate-200">
+                      <button
+                        type="button"
+                        onClick={() => setScheduleFilterMode('SELECTED_MONTH')}
+                        className={`px-3 py-1.5 rounded-lg font-bold transition cursor-pointer ${
+                          scheduleFilterMode === 'SELECTED_MONTH'
+                            ? 'bg-teal-800 text-white shadow-sm'
+                            : 'text-slate-600 hover:bg-white'
+                        }`}
+                      >
+                        {selectedMonth} {selectedYear}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setScheduleFilterMode('ALL')}
+                        className={`px-3 py-1.5 rounded-lg font-bold transition cursor-pointer ${
+                          scheduleFilterMode === 'ALL'
+                            ? 'bg-teal-800 text-white shadow-sm'
+                            : 'text-slate-600 hover:bg-white'
+                        }`}
+                      >
+                        Semua Arsip
+                      </button>
+                    </div>
                   </div>
 
                   <div className="overflow-x-auto">
@@ -2662,13 +2758,13 @@ export default function PublicDashboard({
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {securitySchedules.map((sch) => {
-                          const isOffNight = String(sch.shift_malam || '').includes('LIBUR');
+                          const isOffNight = String(sch.shift_malam || '').toUpperCase().includes('LIBUR');
                           return (
                             <tr
                               key={sch.id || sch.tanggal}
                               className={isOffNight ? 'bg-amber-50/40' : 'hover:bg-slate-50'}
                             >
-                              <td className="py-2.5 px-3 font-mono font-semibold text-slate-700">
+                              <td className="py-2.5 px-3 font-mono font-semibold text-slate-700 whitespace-nowrap">
                                 {sch.tanggal}
                               </td>
                               <td className="py-2.5 px-3 font-bold text-slate-800">{sch.hari}</td>
@@ -2682,7 +2778,9 @@ export default function PublicDashboard({
                               >
                                 {sch.shift_malam}
                               </td>
-                              <td className="py-2.5 px-3 text-slate-500">{sch.status_jadwal}</td>
+                              <td className="py-2.5 px-3 text-slate-500">
+                                {sch.status_jadwal}
+                              </td>
                             </tr>
                           );
                         })}

@@ -1,11 +1,38 @@
 /**
- * C-MONEY API SERVICE ADAPTER v6.2
- * Penghubung Frontend React ke Google Apps Script (Code.gs v6.2)
+ * C-MONEY API SERVICE ADAPTER v6.3
+ * Sumber URL Utama: src/config/gasConfig.js (Bebas konflik env Vercel / .env)
  * Mendukung: 100% Real Cash, Multi-Foto Security (maks 5), Denah Parkir 6 Slot, & Fail-Safe Upload
  */
 
-const BACKEND_PROVIDER = import.meta.env.VITE_BACKEND_PROVIDER || 'gas';
-const GAS_WEBAPP_URL = (import.meta.env.VITE_GAS_WEBAPP_URL || 'https://script.google.com/macros/s/AKfycbzcSQux1TIIPkjVW0g1rqYGUKimjDQprx0YV6BmOk_NK84U66r6UJTX1NvmvFvKYY-34w/exec').trim();
+import {
+  BACKEND_PROVIDER as CONFIG_PROVIDER,
+  GAS_WEBAPP_URL as CONFIG_GAS_URL,
+  EXPECTED_BACKEND_VERSION as CONFIG_EXPECTED_VERSION
+} from '../config/gasConfig';
+
+export const EXPECTED_BACKEND_VERSION = CONFIG_EXPECTED_VERSION || 'v6.3';
+
+const BACKEND_PROVIDER = (CONFIG_PROVIDER || 'gas').trim();
+
+// Prioritas Mutlak: Ambil dari src/config/gasConfig.js terlebih dahulu
+const RESOLVED_GAS_URL = (
+  CONFIG_GAS_URL && !CONFIG_GAS_URL.includes('TEMPEL_LINK_EXEC')
+    ? CONFIG_GAS_URL
+    : import.meta.env.VITE_GAS_WEBAPP_URL || ''
+).trim();
+
+export const ACTIVE_GAS_URL = RESOLVED_GAS_URL;
+
+/**
+ * Helper Diagnostik V6.3: Ambil potongan ujung URL GAS untuk verifikasi cepat di layar
+ * Contoh hasil: "...vFvKYY-34w/exec"
+ */
+export function getActiveGasUrlBadge() {
+  if (!RESOLVED_GAS_URL) return 'URL belum diatur';
+  const clean = RESOLVED_GAS_URL.replace(/\/+$/, '');
+  if (clean.length <= 22) return clean;
+  return `...${clean.slice(-18)}`;
+}
 
 export const MONTH_LIST_ID = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -48,8 +75,7 @@ export function getSmartBookPeriod(cutoffDay = 25, customDate = null) {
 }
 
 /**
- * Helper V6.2: Kompresi 1 Foto ke Base64 JPEG Ringan (Fail-Safe)
- * Menolak secara eksplisit jika file tidak valid agar tidak mengirim data kosong ke server
+ * Helper: Kompresi 1 Foto ke Base64 JPEG Ringan (Fail-Safe)
  */
 export function compressImageToBase64(file, maxWidth = 900, quality = 0.76) {
   return new Promise((resolve, reject) => {
@@ -90,7 +116,6 @@ export function compressImageToBase64(file, maxWidth = 900, quality = 0.76) {
         }
       };
       img.onerror = () => {
-        // Fallback hanya jika rawDataUrl valid (misal format HEIC/WebP tertentu)
         if (rawDataUrl.startsWith('data:image') && rawDataUrl.length > 50) {
           resolve(rawDataUrl);
         } else {
@@ -106,7 +131,7 @@ export function compressImageToBase64(file, maxWidth = 900, quality = 0.76) {
 }
 
 /**
- * Helper V6.2: Kompresi Multi-Foto Sekaligus (Default Maksimal 5 Foto untuk Laporan Security)
+ * Helper: Kompresi Multi-Foto Sekaligus (Default Maksimal 5 Foto untuk Laporan Security)
  */
 export async function compressMultipleImagesToBase64(
   fileList,
@@ -132,8 +157,8 @@ export async function compressMultipleImagesToBase64(
 }
 
 function assertGasUrlReady() {
-  if (!GAS_WEBAPP_URL || GAS_WEBAPP_URL.includes('TEMPEL_LINK_EXEC')) {
-    throw new Error('VITE_GAS_WEBAPP_URL (/exec) belum diatur di Vercel Environment Variables atau file .env.');
+  if (!RESOLVED_GAS_URL || RESOLVED_GAS_URL.includes('TEMPEL_LINK_EXEC')) {
+    throw new Error('URL Web App GAS (/exec) belum diisi di file src/config/gasConfig.js.');
   }
 }
 
@@ -145,19 +170,20 @@ async function parseGasResponse(response) {
   try {
     return JSON.parse(rawText);
   } catch (parseErr) {
-    throw new Error('Respon server GAS tidak valid. Pastikan deployment Web App aktif (Anyone) & URL /exec benar.');
+    throw new Error(
+      'Respon server GAS tidak valid. Pastikan akses Web App "Anyone" & URL di src/config/gasConfig.js benar.'
+    );
   }
 }
 
 async function requestGasGet(params = {}) {
   assertGasUrlReady();
-  const url = new URL(GAS_WEBAPP_URL);
+  const url = new URL(RESOLVED_GAS_URL);
   Object.keys(params).forEach((key) => {
     if (params[key] !== undefined && params[key] !== null) {
       url.searchParams.append(key, params[key]);
     }
   });
-  // Anti-cache agar saldo, mutasi, log security, & slot parkir selalu sinkron real-time
   url.searchParams.append('_t', String(Date.now()));
 
   const response = await fetch(url.toString(), {
@@ -171,7 +197,7 @@ async function requestGasPost(actionName, payload = {}) {
   assertGasUrlReady();
   const token = localStorage.getItem('cmoney_pengurus_token') || '';
 
-  // Kunci `action` di posisi terakhir agar tidak pernah tertimpa oleh isi payload
+  // Kunci `action` di posisi terakhir agar tidak pernah tertimpa isi payload
   const bodyData = {
     ...payload,
     action: actionName,
@@ -179,7 +205,7 @@ async function requestGasPost(actionName, payload = {}) {
   };
 
   // Menggunakan text/plain agar bebas blokir CORS preflight pada Google Apps Script
-  const response = await fetch(GAS_WEBAPP_URL, {
+  const response = await fetch(RESOLVED_GAS_URL, {
     method: 'POST',
     redirect: 'follow',
     headers: {
@@ -222,7 +248,7 @@ export const CMoneyAPI = {
     return requestGasPost('update_ipl', iplData);
   },
 
-  // 5. Unggah Konfirmasi Bukti Bayar QRIS oleh Warga ke Bukti_Iuran_Warga (Tanpa Login)
+  // 5. Konfirmasi Bayar QRIS Warga (Foto Opsional / Open) ke Bukti_Iuran_Warga (Tanpa Login)
   async uploadIplProof(proofData) {
     return requestGasPost('upload_ipl_proof', proofData);
   },
