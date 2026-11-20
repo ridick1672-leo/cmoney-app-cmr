@@ -906,3 +906,78 @@ export function EmptyStateIllustration({ type = 'package', size = 84, className 
     </svg>
   );
 }
+
+/* ============================================================================
+ * 5. IKON MODE GELAP / TERANG (SERAGAM TIER 1 SOFT-3D & TIER 2 MINI)
+ * ============================================================================ */
+
+/** Soft-3D Bulan/Matahari untuk Expand Menu Beranda */
+export function Icon3DTheme({ dark = false, size = 30, className = '' }) {
+  const uid = useId();
+  if (dark) {
+    // Saat mode gelap aktif -> tampilkan ikon Matahari hangat untuk kembali ke Mode Terang
+    return (
+      <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
+        <defs>
+          <linearGradient id={`${uid}-sun`} x1="12" y1="12" x2="36" y2="36" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#FDE047" />
+            <stop offset="1" stopColor="#F59E0B" />
+          </linearGradient>
+        </defs>
+        <circle cx="24" cy="24" r="10.5" fill={`url(#${uid}-sun)`} />
+        <path
+          d="M24 6.5V10M24 38V41.5M6.5 24H10M38 24H41.5M11.6 11.6L14.2 14.2M33.8 33.8L36.4 36.4M36.4 11.6L33.8 14.2M14.2 33.8L11.6 36.4"
+          stroke="#FBBF24"
+          strokeWidth="3"
+          strokeLinecap="round"
+        />
+      </svg>
+    );
+  }
+  // Saat mode terang aktif -> tampilkan ikon Bulan Indigo Soft-3D untuk masuk Mode Gelap
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" className={className}>
+      <defs>
+        <linearGradient id={`${uid}-moon`} x1="10" y1="8" x2="38" y2="40" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#6366F1" />
+          <stop offset="1" stopColor="#312E81" />
+        </linearGradient>
+      </defs>
+      <circle cx="24" cy="24" r="18" fill="#E0E7FF" />
+      <path
+        d="M31.8 27.6C29.9 28.4 27.8 28.6 25.6 28.1C20.7 27 17.6 22.1 18.7 17.2C19.2 15 20.5 13.1 22.2 11.8C16.7 12.1 12.2 16.6 12.2 22.2C12.2 28 16.9 32.7 22.7 32.7C26.9 32.7 30.5 30.7 31.8 27.6Z"
+        fill={`url(#${uid}-moon)`}
+      />
+      <circle cx="32.5" cy="15.5" r="2.2" fill="#FBBF24" />
+      <circle cx="36" cy="21" r="1.3" fill="#818CF8" />
+    </svg>
+  );
+}
+
+/** Mini SVG Bulan/Matahari untuk Toggle Mode Gelap di Ruang Pengurus */
+export function IconPillTheme({ dark = false, size = 18, className = '' }) {
+  if (dark) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+        <circle cx="12" cy="12" r="4.5" stroke="currentColor" strokeWidth="2" />
+        <path
+          d="M12 3V5M12 19V21M3 12H5M19 12H21M5.6 5.6L7.1 7.1M16.9 16.9L18.4 18.4M18.4 5.6L16.9 7.1M7.1 16.9L5.6 18.4"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+      </svg>
+    );
+  }
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+      <path
+        d="M20 14.6A8.2 8.2 0 1 1 9.4 4A6.8 6.8 0 0 0 20 14.6Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}

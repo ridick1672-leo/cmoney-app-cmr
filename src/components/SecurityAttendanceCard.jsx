@@ -1065,27 +1065,85 @@ export default function SecurityAttendanceCard({
                   muted
                   className={`w-full h-full object-cover ${facingMode === 'user' ? 'scale-x-[-1]' : ''}`}
                 />
-                {/* Garis Pandu Siluet Kepala & Bahu (Persis Referensi) */}
-                <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
+                {/* OVERLAY BINGKAI OVAL WAJAH ALA GREATDAY (V7.1 — PROPORSIONAL & SOFT VIGNETTE) */}
+                <div className="absolute inset-0 pointer-events-none select-none overflow-hidden flex items-center justify-center">
+                  {/* Lapisan Vignette Gelap Lembut + Lubang Oval Wajah */}
                   <svg
-                    viewBox="0 0 300 360"
-                    fill="none"
-                    className="w-full max-w-[290px] h-auto opacity-80 drop-shadow"
+                    viewBox="0 0 360 480"
+                    preserveAspectRatio="xMidYMid slice"
+                    className="w-full h-full"
+                    aria-hidden="true"
                   >
+                    <defs>
+                      <mask id="cmoney-absen-face-mask">
+                        <rect x="0" y="0" width="360" height="480" fill="white" />
+                        {/* Lubang oval wajah besar & natural untuk jarak selfie normal */}
+                        <ellipse cx="180" cy="208" rx="112" ry="144" fill="black" />
+                      </mask>
+                    </defs>
+
+                    {/* Area luar oval diredupkan lembut */}
+                    <rect
+                      x="0"
+                      y="0"
+                      width="360"
+                      height="480"
+                      fill="rgba(0, 0, 0, 0.48)"
+                      mask="url(#cmoney-absen-face-mask)"
+                    />
+
+                    {/* Bingkai garis oval utama (putih lembut & tegas) */}
+                    <ellipse
+                      cx="180"
+                      cy="208"
+                      rx="112"
+                      ry="144"
+                      fill="none"
+                      stroke="rgba(255, 255, 255, 0.92)"
+                      strokeWidth="3"
+                      strokeDasharray="10 6"
+                    />
+
+                    {/* Cincin halus dalam untuk kesan presisi */}
+                    <ellipse
+                      cx="180"
+                      cy="208"
+                      rx="106"
+                      ry="138"
+                      fill="none"
+                      stroke="rgba(16, 185, 129, 0.55)"
+                      strokeWidth="1.5"
+                    />
+
+                    {/* Penanda 4 sudut tipis ala scanner biometrik */}
                     <path
-                      d="M150 42 C104 42 84 82 86 126 C77 128 74 142 78 156 C81 165 86 168 90 169 C96 196 112 214 114 226 C115 236 105 244 86 250 C48 262 20 282 14 316 L14 330 M150 42 C196 42 216 82 214 126 C223 128 226 142 222 156 C219 165 214 168 210 169 C204 196 188 214 186 226 C185 236 195 244 214 250 C252 262 280 282 286 316 L286 330"
-                      stroke="rgba(255,255,255,0.85)"
-                      strokeWidth="5"
+                      d="M72 108 L72 88 Q72 78 82 78 L102 78
+                        M258 78 L278 78 Q288 78 288 88 L288 108
+                        M72 308 L72 328 Q72 338 82 338 L102 338
+                        M258 338 L278 338 Q288 338 288 328 L288 308"
+                      fill="none"
+                      stroke="rgba(255, 255, 255, 0.85)"
+                      strokeWidth="3"
                       strokeLinecap="round"
-                      strokeLinejoin="round"
+                    />
+
+                    {/* Lengkungan bahu rendah (tidak memotong dagu/leher) */}
+                    <path
+                      d="M52 478 C72 414, 122 392, 180 392 C238 392, 288 414, 308 478"
+                      fill="none"
+                      stroke="rgba(255, 255, 255, 0.45)"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
                     />
                   </svg>
-                </div>
-                {!isCameraReady && (
-                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                    <p className="text-xs text-slate-300 animate-pulse">Menyiapkan kamera...</p>
+
+                  {/* Kapsul Pandu Singkat di Atas Bingkai Oval */}
+                  <div className="absolute top-3 inset-x-0 flex justify-center px-4">
+                    <span className="px-3.5 py-1 rounded-full bg-black/55 backdrop-blur-xs border border-white/20 text-white text-[11px] font-bold tracking-wide shadow">
+                      Posisikan wajah di dalam bingkai oval
+                    </span>
                   </div>
-                )}
+                </div>
               </>
             )}
 

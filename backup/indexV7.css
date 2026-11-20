@@ -1,0 +1,78 @@
+/* ============================================================================
+ * C-MONEY V7 — GLOBAL STYLES & NATIVE-FEEL POLISH (MOBILE & DESKTOP)
+ * Kompatibel penuh dengan Tailwind CDN maupun build CSS lokal Vite
+ * ============================================================================ */
+
+:root {
+  --cmoney-bg: #f4f7f6;
+  --cmoney-primary: #059669;
+  --cmoney-teal: #0f766e;
+  --cmoney-cyan: #0284c7;
+}
+
+html,
+body,
+#root {
+  height: auto !important;
+  min-height: 100vh !important;
+  overflow-x: hidden;
+  overflow-y: auto !important;
+  background-color: var(--cmoney-bg);
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Mencegah iOS Safari zoom otomatis saat input fokus di form */
+@media screen and (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* Animasi halus untuk Bottom Sheet, Modal, Toast, & Drawer "Lainnya" */
+@keyframes cmoneyFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: cmoneyFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Scrollbar halus & modern untuk Desktop */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: #eef2f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #0f766e;
+}
+
+/* Utilitas bantu sembunyikan scrollbar horizontal strip paket di HP */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

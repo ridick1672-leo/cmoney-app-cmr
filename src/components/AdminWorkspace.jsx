@@ -18,6 +18,7 @@ import {
   IconPillPayroll,
   IconPillServer,
   IconPillLogout,
+  IconPillTheme,
   Icon3DInstallApp
 } from './CMoneyIcons';
 
@@ -328,7 +329,9 @@ export default function AdminWorkspace({
   isBackendOutdated = false,
   gasUrlPreview = '',
   lastSyncTime = '',
-  logoUrl = '/assets/logo-cmoney.png'
+  logoUrl = '/assets/logo-cmoney.png',
+  isDarkMode = false,
+  onToggleDarkMode
 }) {
   const houses = useMemo(() => dashboardData?.houses || [], [dashboardData]);
   const iplStatusList = useMemo(() => dashboardData?.ipl_status || [], [dashboardData]);
@@ -1678,6 +1681,42 @@ export default function AdminWorkspace({
           Sistem & Akun
         </p>
         <div className="bg-white rounded-3xl border border-slate-200/85 shadow-xs divide-y divide-slate-100 overflow-hidden">
+          {typeof onToggleDarkMode === 'function' && (
+            <button
+              type="button"
+              onClick={onToggleDarkMode}
+              role="switch"
+              aria-checked={isDarkMode}
+              className="w-full px-4 py-3.5 flex items-center justify-between gap-3 hover:bg-slate-50/90 transition text-left cursor-pointer"
+            >
+              <span className="flex items-center gap-3 min-w-0">
+                <span className="w-9 h-9 rounded-2xl bg-indigo-50 text-indigo-700 flex items-center justify-center shrink-0">
+                  <IconPillTheme dark={isDarkMode} size={18} />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[13px] font-extrabold text-slate-900 truncate">
+                    Mode Gelap
+                  </span>
+                  <span className="block text-[11px] font-medium text-slate-500 truncate mt-0.5">
+                    {isDarkMode ? 'Aktif • Tampilan gelap nyaman di mata' : 'Nonaktif • Tema terang'}
+                  </span>
+                </span>
+              </span>
+
+              {/* Toggle Switch Hijau Ala Gojek */}
+              <span
+                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+                  isDarkMode ? 'bg-emerald-600' : 'bg-slate-300'
+                }`}
+              >
+                <span
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform ${
+                    isDarkMode ? 'translate-x-[22px]' : 'translate-x-[2px]'
+                  }`}
+                />
+              </span>
+            </button>
+          )}
           <MenuRowButton
             icon={<IconPillServer size={18} />}
             iconBg="bg-slate-100 text-slate-700"

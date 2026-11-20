@@ -13,6 +13,7 @@ import {
   Icon3DArchive,
   Icon3DRules,
   Icon3DInstallApp,
+  Icon3DTheme,
   Icon3DSos,
   Icon3DCctv,
   IconPillLedger,
@@ -253,6 +254,9 @@ export default function PublicDashboard({
   onOpenLightbox,
   onOpenPwaInstall,
   isPwaInstalled = false,
+  isPwaInstalled = false,
+  isDarkMode = false,
+  onToggleDarkMode,
   formatHouseIdentity
 }) {
   const sourceData = data || dashboardData || {};
@@ -1373,6 +1377,108 @@ export default function PublicDashboard({
                     )}
                   </div>
                 )}
+
+                {/* Area Expand Menu Tambahan — Grid Dinamis 100% Simetris Mobile & Desktop */}
+                {showMoreMenu && (() => {
+                  const moreItems = [
+                    {
+                      id: 'arsip',
+                      label: 'Arsip Kas',
+                      icon: <Icon3DArchive size={30} />,
+                      onClick: () => {
+                        setShowMoreMenu(false);
+                        monthlyClosingsRef.current?.scrollIntoView({ behavior: 'smooth' });
+                      }
+                    },
+                    {
+                      id: 'log',
+                      label: 'Log Pos',
+                      icon: <Icon3DReport size={30} />,
+                      onClick: () => {
+                        setShowMoreMenu(false);
+                        jumpToSecuritySub('riwayat');
+                      }
+                    },
+                    {
+                      id: 'tatib',
+                      label: 'Tata Tertib',
+                      icon: <Icon3DRules size={30} />,
+                      onClick: () => {
+                        setShowMoreMenu(false);
+                        setInfoSheet('rules');
+                      }
+                    }
+                  ];
+
+                  if (typeof onToggleDarkMode === 'function') {
+                    moreItems.push({
+                      id: 'theme',
+                      label: isDarkMode ? 'Mode Terang' : 'Mode Gelap',
+                      icon: <Icon3DTheme dark={isDarkMode} size={30} />,
+                      onClick: () => onToggleDarkMode()
+                    });
+                  }
+
+                  if (!isPwaInstalled && typeof onOpenPwaInstall === 'function') {
+                    moreItems.push({
+                      id: 'pwa',
+                      label: 'Pasang App',
+                      icon: <Icon3DInstallApp size={30} />,
+                      onClick: () => {
+                        setShowMoreMenu(false);
+                        onOpenPwaInstall();
+                      }
+                    });
+                  }
+
+                  if (SHOW_SOS_BUTTON) {
+                    moreItems.push({
+                      id: 'sos',
+                      label: 'Darurat SOS',
+                      icon: <Icon3DSos size={30} />,
+                      onClick: () => {
+                        setShowMoreMenu(false);
+                        jumpToSecuritySub('riwayat');
+                      }
+                    });
+                  }
+
+                  if (SHOW_CCTV_PANEL) {
+                    moreItems.push({
+                      id: 'cctv',
+                      label: 'CCTV Pos',
+                      icon: <Icon3DCctv size={30} />,
+                      onClick: () => {
+                        setShowMoreMenu(false);
+                        jumpToSecuritySub('riwayat');
+                      }
+                    });
+                  }
+
+                  const gridColsClass =
+                    moreItems.length === 5
+                      ? 'grid-cols-5'
+                      : moreItems.length === 4
+                      ? 'grid-cols-4'
+                      : moreItems.length === 3
+                      ? 'grid-cols-3'
+                      : 'grid-cols-3 sm:grid-cols-6';
+
+                  return (
+                    <div
+                      className={`border-t border-slate-100 bg-slate-50/70 p-2.5 sm:p-3 grid ${gridColsClass} gap-1 text-center animate-fade-in`}
+                    >
+                      {moreItems.map((item) => (
+                        <CapsuleMenuButton
+                          key={item.id}
+                          icon={item.icon}
+                          label={item.label}
+                          onClick={item.onClick}
+                        />
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </section>

@@ -225,6 +225,33 @@ export default function App() {
   });
   const touchStartXRef = useRef(null);
 
+  // State Mode Gelap (tersimpan otomatis di HP warga + ubah warna status bar PWA)
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    try {
+      return localStorage.getItem('cmoney_theme') === 'dark';
+    } catch (_) {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    const theme = isDarkMode ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', theme);
+    try {
+      localStorage.setItem('cmoney_theme', theme);
+    } catch (_) {
+      // ignore
+    }
+    const metaTheme = document.querySelector('meta[name="theme-color"]');
+    if (metaTheme) {
+      metaTheme.setAttribute('content', isDarkMode ? '#0F172A' : '#059669');
+    }
+  }, [isDarkMode]);
+
+  const handleToggleDarkMode = useCallback(() => {
+    setIsDarkMode((prev) => !prev);
+  }, []);
+  
   // Deteksi mode PWA terinstal & tangkap event beforeinstallprompt Android/Desktop
   const [isPwaInstalled, setIsPwaInstalled] = useState(false);
   const [deferredPwaPrompt, setDeferredPwaPrompt] = useState(null);
@@ -630,6 +657,8 @@ export default function App() {
             onRefresh={() => fetchDashboard(selectedMonth, selectedYear, { background: false })}
             onOpenLightbox={openLightbox}
             onOpenPwaInstall={() => setIsPwaSheetOpen(true)}
+            isDarkMode={isDarkMode}
+            onToggleDarkMode={handleToggleDarkMode}
             isRefreshing={isRefreshing}
             isSyncingBackground={isSyncingBackground}
             isOnline={isOnline}
@@ -655,6 +684,8 @@ export default function App() {
             onUpdateParkingSlot={handleUpdateParkingSlot}
             onOpenLightbox={openLightbox}
             onOpenPwaInstall={() => setIsPwaSheetOpen(true)}
+            isDarkMode={isDarkMode}
+            onToggleDarkMode={handleToggleDarkMode}
             isPwaInstalled={isPwaInstalled}
             formatHouseIdentity={formatHouseIdentity}
           />
@@ -710,29 +741,37 @@ export default function App() {
       />
       
       {/* ====================================================================
-          IN-APP LIGHTBOX SLIDER MULTI-FOTO (SWIPE HP + THUMBNAIL + DRIVE LINK)
+          IN-APP LIGHTBOX SLIDER MULTI-FOTO (SOFT-SLATE BLUR + RAMAH SENIOR)
       ==================================================================== */}
       {lightbox.isOpen && (
         <div
           onClick={closeLightbox}
-          className="fixed inset-0 z-[70] bg-slate-950/92 backdrop-blur-sm flex flex-col justify-between p-3 sm:p-5 animate-fade-in"
+          style={{
+            backgroundColor: 'rgba(30, 41, 59, 0.86)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)'
+          }}
+          className="fixed inset-0 z-[70] flex flex-col justify-between p-3 sm:p-5 animate-fade-in"
         >
-          {/* Bar Atas Lightbox */}
+          {/* Bar Atas Lightbox — Kontras Jelas & Tombol "✕ Tutup" Mudah Dilihat */}
           <div
             onClick={(e) => e.stopPropagation()}
-            className="max-w-4xl w-full mx-auto flex items-center justify-between gap-3 text-white"
+            style={{ backgroundColor: 'rgba(15, 23, 42, 0.88)' }}
+            className="max-w-4xl w-full mx-auto rounded-2xl border border-white/15 px-3.5 py-2.5 flex items-center justify-between gap-3 text-white shadow-lg"
           >
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <p className="text-sm font-extrabold truncate">{lightbox.title}</p>
+                <p className="text-xs sm:text-sm font-extrabold truncate text-white">
+                  {lightbox.title}
+                </p>
                 {lightbox.urls.length > 1 && (
-                  <span className="px-2 py-0.5 rounded-full bg-white/15 text-[11px] font-black shrink-0">
-                    Foto {lightbox.index + 1} / {lightbox.urls.length}
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500 text-white text-[10px] font-black shrink-0">
+                    {lightbox.index + 1} / {lightbox.urls.length}
                   </span>
                 )}
               </div>
               {lightbox.subtitle && (
-                <p className="text-xs text-slate-300 truncate mt-0.5">{lightbox.subtitle}</p>
+                <p className="text-[11px] text-slate-300 truncate mt-0.5">{lightbox.subtitle}</p>
               )}
             </div>
 
@@ -743,20 +782,21 @@ export default function App() {
                   target="_blank"
                   rel="noopener noreferrer"
                   title="Buka Resolusi Penuh"
-                  className="h-9 px-3 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-bold inline-flex items-center gap-1.5 transition"
+                  className="h-9 px-3 rounded-full bg-white/15 hover:bg-white/25 text-white text-xs font-bold inline-flex items-center gap-1.5 transition"
                 >
                   <IconDownload size={15} />
-                  <span className="hidden sm:inline">Buka Asli</span>
+                  <span className="hidden sm:inline">Asli</span>
                 </a>
               )}
 
               <button
                 type="button"
                 onClick={closeLightbox}
-                aria-label="Tutup Pratinjau"
-                className="w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition cursor-pointer"
+                aria-label="Tutup Pratinjau Foto"
+                className="cmoney-keep-white h-9 px-3.5 rounded-full bg-white hover:bg-slate-100 text-slate-900 text-xs font-black inline-flex items-center gap-1.5 shadow-md active:scale-95 transition cursor-pointer"
               >
-                <IconClose size={18} />
+                <IconClose size={15} />
+                <span>Tutup</span>
               </button>
             </div>
           </div>
@@ -782,7 +822,8 @@ export default function App() {
                 type="button"
                 onClick={() => stepLightbox(-1)}
                 aria-label="Foto sebelumnya"
-                className="absolute left-1 sm:left-2 z-10 w-10 h-10 rounded-full bg-black/50 hover:bg-black/75 text-white flex items-center justify-center transition cursor-pointer"
+                style={{ backgroundColor: 'rgba(15, 23, 42, 0.78)' }}
+                className="absolute left-1 sm:left-2 z-10 w-10 h-10 rounded-full border border-white/25 text-white hover:scale-105 flex items-center justify-center shadow-lg transition cursor-pointer"
               >
                 <IconArrowLeft size={18} />
               </button>
@@ -800,7 +841,7 @@ export default function App() {
                   }));
                 }
               }}
-              className="max-h-[72vh] max-w-full object-contain rounded-2xl shadow-2xl select-none"
+              className="max-h-[70vh] max-w-full object-contain rounded-2xl shadow-2xl ring-1 ring-white/20 select-none"
             />
 
             {lightbox.urls.length > 1 && (
@@ -808,42 +849,52 @@ export default function App() {
                 type="button"
                 onClick={() => stepLightbox(1)}
                 aria-label="Foto berikutnya"
-                className="absolute right-1 sm:right-2 z-10 w-10 h-10 rounded-full bg-black/50 hover:bg-black/75 text-white flex items-center justify-center transition cursor-pointer"
+                style={{ backgroundColor: 'rgba(15, 23, 42, 0.78)' }}
+                className="absolute right-1 sm:right-2 z-10 w-10 h-10 rounded-full border border-white/25 text-white hover:scale-105 flex items-center justify-center shadow-lg transition cursor-pointer"
               >
                 <IconChevronRight size={20} />
               </button>
             )}
           </div>
 
-          {/* Strip Thumbnail (Muncul Jika > 1 Foto) */}
-          {lightbox.urls.length > 1 ? (
-            <div
-              onClick={(e) => e.stopPropagation()}
-              style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
-              className="max-w-4xl w-full mx-auto flex items-center justify-center gap-2 overflow-x-auto py-1"
-            >
-              {lightbox.urls.map((u, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => setLightbox((prev) => ({ ...prev, index: idx }))}
-                  className={`w-14 h-14 rounded-xl overflow-hidden border-2 shrink-0 transition cursor-pointer ${
-                    idx === lightbox.index
-                      ? 'border-emerald-400 ring-2 ring-emerald-400/50 scale-105'
-                      : 'border-white/25 opacity-65 hover:opacity-100'
-                  }`}
-                >
-                  <img
-                    src={toDirectImageUrl(u, true)}
-                    alt={`Thumb ${idx + 1}`}
-                    className="w-full h-full object-cover"
-                  />
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }} />
-          )}
+          {/* Bagian Bawah: Strip Thumbnail & Petunjuk Keluar Ramah Orang Tua */}
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+            className="max-w-4xl w-full mx-auto flex flex-col items-center gap-2"
+          >
+            {lightbox.urls.length > 1 && (
+              <div
+                style={{ backgroundColor: 'rgba(15, 23, 42, 0.75)' }}
+                className="flex items-center justify-center gap-2 overflow-x-auto px-3 py-2 rounded-2xl border border-white/15 max-w-full"
+              >
+                {lightbox.urls.map((u, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setLightbox((prev) => ({ ...prev, index: idx }))}
+                    className={`w-13 h-13 sm:w-14 sm:h-14 rounded-xl overflow-hidden border-2 shrink-0 transition cursor-pointer ${
+                      idx === lightbox.index
+                        ? 'border-emerald-400 ring-2 ring-emerald-400/50 scale-105'
+                        : 'border-white/25 opacity-65 hover:opacity-100'
+                    }`}
+                  >
+                    <img
+                      src={toDirectImageUrl(u, true)}
+                      alt={`Thumb ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <p className="text-[11px] font-semibold text-slate-200/90 text-center">
+              {lightbox.urls.length > 1
+                ? 'Geser foto ke kanan/kiri • Ketuk tombol Tutup atau area luar untuk kembali'
+                : 'Ketuk tombol Tutup atau area luar gambar untuk kembali'}
+            </p>
+          </div>
         </div>
       )}
     </>
