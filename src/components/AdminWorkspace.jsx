@@ -338,38 +338,69 @@ export default function AdminWorkspace({
   const cashLedger = useMemo(() => dashboardData?.cash_ledger || [], [dashboardData]);
   const securityPayroll = useMemo(() => dashboardData?.security_payroll || [], [dashboardData]);
 
-  // Gabungkan daftar rumah aktif + status IPL periode terpilih
+  // Gabungkan daftar rumah aktif + status IPL periode terpilih (sinkron dengan Beranda)
   const activeHousesWithIpl = useMemo(() => {
     const activeHouses = houses.filter((h) => !isHouseInactive(h));
     return activeHouses.map((house) => {
       const iplRow = iplStatusList.find(
         (row) =>
           String(row.house_id || '').toUpperCase() === String(house.id || '').toUpperCase() &&
-          String(row.periode_bulan || selectedMonth).toLowerCase() === String(selectedMonth).toLowerCase() &&
+          String(row.periode_bulan || selectedMonth).toLowerCase() ===
+            String(selectedMonth).toLowerCase() &&
           Number(row.periode_tahun || selectedYear) === Number(selectedYear)
       );
 
-      // Jika data dashboard sudah memfilter periode langsung pada ipl_status, fallback cocokkan house_id saja
       const fallbackRow =
         iplRow ||
         iplStatusList.find(
           (row) => String(row.house_id || '').toUpperCase() === String(house.id || '').toUpperCase()
         );
 
-      const status = normalizeIplStatus(fallbackRow?.status || house.status_ipl);
-      const nominal = Number(fallbackRow?.nominal || house.nominal_ipl || house.tarif_ipl || 200000);
-      const buktiUrl = fallbackRow?.url_bukti || fallbackRow?.url_bukti_transfer || house.url_bukti || '';
+      const ledgerIpl = cashLedger.find(
+        (tx) =>
+          String(tx.tipe || '').toUpperCase() === 'IN' &&
+          String(tx.house_id || '').toUpperCase() === String(house.id || '').toUpperCase() &&
+          String(tx.periode_bulan || '').toLowerCase() === String(selectedMonth).toLowerCase() &&
+          Number(tx.periode_tahun || selectedYear) === Number(selectedYear)
+      );
+
+      const rawStatus =
+        fallbackRow?.status_bayar ||
+        fallbackRow?.status ||
+        house.status_bayar ||
+        house.status_ipl ||
+        (ledgerIpl ? 'Lunas' : 'Belum Bayar');
+
+      const status = normalizeIplStatus(rawStatus);
+      const nominal = Number(
+        fallbackRow?.nominal_bayar ||
+          fallbackRow?.nominal ||
+          ledgerIpl?.nominal ||
+          house.nominal_ipl ||
+          house.tarif_ipl ||
+          200000
+      );
+
+      const rawBukti =
+        (fallbackRow?.url_bukti && fallbackRow.url_bukti !== '-' ? fallbackRow.url_bukti : '') ||
+        (fallbackRow?.url_bukti_transfer && fallbackRow.url_bukti_transfer !== '-'
+          ? fallbackRow.url_bukti_transfer
+          : '') ||
+        (ledgerIpl?.url_bukti && ledgerIpl.url_bukti !== '-' ? ledgerIpl.url_bukti : '') ||
+        (house.url_bukti && house.url_bukti !== '-' ? house.url_bukti : '');
 
       return {
         ...house,
         ipl_status: status,
         ipl_nominal: nominal,
-        ipl_bukti_url: buktiUrl && buktiUrl !== '-' ? buktiUrl : '',
-        ipl_catatan: fallbackRow?.catatan || fallbackRow?.keterangan || '',
-        ipl_tanggal: fallbackRow?.tanggal_bayar || fallbackRow?.updated_at || ''
+        ipl_bukti_url: rawBukti,
+        ipl_catatan:
+          fallbackRow?.catatan || fallbackRow?.keterangan || ledgerIpl?.keterangan || '',
+        ipl_tanggal:
+          fallbackRow?.tanggal_bayar || fallbackRow?.updated_at || ledgerIpl?.tanggal || ''
       };
     });
-  }, [houses, iplStatusList, selectedMonth, selectedYear]);
+  }, [houses, iplStatusList, cashLedger, selectedMonth, selectedYear]);
 
   const pendingList = useMemo(
     () => activeHousesWithIpl.filter((h) => h.ipl_status === 'Menunggu Validasi'),
@@ -1604,8 +1635,9 @@ export default function AdminWorkspace({
           <button
             type="button"
             onClick={() => {
-              setValTab(pendingList.length > 0 ? 'pending' : 'unpaid');
-              openSection('validasi');
+              setValTab(
+                pendingList.length > 0 ? 'pending' : unpaidList.length > 0 ? 'unpaid' : 'paid'
+              );
             }}
             className={`w-full px-3.5 py-2.5 flex items-center justify-between gap-2 text-xs font-extrabold transition cursor-pointer ${
               pendingList.length > 0

@@ -195,6 +195,8 @@ html[data-theme='dark'] .from-sky-50\/70 {
 /* Aksen Soft Pastel -> Versi Gelap Nyaman di Mata */
 html[data-theme='dark'] .bg-emerald-50,
 html[data-theme='dark'] .bg-emerald-50\/90,
+html[data-theme='dark'] .lg\:bg-emerald-50\/90,
+html[data-theme='dark'] .hover\:bg-emerald-50:hover,
 html[data-theme='dark'] .bg-emerald-50\/80,
 html[data-theme='dark'] .bg-emerald-50\/70,
 html[data-theme='dark'] .bg-emerald-50\/50,
