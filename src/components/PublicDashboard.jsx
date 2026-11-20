@@ -254,7 +254,6 @@ export default function PublicDashboard({
   onOpenLightbox,
   onOpenPwaInstall,
   isPwaInstalled = false,
-  isPwaInstalled = false,
   isDarkMode = false,
   onToggleDarkMode,
   formatHouseIdentity
