@@ -2,42 +2,65 @@
 <html lang="id">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
-    <meta name="theme-color" content="#115e59" />
-    <title>C-Money | Cluster Mutiara Residence Sumberjaya</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover"
+    />
+    <title>C-Money CMR — Cluster Mutiara Residence</title>
+    <meta
+      name="description"
+      content="Transparansi Kas Nyata, IPL, Denah Parkir, & Pos Security Cluster Mutiara Residence Sumberjaya"
+    />
+
+    <!-- Warna Status Bar Android & Browser Modern -->
+    <meta name="theme-color" content="#059669" />
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- Tag Legacy & Modern Apple iOS (Support iPhone Lama iOS 12+ s/d Terbaru) -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="C-Money" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- Ikon Browser, Android, & Home Screen iPhone -->
+    <link rel="icon" type="image/png" sizes="192x192" href="/assets/logo-cmoney-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/assets/logo-cmoney.png" />
+    <link rel="apple-touch-icon" href="/assets/logo-cmoney.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/logo-cmoney.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="/assets/logo-cmoney-192.png" />
+
+    <!-- Manifest PWA Universal -->
+    <link rel="manifest" href="/manifest.json" />
+
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+
     <style>
-      /* Perbaikan V4.1: Pastikan Desktop & Mobile selalu bisa di-scroll penuh ke bawah */
       html,
       body,
       #root {
         height: auto !important;
         min-height: 100vh !important;
-        overflow-x: hidden !important;
+        overflow-x: hidden;
         overflow-y: auto !important;
+        background-color: #f4f7f6;
         scroll-behavior: smooth;
-      }
-
-      /* Scrollbar rapi untuk tampilan Desktop */
-      ::-webkit-scrollbar {
-        width: 8px;
-        height: 8px;
-      }
-      ::-webkit-scrollbar-track {
-        background: #f1f5f9;
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #0f766e;
-        border-radius: 9999px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #115e59;
       }
     </style>
   </head>
-  <body class="bg-slate-100 text-slate-800 antialiased selection:bg-teal-600 selection:text-white">
+  <body class="bg-[#F4F7F6] text-slate-800 antialiased selection:bg-emerald-600 selection:text-white">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+
+    <!-- Registrasi Zero-Cache Service Worker (Dilindungi try/catch untuk HP lawas) -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+          try {
+            navigator.serviceWorker.register('/sw.js').catch(function () {});
+          } catch (e) {}
+        });
+      }
+    </script>
   </body>
 </html>

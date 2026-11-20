@@ -1,1812 +1,851 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import './index.css';
+import PwaInstallSheet from './components/PwaInstallSheet';
+import { CMoneyAPI } from './services/apiService';
+import * as apiModule from './services/apiService';
+import * as gasConfigModule from './config/gasConfig';
+import AppShellNav from './components/AppShellNav';
 import PublicDashboard from './components/PublicDashboard';
 import QrisPaymentModal from './components/QrisPaymentModal';
+import AdminWorkspace, { AdminLoginSheet } from './components/AdminWorkspace';
 import {
-  CMoneyAPI,
-  compressImageToBase64,
-  EXPECTED_BACKEND_VERSION,
-  getActiveGasUrlBadge
-} from './services/apiService';
+  IconClose,
+  IconChevronRight,
+  IconArrowLeft,
+  IconDownload
+} from './components/CMoneyIcons';
+
+/**
+ * ============================================================================
+ * C-MONEY V7 — ROOT APPLICATION CONTROLLER
+ * ============================================================================
+ * - Menyatukan AppShellNav (Mobile Bottom Nav <-> Desktop Slim Sidebar),
+ *   PublicDashboard (Pola Gojek), QrisPaymentModal, AdminWorkspace (Profilku),
+ *   dan In-App Multi-Photo Lightbox Slider.
+ * - Non-Blocking Background Sync setelah konfirmasi server 'success'
+ * - 100% kompatibel dengan Code.gs V6.3, apiService.js, & gasConfig.js
+ */
+
+const EXPECTED_BACKEND_VERSION = 'v6.3';
 
 const MONTH_NAMES = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
 ];
 
+const FALLBACK_HOUSES = [
+  { id: 'H-01', nomor_rumah: '01', nama_warga: 'Pak Suharso', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-02', nomor_rumah: '02', nama_warga: 'Pak Refza', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-03', nomor_rumah: '03', nama_warga: 'Pak Upen', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-04', nomor_rumah: '04', nama_warga: 'Unit Dijual BPR', status_huni: 'Tidak Aktif', tarif_ipl: 0 },
+  { id: 'H-05', nomor_rumah: '05', nama_warga: 'Pak Wahyu', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-06', nomor_rumah: '06', nama_warga: 'Pak Andy', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-07', nomor_rumah: '07', nama_warga: 'Pak Romi', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-08', nomor_rumah: '08', nama_warga: 'Pak Sonny', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-09', nomor_rumah: '09', nama_warga: 'Pak Kiswanto', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-10', nomor_rumah: '10', nama_warga: 'Pak Ridick', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-11', nomor_rumah: '11', nama_warga: 'Warga No. 11', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-12', nomor_rumah: '12', nama_warga: 'Warga No. 12', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-13', nomor_rumah: '13', nama_warga: 'Pak Hery', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-14', nomor_rumah: '14', nama_warga: 'Pak Dwi', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-15', nomor_rumah: '15', nama_warga: 'Pak Juhairi', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-16', nomor_rumah: '16', nama_warga: 'Pak Baim', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-17', nomor_rumah: '17', nama_warga: 'Warga No. 17', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-18', nomor_rumah: '18', nama_warga: 'Ibu Retno', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-19', nomor_rumah: '19', nama_warga: 'Pak Paulus', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-20', nomor_rumah: '20', nama_warga: 'Warga No. 20', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-21', nomor_rumah: '21', nama_warga: 'Ibu Marlina', status_huni: 'Aktif', tarif_ipl: 200000 },
+  { id: 'H-22', nomor_rumah: '22', nama_warga: 'Pak Baim (Unit 2)', status_huni: 'Aktif', tarif_ipl: 200000 }
+];
+
+const INITIAL_FALLBACK_DATA = {
+  app_name: 'C-Money',
+  cluster_full_name: 'Cluster Mutiara Residence Sumberjaya',
+  logo_url: '/assets/logo-cmoney.png',
+  current_balance: 1394200,
+  default_ipl_amount: 200000,
+  total_houses: 22,
+  total_active_houses: 21,
+  qris_merchant_name: 'Cluster Mutiara Residence',
+  qris_nmid: 'ID1026000000CMR',
+  qris_image_url: '/assets/qris-cmr-statis.png',
+  houses: FALLBACK_HOUSES,
+  ipl_status: [],
+  cash_ledger: [],
+  monthly_closings: [],
+  security_payroll: [],
+  security_schedules: [],
+  security_logs: [],
+  parking_slots: []
+};
+
 /**
- * Helper V6.3: Penentu Otomatis Periode Buku berdasarkan Cut-Off Tanggal 25
- * Tanggal 1-24 -> Bulan Berjalan | Tanggal 25-31 -> Bulan Berikutnya
+ * Menentukan periode buku default otomatis berdasarkan tanggal cut-off tgl 25
  */
-function getSmartPeriod(cutoffDay = 25) {
+function getInitialSmartPeriod(cutoffDay = 25) {
   const now = new Date();
-  const day = now.getDate();
-  let monthIndex = now.getMonth();
+  let mIdx = now.getMonth();
   let year = now.getFullYear();
-
-  const calendarMonth = MONTH_NAMES[monthIndex];
-  const calendarYear = year;
-
-  if (day >= Number(cutoffDay || 25)) {
-    monthIndex += 1;
-    if (monthIndex > 11) {
-      monthIndex = 0;
+  if (now.getDate() >= cutoffDay) {
+    mIdx += 1;
+    if (mIdx > 11) {
+      mIdx = 0;
       year += 1;
     }
   }
-
   return {
-    bookMonth: MONTH_NAMES[monthIndex],
-    bookYear: year,
-    calendarMonth,
-    calendarYear,
-    isAfterCutoff: day >= Number(cutoffDay || 25),
-    cutoffDay: Number(cutoffDay || 25)
+    bulan: MONTH_NAMES[mIdx] || 'November',
+    tahun: year
   };
 }
 
 /**
- * Helper V6.3: Konversi URL Google Drive menjadi Direct Image URL untuk In-App Lightbox
+ * Memformat waktu jam detik WIB real-time
  */
-export function getDirectDriveImageUrl(url) {
-  if (!url || url === '-' || typeof url !== 'string') return '';
+function formatLiveClockWib(dateObj = new Date()) {
+  const days = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+  const monthsShort = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+    'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+  ];
+  const d = days[dateObj.getDay()];
+  const tgl = String(dateObj.getDate()).padStart(2, '0');
+  const bln = monthsShort[dateObj.getMonth()];
+  const thn = dateObj.getFullYear();
+  const hh = String(dateObj.getHours()).padStart(2, '0');
+  const mm = String(dateObj.getMinutes()).padStart(2, '0');
+  const ss = String(dateObj.getSeconds()).padStart(2, '0');
+  return `${d}, ${tgl} ${bln} ${thn} • ${hh}:${mm}:${ss} WIB`;
+}
+
+function formatSyncTimeWib(dateObj = new Date()) {
+  const hh = String(dateObj.getHours()).padStart(2, '0');
+  const mm = String(dateObj.getMinutes()).padStart(2, '0');
+  const ss = String(dateObj.getSeconds()).padStart(2, '0');
+  return `${hh}:${mm}:${ss} WIB`;
+}
+
+/**
+ * Konversi tautan Google Drive menjadi URL gambar langsung untuk Lightbox In-App
+ */
+function extractDriveFileId(url) {
+  if (!url || typeof url !== 'string') return '';
+  const str = url.trim();
+  const matchD = str.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (matchD && matchD[1]) return matchD[1];
+  const matchId = str.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (matchId && matchId[1]) return matchId[1];
+  return '';
+}
+
+function toDirectImageUrl(url, useThumbnailFallback = false) {
+  if (!url || typeof url !== 'string') return '';
   const trimmed = url.trim();
   if (trimmed.startsWith('data:image') || trimmed.startsWith('/assets/')) {
     return trimmed;
   }
-  const matchId =
-    trimmed.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) ||
-    trimmed.match(/[?&]id=([a-zA-Z0-9_-]+)/) ||
-    trimmed.match(/\/d\/([a-zA-Z0-9_-]+)/);
-
-  if (matchId && matchId[1]) {
-    return `https://drive.google.com/thumbnail?id=${matchId[1]}&sz=w1200`;
+  const driveId = extractDriveFileId(trimmed);
+  if (driveId) {
+    return useThumbnailFallback
+      ? `https://drive.google.com/thumbnail?id=${driveId}&sz=w1600`
+      : `https://lh3.googleusercontent.com/d/${driveId}=w1600`;
   }
   return trimmed;
 }
 
 /**
- * Helper V6.3: Ekstrak Daftar URL Foto (Mendukung String Tunggal, Pemisah " | ", maupun Array)
+ * Parser versi backend untuk deteksi otomatis API kadaluarsa
  */
-export function parseLightboxPhotos(urlOrUrls) {
-  if (!urlOrUrls) return [];
-  const rawItems = Array.isArray(urlOrUrls) ? urlOrUrls : [urlOrUrls];
-  const flattened = [];
-
-  rawItems.forEach((item) => {
-    if (!item || typeof item !== 'string') return;
-    item
-      .split('|')
-      .map((part) => part.trim())
-      .filter((part) => part && part !== '-')
-      .forEach((cleanUrl) => {
-        flattened.push({
-          rawUrl: cleanUrl,
-          imageUrl: getDirectDriveImageUrl(cleanUrl)
-        });
-      });
-  });
-
-  return flattened;
+function isVersionOlderThan(currentVer, targetVer = '6.3') {
+  if (!currentVer) return false;
+  const curNum = parseFloat(String(currentVer).replace(/[^0-9.]/g, ''));
+  const tgtNum = parseFloat(String(targetVer).replace(/[^0-9.]/g, ''));
+  if (Number.isNaN(curNum) || Number.isNaN(tgtNum)) return false;
+  return curNum < tgtNum;
 }
 
 /**
- * Helper V6.3: Ekstrak 2 Digit Nomor Rumah Murni (Anti-Bug "No. No. 01")
+ * Membaca potongan URL GAS aktif secara aman dari apiService / gasConfig
  */
-export function extractCleanHouseNum(rawVal) {
-  const digits = String(rawVal || '').replace(/[^0-9]/g, '');
-  return digits ? digits.padStart(2, '0') : '';
-}
-
-/**
- * Data Cadangan (Fallback) 22 Unit Rumah CMR — Sesuai Sheet `houses` CMR_Database_Master
- */
-const FALLBACK_HOUSES = [
-  { id: 'H-01', nomor_rumah: '01', nama_warga: 'Pak Suharso', nama_kepala_keluarga: 'Pak Suharso', alias_keluarga: 'Pak Suharso / Ibu Aira', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-02', nomor_rumah: '02', nama_warga: 'Pak Refza', nama_kepala_keluarga: 'Pak Refza', alias_keluarga: 'Pak Refza / Ibu Ulfa', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-03', nomor_rumah: '03', nama_warga: 'Pak Upen', nama_kepala_keluarga: 'Pak Upen', alias_keluarga: 'Pak Upen', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-04', nomor_rumah: '04', nama_warga: 'Dijual', nama_kepala_keluarga: 'Dijual', alias_keluarga: 'Unit Kosong - Dijual Pihak BPR', status_huni: 'Tidak Aktif', tarif_ipl: 0 },
-  { id: 'H-05', nomor_rumah: '05', nama_warga: 'Pak Anggi', nama_kepala_keluarga: 'Pak Anggi', alias_keluarga: 'Pak Anggi / Ibu Siti / Abang Rafa', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-06', nomor_rumah: '06', nama_warga: 'Pak Andy', nama_kepala_keluarga: 'Pak Andy', alias_keluarga: 'Pak Andi / Ibu Santi', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-07', nomor_rumah: '07', nama_warga: 'Pak Romy', nama_kepala_keluarga: 'Pak Romy', alias_keluarga: 'Pak Romy', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-08', nomor_rumah: '08', nama_warga: 'Pak Sony', nama_kepala_keluarga: 'Pak Sony', alias_keluarga: 'Pak Sonny Ilham / Ibu Uci', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-09', nomor_rumah: '09', nama_warga: 'Pak Robi', nama_kepala_keluarga: 'Pak Robi', alias_keluarga: 'Pak Robi / Ibu Fitri / Kakak Aca', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-10', nomor_rumah: '10', nama_warga: 'Pak Ridick', nama_kepala_keluarga: 'Pak Ridick', alias_keluarga: 'Pak Ridick / Ibu Naufal', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-11', nomor_rumah: '11', nama_warga: 'Pak Zakaria', nama_kepala_keluarga: 'Pak Zakaria', alias_keluarga: 'Bang Jak / Ibu Sari', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-12', nomor_rumah: '12', nama_warga: 'Pak Kiswanto', nama_kepala_keluarga: 'Pak Kiswanto', alias_keluarga: 'Pak Kis / Ibu Ayu', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-13', nomor_rumah: '13', nama_warga: 'Pak Hery', nama_kepala_keluarga: 'Pak Hery', alias_keluarga: 'Pak Hery / Ibu Dewi', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-14', nomor_rumah: '14', nama_warga: 'Pak Dwi', nama_kepala_keluarga: 'Pak Dwi', alias_keluarga: 'Pak Dwi / Ibu Tuti', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-15', nomor_rumah: '15', nama_warga: 'Pak Juhairi', nama_kepala_keluarga: 'Pak Juhairi', alias_keluarga: 'Pak Juhairi', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-16', nomor_rumah: '16', nama_warga: 'Pak Baim', nama_kepala_keluarga: 'Pak Baim', alias_keluarga: 'Pak Baim', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-17', nomor_rumah: '17', nama_warga: 'Pak Yose', nama_kepala_keluarga: 'Pak Yose', alias_keluarga: 'Pak Yose / Ibu Reza', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-18', nomor_rumah: '18', nama_warga: 'Pak Jihad', nama_kepala_keluarga: 'Pak Jihad', alias_keluarga: 'Pak Jihad / Ibu Retno', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-19', nomor_rumah: '19', nama_warga: 'Pak Jacob', nama_kepala_keluarga: 'Pak Jacob', alias_keluarga: 'Opa Jacob', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-20', nomor_rumah: '20', nama_warga: 'Pak Ramon', nama_kepala_keluarga: 'Pak Ramon', alias_keluarga: 'Pak Ramon / Ibu Yuska / Abang Rasya', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-21', nomor_rumah: '21', nama_warga: 'Pak Suwandi', nama_kepala_keluarga: 'Pak Suwandi', alias_keluarga: 'Pak Suwandi / Ibu Maria', status_huni: 'Aktif', tarif_ipl: 200000 },
-  { id: 'H-22', nomor_rumah: '22', nama_warga: 'Pak Baim', nama_kepala_keluarga: 'Pak Baim', alias_keluarga: 'Pak Baim', status_huni: 'Aktif', tarif_ipl: 200000 }
-];
-
-/**
- * Helper V6.3: Standarisasi Format "No. XX / Nama Warga" (Anti-Bug "No. No." & "undefined")
- */
-export function formatHouseIdentity(houseOrId, housesList = FALLBACK_HOUSES) {
-  if (!houseOrId || houseOrId === '-') return '-';
-
-  const list = Array.isArray(housesList) && housesList.length > 0 ? housesList : FALLBACK_HOUSES;
-
-  if (typeof houseOrId === 'object') {
-    const num = extractCleanHouseNum(houseOrId.nomor_rumah || houseOrId.id) || '00';
-    const name = String(
-      houseOrId.nama_warga || houseOrId.nama_kepala_keluarga || 'Warga'
-    ).trim();
-    return `No. ${num} / ${name}`;
+function resolveGasUrlPreview() {
+  if (typeof apiModule.getActiveGasUrlBadge === 'function') {
+    const badge = apiModule.getActiveGasUrlBadge();
+    if (badge) return badge;
   }
+  const rawUrl =
+    gasConfigModule.GAS_WEBAPP_URL ||
+    gasConfigModule.ACTIVE_GAS_WEBAPP_URL ||
+    gasConfigModule.GAS_URL ||
+    gasConfigModule.default ||
+    '';
 
-  const raw = String(houseOrId).trim();
-  const cleanNum = extractCleanHouseNum(raw);
-
-  const matched = list.find(
-    (h) =>
-      String(h.id || '').toUpperCase() === raw.toUpperCase() ||
-      (cleanNum && extractCleanHouseNum(h.nomor_rumah || h.id) === cleanNum)
-  );
-
-  if (matched) {
-    const num = extractCleanHouseNum(matched.nomor_rumah || matched.id) || cleanNum || '00';
-    const name = String(matched.nama_warga || matched.nama_kepala_keluarga || 'Warga').trim();
-    return `No. ${num} / ${name}`;
+  if (typeof rawUrl === 'string' && rawUrl.length > 24) {
+    return `${rawUrl.slice(0, 36)}...${rawUrl.slice(-16)}`;
   }
-
-  return raw;
+  return rawUrl ? String(rawUrl) : 'Terhubung via src/config/gasConfig.js';
 }
-
-/**
- * Normalisasi seluruh array rumah dari Backend agar properti selalu konsisten
- */
-function normalizeHousesArray(rawHouses) {
-  const source = Array.isArray(rawHouses) && rawHouses.length > 0 ? rawHouses : FALLBACK_HOUSES;
-  return source
-    .map((h) => {
-      const cleanNum = extractCleanHouseNum(h.nomor_rumah || h.id) || '00';
-      const fallbackMatch = FALLBACK_HOUSES.find(
-        (fb) => fb.nomor_rumah === cleanNum || fb.id === h.id
-      );
-      const cleanName = String(
-        h.nama_warga ||
-          h.nama_kepala_keluarga ||
-          fallbackMatch?.nama_warga ||
-          'Warga'
-      ).trim();
-
-      return {
-        ...h,
-        id: h.id || `H-${cleanNum}`,
-        nomor_rumah: cleanNum,
-        nama_warga: cleanName,
-        nama_kepala_keluarga: cleanName,
-        alias_keluarga: h.alias_keluarga || fallbackMatch?.alias_keluarga || cleanName,
-        display_label: `No. ${cleanNum} / ${cleanName}`
-      };
-    })
-    .sort((a, b) => Number(a.nomor_rumah) - Number(b.nomor_rumah));
-}
-
-/**
- * Pilihan Paket Pembayaran Netral V6.3 (100% Uang Kas Nyata)
- */
-const PAYMENT_PACKAGES_V6 = [
-  {
-    id: 'IPL_ONLY',
-    label: 'IPL Saja (Rp 200.000)',
-    nominal: 200000,
-    kategoriKas: 'Iuran Warga (IPL)',
-    catatanDefault: 'Lunas IPL Bulanan (Rp 200.000)'
-  },
-  {
-    id: 'IPL_PARKIR_1',
-    label: 'IPL + Parkir 1 Mobil (Rp 350.000)',
-    nominal: 350000,
-    kategoriKas: 'Iuran Warga (IPL) & Parkir Fasum',
-    catatanDefault: 'Lunas IPL Rp 200.000 + Parkir 1 Mobil Rp 150.000'
-  },
-  {
-    id: 'IPL_PARKIR_2',
-    label: 'IPL + Parkir 2 Mobil (Rp 500.000)',
-    nominal: 500000,
-    kategoriKas: 'Iuran Warga (IPL) & Parkir Fasum',
-    catatanDefault: 'Lunas IPL Rp 200.000 + Parkir 2 Mobil Rp 300.000'
-  },
-  {
-    id: 'IPL_PARKIR_WEEKEND',
-    label: 'IPL + Parkir Weekend (Rp 250.000)',
-    nominal: 250000,
-    kategoriKas: 'Iuran Warga (IPL) & Parkir Fasum',
-    catatanDefault: 'Lunas IPL Rp 200.000 + Parkir Weekend Rp 50.000'
-  },
-  {
-    id: 'PARKIR_1_ONLY',
-    label: 'Khusus Parkir 1 Mobil Saja (Rp 150.000)',
-    nominal: 150000,
-    kategoriKas: 'Parkir Fasum',
-    catatanDefault: 'Lunas Parkir 1 Mobil (Rp 150.000)'
-  },
-  {
-    id: 'CUSTOM',
-    label: 'Nominal Lainnya (Sesuai Uang Riil Masuk)',
-    nominal: 200000,
-    kategoriKas: 'Iuran Warga (IPL)',
-    catatanDefault: 'Pembayaran Kas Warga'
-  }
-];
 
 export default function App() {
-  const smartPeriod = getSmartPeriod(25);
-  const activeGasUrlBadge = getActiveGasUrlBadge();
+  const initialPeriod = useMemo(() => getInitialSmartPeriod(25), []);
 
-  // State Utama Dashboard & Periode
-  const [selectedMonth, setSelectedMonth] = useState(smartPeriod.bookMonth);
-  const [selectedYear, setSelectedYear] = useState(smartPeriod.bookYear);
-  const [activeTab, setActiveTab] = useState('beranda');
-  const [dashboardData, setDashboardData] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Indikator Koneksi & Jam Real-Time
-  const [liveClock, setLiveClock] = useState('');
-  const [lastSyncTime, setLastSyncTime] = useState('');
-  const [isOnline, setIsOnline] = useState(true);
+  // State Data Utama & Sinkronisasi
+  const [dashboardData, setDashboardData] = useState(INITIAL_FALLBACK_DATA);
   const [hasServerData, setHasServerData] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState(initialPeriod.bulan);
+  const [selectedYear, setSelectedYear] = useState(initialPeriod.tahun);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isSyncingBackground, setIsSyncingBackground] = useState(false);
+  const [isOnline, setIsOnline] = useState(true);
+  const [backendVersion, setBackendVersion] = useState('');
+  const [lastSyncTime, setLastSyncTime] = useState('');
+  const [liveClock, setLiveClock] = useState(() => formatLiveClockWib(new Date()));
 
-  // Modal QRIS Warga
+  // State Navigasi Halaman & Modal
+  const [activeTab, setActiveTab] = useState('beranda');
   const [isQrisModalOpen, setIsQrisModalOpen] = useState(false);
-  const [selectedHouseForQris, setSelectedHouseForQris] = useState(null);
+  const [qrisPreselectedHouse, setQrisPreselectedHouse] = useState(null);
 
-  // Modal In-App Lightbox V6.3 (Slider Multi-Foto + Swipe HP + Keyboard)
-  const [lightboxState, setLightboxState] = useState(null);
-  const touchStartXRef = useRef(null);
-
-  // State Login & Panel Pengurus
-  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(
+  // State Autentikasi & Ruang Pengurus
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() =>
     Boolean(localStorage.getItem('cmoney_pengurus_token'))
   );
-  const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
-  const [adminUser, setAdminUser] = useState({ username: '', password: '' });
-  const [loginError, setLoginError] = useState('');
-  const [adminActiveSection, setAdminActiveSection] = useState('mutasi');
-  const [adminStatusMsg, setAdminStatusMsg] = useState({ type: '', text: '' });
-  const [isSubmittingAdmin, setIsSubmittingAdmin] = useState(false);
+  const [isAdminViewActive, setIsAdminViewActive] = useState(false);
+  const [isLoginSheetOpen, setIsLoginSheetOpen] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [authError, setAuthError] = useState('');
 
-  // State Kompresi Foto Fail-Safe Pengurus
-  const [isCompressingTxPhoto, setIsCompressingTxPhoto] = useState(false);
-  const [txPhotoError, setTxPhotoError] = useState('');
-  const [isCompressingIplPhoto, setIsCompressingIplPhoto] = useState(false);
-  const [iplPhotoError, setIplPhotoError] = useState('');
-
-  // State Form 1: Input Mutasi Kas (Uang Nyata)
-  const [txForm, setTxForm] = useState({
-    tanggal: new Date().toISOString().slice(0, 10),
-    periode_bulan: smartPeriod.calendarMonth,
-    periode_tahun: smartPeriod.calendarYear,
-    tipe: 'OUT',
-    kategori: 'Perawatan Pos',
-    nominal: '',
-    keterangan: '',
-    house_id: '-',
-    is_proyek: false,
-    nama_proyek: '',
-    file_base64: '',
-    file_name: ''
+  // State Lightbox Slider Multi-Foto
+  const [lightbox, setLightbox] = useState({
+    isOpen: false,
+    urls: [],
+    index: 0,
+    title: '',
+    subtitle: '',
+    fallbackMap: {}
   });
+  const touchStartXRef = useRef(null);
 
-  // State Form 2: Validasi Lunas IPL & Parkir Warga
-  const [iplForm, setIplForm] = useState({
-    house_id: 'H-01',
-    periode_bulan: smartPeriod.bookMonth,
-    periode_tahun: smartPeriod.bookYear,
-    status_bayar: 'Lunas',
-    paket_id: 'IPL_ONLY',
-    nominal_bayar: 200000,
-    auto_jurnal_kas: true,
-    tanggal_bayar: new Date().toISOString().slice(0, 10),
-    catatan: 'Lunas IPL Bulanan (Rp 200.000)',
-    file_base64: '',
-    file_name: ''
-  });
+  // Deteksi mode PWA terinstal & tangkap event beforeinstallprompt Android/Desktop
+  const [isPwaInstalled, setIsPwaInstalled] = useState(false);
+  const [deferredPwaPrompt, setDeferredPwaPrompt] = useState(null);
+  const [isPwaSheetOpen, setIsPwaSheetOpen] = useState(false);
 
-  // State Form 3: Tutup Buku WA & Gaji Security
-  const [closingForm, setClosingForm] = useState({
-    periode_bulan: smartPeriod.calendarMonth,
-    periode_tahun: smartPeriod.calendarYear,
-    target_wa: ''
-  });
-
-  const [payrollForm, setPayrollForm] = useState({
-    nama_security: 'Pak Eko',
-    periode_bulan: smartPeriod.calendarMonth,
-    periode_tahun: smartPeriod.calendarYear,
-    gaji_pokok: 1650000,
-    uang_konsumsi: 0,
-    potongan_kasbon: 0,
-    catatan: ''
-  });
-
-  // Detak Tanggal & Jam Detik Real-Time WIB
   useEffect(() => {
-    const updateClock = () => {
-      const now = new Date();
-      const tgl = now.toLocaleDateString('id-ID', {
-        weekday: 'short',
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric'
-      });
-      const jam = now
-        .toLocaleTimeString('id-ID', {
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: false
-        })
-        .replace(/\./g, ':');
-      setLiveClock(`${tgl} • ${jam} WIB`);
+    try {
+      const standalone =
+        window.matchMedia?.('(display-mode: standalone)')?.matches ||
+        window.navigator?.standalone === true;
+      setIsPwaInstalled(Boolean(standalone));
+    } catch (_) {
+      setIsPwaInstalled(false);
+    }
+
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPwaPrompt(e);
     };
-    updateClock();
-    const timer = setInterval(updateClock, 1000);
+
+    const handleAppInstalled = () => {
+      setIsPwaInstalled(true);
+      setDeferredPwaPrompt(null);
+      setIsPwaSheetOpen(false);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
+
+  const handleTriggerNativePwaInstall = async () => {
+    if (!deferredPwaPrompt) return;
+    try {
+      deferredPwaPrompt.prompt();
+      const choice = await deferredPwaPrompt.userChoice;
+      if (choice && choice.outcome === 'accepted') {
+        setIsPwaInstalled(true);
+        setDeferredPwaPrompt(null);
+        setIsPwaSheetOpen(false);
+      }
+    } catch (_) {
+      // Abaikan jika dibatalkan pengguna
+    }
+  };
+
+  // Jam detik real-time WIB
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setLiveClock(formatLiveClockWib(new Date()));
+    }, 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // Navigasi Keyboard untuk Lightbox Slider (Panah Kiri/Kanan & Esc)
-  useEffect(() => {
-    if (!lightboxState) return;
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        setLightboxState(null);
-      } else if (e.key === 'ArrowRight' && lightboxState.photos.length > 1) {
-        setLightboxState((prev) =>
-          prev
-            ? { ...prev, activeIndex: (prev.activeIndex + 1) % prev.photos.length }
-            : null
-        );
-      } else if (e.key === 'ArrowLeft' && lightboxState.photos.length > 1) {
-        setLightboxState((prev) =>
-          prev
-            ? {
-                ...prev,
-                activeIndex: (prev.activeIndex - 1 + prev.photos.length) % prev.photos.length
-              }
-            : null
-        );
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [lightboxState]);
-
-  // Ambil Data dari Backend Google Apps Script
+  // Penarik Data Dashboard Live (Mendukung Mode Normal & Non-Blocking Background)
   const fetchDashboard = useCallback(
-    async (bulan = selectedMonth, tahun = selectedYear, silent = false) => {
-      if (!silent) setIsLoading(true);
-      setIsRefreshing(true);
+    async (bulan = selectedMonth, tahun = selectedYear, options = {}) => {
+      const isBg = Boolean(options.background);
+      if (isBg) {
+        setIsSyncingBackground(true);
+      } else {
+        setIsRefreshing(true);
+      }
+
       try {
         const res = await CMoneyAPI.getPublicDashboard(bulan, tahun);
         if (res && res.status === 'success') {
-          const normalizedHouses = normalizeHousesArray(res.houses);
-
-          setDashboardData({
+          setDashboardData((prev) => ({
+            ...prev,
             ...res,
-            houses: normalizedHouses
-          });
-          setIsOnline(true);
+            houses: Array.isArray(res.houses) && res.houses.length > 0 ? res.houses : prev.houses
+          }));
           setHasServerData(true);
-          const syncNow = new Date()
-            .toLocaleTimeString('id-ID', {
-              hour: '2-digit',
-              minute: '2-digit',
-              second: '2-digit',
-              hour12: false
-            })
-            .replace(/\./g, ':');
-          setLastSyncTime(`${syncNow} WIB`);
+          setIsOnline(true);
+          setBackendVersion(res.backend_version || '');
+          setLastSyncTime(formatSyncTimeWib(new Date()));
+        } else {
+          setIsOnline(false);
         }
       } catch (err) {
-        console.warn('Menggunakan data cadangan lokal:', err.message);
+        console.warn('Koneksi GAS gagal, menampilkan data tersimpan:', err?.message);
         setIsOnline(false);
-        setDashboardData((prev) =>
-          prev || {
-            status: 'success',
-            backend_version: 'offline',
-            app_name: 'C-Money',
-            cluster_full_name: 'Cluster Mutiara Residence Sumberjaya',
-            logo_url: '/assets/logo-cmoney.png',
-            current_balance: 1394200,
-            default_ipl_amount: 200000,
-            total_houses: 22,
-            total_active_houses: 21,
-            houses: normalizeHousesArray(FALLBACK_HOUSES),
-            ipl_status: [],
-            cash_ledger: [],
-            monthly_closings: [],
-            security_payroll: [],
-            security_schedules: [],
-            security_logs: [],
-            parking_slots: []
-          }
-        );
       } finally {
-        setIsLoading(false);
-        setIsRefreshing(false);
+        if (isBg) {
+          setIsSyncingBackground(false);
+        } else {
+          setIsRefreshing(false);
+        }
       }
     },
     [selectedMonth, selectedYear]
   );
 
+  // Ambil data saat pertama dibuka
   useEffect(() => {
-    fetchDashboard(selectedMonth, selectedYear);
-  }, [fetchDashboard, selectedMonth, selectedYear]);
+    fetchDashboard(initialPeriod.bulan, initialPeriod.tahun, { background: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Deteksi Kecocokan Versi Backend (Anti Salah Sambung Deployment GAS)
-  const backendVersion = dashboardData?.backend_version || '';
-  const isBackendOutdated =
-    hasServerData && backendVersion !== EXPECTED_BACKEND_VERSION;
+  // Ganti periode bulan/tahun
+  const handleChangePeriod = (bulan, tahun = selectedYear) => {
+    setSelectedMonth(bulan);
+    setSelectedYear(Number(tahun) || 2026);
+    fetchDashboard(bulan, Number(tahun) || 2026, { background: false });
+  };
 
-  // Daftar Rumah yang Sudah Diseragamkan ("No. XX / Nama Warga")
-  const housesList = dashboardData?.houses || normalizeHousesArray(FALLBACK_HOUSES);
-  const activeHousesList = housesList.filter(
-    (h) => String(h.status_huni || 'Aktif').toLowerCase() !== 'tidak aktif' && h.id !== 'H-04'
+  // Formatter seragam "No. XX / Nama Warga"
+  const formatHouseIdentity = useCallback(
+    (houseOrId) => {
+      if (!houseOrId || houseOrId === '-') return '-';
+      const houses = dashboardData.houses || FALLBACK_HOUSES;
+
+      if (typeof houseOrId === 'object') {
+        const digits = String(houseOrId.nomor_rumah || houseOrId.id || '').replace(/[^0-9]/g, '');
+        const cleanNum = digits ? digits.padStart(2, '0') : '--';
+        const name = String(houseOrId.nama_warga || houseOrId.nama_kepala_keluarga || 'Warga').trim();
+        return `No. ${cleanNum} / ${name}`;
+      }
+
+      const raw = String(houseOrId).trim();
+      const digits = raw.replace(/[^0-9]/g, '');
+      const cleanNum = digits ? digits.padStart(2, '0') : '';
+      const matched = houses.find(
+        (h) =>
+          String(h.id || '').toUpperCase() === raw.toUpperCase() ||
+          (cleanNum && String(h.nomor_rumah || '').replace(/[^0-9]/g, '').padStart(2, '0') === cleanNum)
+      );
+
+      if (matched) {
+        const num = String(matched.nomor_rumah || matched.id || '').replace(/[^0-9]/g, '').padStart(2, '0');
+        const name = String(matched.nama_warga || matched.nama_kepala_keluarga || 'Warga').trim();
+        return `No. ${num} / ${name}`;
+      }
+      return raw;
+    },
+    [dashboardData.houses]
   );
 
-  // Buka Pop-up Slider Lightbox Multi-Foto
-  const handleOpenLightbox = (
-    urlOrUrls,
-    title = 'Bukti Transaksi / Foto',
-    subtitle = '',
-    initialIndex = 0
-  ) => {
-    const photos = parseLightboxPhotos(urlOrUrls);
-    if (photos.length === 0) return;
-    const safeIdx = Math.max(0, Math.min(initialIndex, photos.length - 1));
-    setLightboxState({
-      photos,
-      activeIndex: safeIdx,
-      title,
-      subtitle
-    });
+  // Hitung badge jumlah Paket Menunggu di Pos & Warga Menunggu Validasi
+  const waitingPackagesCount = useMemo(() => {
+    const logs = Array.isArray(dashboardData.security_logs) ? dashboardData.security_logs : [];
+    return logs.filter(
+      (l) =>
+        l.kategori_laporan === 'PAKET_SURAT' &&
+        !String(l.sub_kategori || '').toLowerCase().includes('sudah')
+    ).length;
+  }, [dashboardData.security_logs]);
+
+  const pendingValidationCount = useMemo(() => {
+    const iplList = Array.isArray(dashboardData.ipl_status) ? dashboardData.ipl_status : [];
+    return iplList.filter((row) => {
+      const st = String(row.status_bayar || row.status || '').toLowerCase();
+      return st.includes('menunggu') || st.includes('pending') || st.includes('validasi');
+    }).length;
+  }, [dashboardData.ipl_status]);
+
+  const isBackendOutdated = useMemo(
+    () => Boolean(hasServerData && backendVersion && isVersionOlderThan(backendVersion, '6.3')),
+    [hasServerData, backendVersion]
+  );
+
+  const gasUrlPreview = useMemo(() => resolveGasUrlPreview(), []);
+
+  /* ==========================================================================
+   * HANDLER NAVIGASI & AKSI PUBLIK / PENGURUS (NON-BLOCKING BACKGROUND SYNC)
+   * ========================================================================== */
+
+  const handleSelectTab = (tabId) => {
+    setIsAdminViewActive(false);
+    setActiveTab(tabId);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handlePrevLightbox = () => {
-    setLightboxState((prev) =>
-      prev
-        ? { ...prev, activeIndex: (prev.activeIndex - 1 + prev.photos.length) % prev.photos.length }
-        : null
-    );
-  };
-
-  const handleNextLightbox = () => {
-    setLightboxState((prev) =>
-      prev ? { ...prev, activeIndex: (prev.activeIndex + 1) % prev.photos.length } : null
-    );
-  };
-
-  const handleLightboxTouchStart = (e) => {
-    touchStartXRef.current = e.touches?.[0]?.clientX ?? null;
-  };
-
-  const handleLightboxTouchEnd = (e) => {
-    if (touchStartXRef.current === null || !lightboxState || lightboxState.photos.length <= 1) {
-      return;
-    }
-    const endX = e.changedTouches?.[0]?.clientX ?? null;
-    if (endX === null) return;
-    const deltaX = touchStartXRef.current - endX;
-    if (deltaX > 45) {
-      handleNextLightbox();
-    } else if (deltaX < -45) {
-      handlePrevLightbox();
-    }
-    touchStartXRef.current = null;
-  };
-
-  const handleOpenQris = (houseObj = null) => {
-    setSelectedHouseForQris(houseObj);
+  const handleOpenQris = (house = null) => {
+    setQrisPreselectedHouse(house || null);
     setIsQrisModalOpen(true);
   };
 
-  const handleAdminButtonClick = () => {
+  const handleOpenAdmin = () => {
     if (isAdminLoggedIn) {
-      setIsAdminModalOpen(true);
+      setIsAdminViewActive(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
-      setIsLoginModalOpen(true);
+      setAuthError('');
+      setIsLoginSheetOpen(true);
     }
   };
 
-  const handleLoginSubmit = async (e) => {
-    e.preventDefault();
-    setLoginError('');
-    setIsSubmittingAdmin(true);
+  const handleAdminLogin = async (username, password) => {
+    setAuthError('');
+    setIsLoggingIn(true);
     try {
-      const res = await CMoneyAPI.loginPengurus(adminUser.username, adminUser.password);
+      const res = await CMoneyAPI.loginPengurus(username, password);
       if (res && res.status === 'success') {
+        if (res.user?.session_token) {
+          localStorage.setItem('cmoney_pengurus_token', res.user.session_token);
+        }
         setIsAdminLoggedIn(true);
-        setIsLoginModalOpen(false);
-        setIsAdminModalOpen(true);
+        setIsLoginSheetOpen(false);
+        setIsAdminViewActive(true);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
-        setLoginError(res?.message || 'Username atau password salah.');
+        setAuthError(res?.message || 'Username atau password pengurus salah.');
       }
     } catch (err) {
-      setLoginError(`Gagal terhubung ke server: ${err.message}`);
+      setAuthError(err?.message || 'Gagal terhubung ke server login.');
     } finally {
-      setIsSubmittingAdmin(false);
+      setIsLoggingIn(false);
     }
   };
 
   const handleLogoutAdmin = () => {
     localStorage.removeItem('cmoney_pengurus_token');
     setIsAdminLoggedIn(false);
-    setIsAdminModalOpen(false);
+    setIsAdminViewActive(false);
+    setActiveTab('beranda');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Handler Upload File Foto di Form 1 (Mutasi Kas — Fail-Safe)
-  const handleTxPhotoChange = async (e) => {
-    const file = e.target.files?.[0];
-    setTxPhotoError('');
-    if (!file) {
-      setTxForm((prev) => ({ ...prev, file_base64: '', file_name: '' }));
-      return;
-    }
-
-    setIsCompressingTxPhoto(true);
-    try {
-      const base64 = await compressImageToBase64(file, 900, 0.76);
-      setTxForm((prev) => ({
-        ...prev,
-        file_base64: base64,
-        file_name: file.name
-      }));
-    } catch (err) {
-      setTxPhotoError(err.message || 'Gagal membaca/mengompresi foto bukti. Pilih ulang foto lain.');
-      setTxForm((prev) => ({ ...prev, file_base64: '', file_name: '' }));
-    } finally {
-      setIsCompressingTxPhoto(false);
-    }
-  };
-
-  // Handler Upload File Foto di Form 2 (Validasi IPL — Fail-Safe)
-  const handleIplPhotoChange = async (e) => {
-    const file = e.target.files?.[0];
-    setIplPhotoError('');
-    if (!file) {
-      setIplForm((prev) => ({ ...prev, file_base64: '', file_name: '' }));
-      return;
-    }
-
-    setIsCompressingIplPhoto(true);
-    try {
-      const base64 = await compressImageToBase64(file, 900, 0.76);
-      setIplForm((prev) => ({
-        ...prev,
-        file_base64: base64,
-        file_name: file.name
-      }));
-    } catch (err) {
-      setIplPhotoError(err.message || 'Gagal membaca/mengompresi foto bukti IPL. Pilih ulang foto lain.');
-      setIplForm((prev) => ({ ...prev, file_base64: '', file_name: '' }));
-    } finally {
-      setIsCompressingIplPhoto(false);
-    }
-  };
-
-  const handleSelectPaymentPackage = (paketId) => {
-    const pkg = PAYMENT_PACKAGES_V6.find((p) => p.id === paketId) || PAYMENT_PACKAGES_V6[0];
-    setIplForm((prev) => ({
-      ...prev,
-      paket_id: pkg.id,
-      nominal_bayar: pkg.nominal,
-      catatan: pkg.catatanDefault
-    }));
-  };
-
-  // Submit Form 1: Simpan Mutasi Kas (Atomik / Fail-Safe)
-  const handleSubmitTransaction = async (e) => {
-    e.preventDefault();
-    if (isCompressingTxPhoto) {
-      setAdminStatusMsg({ type: 'error', text: 'Tunggu sebentar, foto bukti masih dikompresi...' });
-      return;
-    }
-    if (txPhotoError) {
-      setAdminStatusMsg({
-        type: 'error',
-        text: `Transaksi dibatalkan: ${txPhotoError}`
-      });
-      return;
-    }
-    if (!txForm.nominal || Number(txForm.nominal) <= 0) {
-      setAdminStatusMsg({ type: 'error', text: 'Nominal transaksi wajib diisi dengan benar.' });
-      return;
-    }
-
-    setIsSubmittingAdmin(true);
-    setAdminStatusMsg({ type: '', text: '' });
-
-    try {
-      const houseLabel =
-        txForm.house_id && txForm.house_id !== '-'
-          ? formatHouseIdentity(txForm.house_id, housesList)
-          : '';
-      const finalKeterangan =
-        houseLabel && !txForm.keterangan.includes(houseLabel)
-          ? `${txForm.keterangan} (${houseLabel})`.trim()
-          : txForm.keterangan;
-
-      const hasAttachedPhoto = Boolean(txForm.file_name || txForm.file_base64);
-
-      const res = await CMoneyAPI.inputTransaction({
-        ...txForm,
-        nominal: Number(txForm.nominal),
-        keterangan: finalKeterangan,
-        expect_photo: hasAttachedPhoto
-      });
-
-      if (res && res.status === 'success') {
-        const hasSavedProof = res.url_bukti && res.url_bukti !== '-';
-        setAdminStatusMsg({
-          type: 'success',
-          text: `Transaksi berhasil disimpan ke Buku Kas ${txForm.periode_bulan}.${
-            hasSavedProof ? ' Foto bukti berhasil tersimpan di Google Drive!' : ''
-          }`
-        });
-        setTxForm((prev) => ({
-          ...prev,
-          nominal: '',
-          keterangan: '',
-          nama_proyek: '',
-          is_proyek: false,
-          file_base64: '',
-          file_name: ''
-        }));
-        setTxPhotoError('');
-        await fetchDashboard(selectedMonth, selectedYear, true);
-      } else {
-        setAdminStatusMsg({
-          type: 'error',
-          text: res?.message || 'Gagal menyimpan mutasi kas. Saldo tidak berubah.'
-        });
-      }
-    } catch (err) {
-      setAdminStatusMsg({
-        type: 'error',
-        text: `Gagal menyimpan transaksi: ${err.message}`
-      });
-    } finally {
-      setIsSubmittingAdmin(false);
-    }
-  };
-
-  // Submit Form 2: Validasi Status Lunas IPL & Parkir Warga (Selaras Kolom `nominal` V6.3)
-  const handleSubmitIplUpdate = async (e) => {
-    e.preventDefault();
-    if (isCompressingIplPhoto) {
-      setAdminStatusMsg({ type: 'error', text: 'Tunggu sebentar, foto bukti IPL masih dikompresi...' });
-      return;
-    }
-    if (iplPhotoError) {
-      setAdminStatusMsg({
-        type: 'error',
-        text: `Validasi dibatalkan: ${iplPhotoError}`
-      });
-      return;
-    }
-
-    setIsSubmittingAdmin(true);
-    setAdminStatusMsg({ type: '', text: '' });
-
-    try {
-      const houseIdentity = formatHouseIdentity(iplForm.house_id, housesList);
-      const selectedPkg =
-        PAYMENT_PACKAGES_V6.find((p) => p.id === iplForm.paket_id) || PAYMENT_PACKAGES_V6[0];
-      const hasAttachedPhoto = Boolean(iplForm.file_name || iplForm.file_base64);
-
-      const res = await CMoneyAPI.updateIplStatus({
-        house_id: iplForm.house_id,
-        periode_bulan: iplForm.periode_bulan,
-        periode_tahun: Number(iplForm.periode_tahun),
-        status_bayar: iplForm.status_bayar,
-        nominal: Number(iplForm.nominal_bayar),
-        nominal_bayar: Number(iplForm.nominal_bayar),
-        paket_bayar: selectedPkg.label,
-        auto_jurnal: Boolean(iplForm.auto_jurnal_kas),
-        tanggal_bayar: iplForm.tanggal_bayar,
-        catatan: `${iplForm.catatan} — ${houseIdentity}`,
-        file_base64: iplForm.file_base64,
-        file_name: iplForm.file_name,
-        expect_photo: hasAttachedPhoto
-      });
-
-      if (res && res.status === 'success') {
-        const journalInfo = res.auto_ledger_id
-          ? ' & otomatis dicatat ke Buku Kas (Saldo Live terupdate)!'
-          : '!';
-        setAdminStatusMsg({
-          type: 'success',
-          text: `Status ${houseIdentity} (${iplForm.periode_bulan}) berhasil diperbarui menjadi ${iplForm.status_bayar}${journalInfo}`
-        });
-        setIplForm((prev) => ({
-          ...prev,
-          file_base64: '',
-          file_name: ''
-        }));
-        setIplPhotoError('');
-        await fetchDashboard(selectedMonth, selectedYear, true);
-      } else {
-        setAdminStatusMsg({
-          type: 'error',
-          text: res?.message || 'Gagal memperbarui status IPL.'
-        });
-      }
-    } catch (err) {
-      setAdminStatusMsg({ type: 'error', text: `Error: ${err.message}` });
-    } finally {
-      setIsSubmittingAdmin(false);
-    }
-  };
-
-  // Submit Form 3A: Tutup Buku & Kirim WA via Fonnte
-  const handleSubmitClosingWa = async (e) => {
-    e.preventDefault();
-    setIsSubmittingAdmin(true);
-    setAdminStatusMsg({ type: '', text: '' });
-    try {
-      const res = await CMoneyAPI.closeMonthAndSendWa(
-        closingForm.periode_bulan,
-        Number(closingForm.periode_tahun),
-        closingForm.target_wa
-      );
-      if (res && res.status === 'success') {
-        setAdminStatusMsg({
-          type: 'success',
-          text: `Rekap Tutup Buku ${closingForm.periode_bulan} berhasil diproses (Status Fonnte: ${res.fonnte_status}).`
-        });
-        await fetchDashboard(selectedMonth, selectedYear, true);
-      } else {
-        setAdminStatusMsg({ type: 'error', text: res?.message || 'Gagal tutup buku.' });
-      }
-    } catch (err) {
-      setAdminStatusMsg({ type: 'error', text: `Error: ${err.message}` });
-    } finally {
-      setIsSubmittingAdmin(false);
-    }
-  };
-
-  // Submit Form 3B: Simpan Rekap Gaji & Kasbon Security
-  const handleSubmitPayroll = async (e) => {
-    e.preventDefault();
-    setIsSubmittingAdmin(true);
-    setAdminStatusMsg({ type: '', text: '' });
-    try {
-      const res = await CMoneyAPI.inputPayroll(payrollForm);
-      if (res && res.status === 'success') {
-        setAdminStatusMsg({
-          type: 'success',
-          text: `Slip gaji ${payrollForm.nama_security} (${payrollForm.periode_bulan}) tercatat. Gaji bersih: Rp ${Number(
-            res.gaji_bersih || 0
-          ).toLocaleString('id-ID')}`
-        });
-        await fetchDashboard(selectedMonth, selectedYear, true);
-      } else {
-        setAdminStatusMsg({ type: 'error', text: res?.message || 'Gagal menyimpan slip gaji.' });
-      }
-    } catch (err) {
-      setAdminStatusMsg({ type: 'error', text: `Error: ${err.message}` });
-    } finally {
-      setIsSubmittingAdmin(false);
-    }
-  };
-
-  // Handler Publik: Konfirmasi Bayar QRIS Mandiri oleh Warga (Foto Opsional)
-  const handlePublicUploadIplProof = async (proofPayload) => {
-    const res = await CMoneyAPI.uploadIplProof(proofPayload);
+  // Simpan Mutasi Kas Pengurus -> Konfirmasi server dulu, lalu sinkronisasi latar (Non-Blocking)
+  const handleSaveTransaction = async (txPayload) => {
+    const enriched = {
+      ...txPayload,
+      nominal: Number(txPayload.nominal || 0),
+      expect_photo: Boolean(txPayload.file_base64)
+    };
+    const res = await CMoneyAPI.inputTransaction(enriched);
     if (res && res.status === 'success') {
-      await fetchDashboard(selectedMonth, selectedYear, true);
+      if (res.new_balance !== undefined) {
+        setDashboardData((prev) => ({ ...prev, current_balance: Number(res.new_balance) }));
+      }
+      fetchDashboard(selectedMonth, selectedYear, { background: true });
     }
     return res;
   };
 
-  // Handler Publik/Security: Simpan Laporan Pos, Patroli, & Paket (Verifikasi Respon Nyata Server)
+  // Validasi Lunas Warga Pengurus -> Konfirmasi server dulu, lalu sinkronisasi latar (Non-Blocking)
+  const handleValidateIpl = async (iplPayload) => {
+    const statusFinal = iplPayload.status_bayar || iplPayload.status || 'Lunas';
+    const nominalFinal = Number(iplPayload.nominal || iplPayload.nominal_ipl || 200000);
+    const enriched = {
+      ...iplPayload,
+      status_bayar: statusFinal,
+      status: statusFinal,
+      nominal: nominalFinal,
+      nominal_ipl: nominalFinal,
+      expect_photo: Boolean(iplPayload.file_base64)
+    };
+    const res = await CMoneyAPI.updateIplStatus(enriched);
+    if (res && res.status === 'success') {
+      if (res.new_balance !== undefined) {
+        setDashboardData((prev) => ({ ...prev, current_balance: Number(res.new_balance) }));
+      }
+      fetchDashboard(selectedMonth, selectedYear, { background: true });
+    }
+    return res;
+  };
+
+  // Tutup Buku & Kirim WA via Fonnte
+  const handleCloseMonthWa = async (bulan, tahun, targetWa = '') => {
+    const res = await CMoneyAPI.closeMonthAndSendWa(bulan, tahun, targetWa);
+    if (res && res.status === 'success') {
+      fetchDashboard(selectedMonth, selectedYear, { background: true });
+    }
+    return res;
+  };
+
+  // Konfirmasi Bayar QRIS Warga (Foto Opsional + Fail-Safe)
+  const handleUploadQrisProof = async (proofPayload) => {
+    const nominalFinal = Number(proofPayload.nominal || proofPayload.nominal_bayar || 200000);
+    const enriched = {
+      ...proofPayload,
+      nominal: nominalFinal,
+      nominal_total: nominalFinal,
+      paket_bayar: proofPayload.paket_pembayaran || 'IPL Saja',
+      expect_photo: Boolean(proofPayload.file_base64)
+    };
+    const res = await CMoneyAPI.uploadIplProof(enriched);
+    if (res && res.status === 'success') {
+      fetchDashboard(selectedMonth, selectedYear, { background: true });
+    }
+    return res;
+  };
+
+  // Laporan Pos / Absensi / Paket Security (Termasuk Multi-Foto & SecurityAttendanceCard)
   const handleInputSecurityLog = async (logPayload) => {
     const res = await CMoneyAPI.inputSecurityLog(logPayload);
     if (res && res.status === 'success') {
-      await fetchDashboard(selectedMonth, selectedYear, true);
+      fetchDashboard(selectedMonth, selectedYear, { background: true });
     }
     return res;
   };
 
-  // Handler Publik/Security: Check-In / Check-Out Denah 6 Slot Parkir Dinamis
+  // Update Denah 6 Slot Parkir oleh Security
   const handleUpdateParkingSlot = async (slotPayload) => {
+    if (typeof CMoneyAPI.updateParkingSlot !== 'function') {
+      return { status: 'error', message: 'Fungsi updateParkingSlot belum tersedia di apiService.' };
+    }
     const res = await CMoneyAPI.updateParkingSlot(slotPayload);
     if (res && res.status === 'success') {
-      await fetchDashboard(selectedMonth, selectedYear, true);
+      fetchDashboard(selectedMonth, selectedYear, { background: true });
     }
     return res;
   };
 
-  const activeLightboxPhoto = lightboxState
-    ? lightboxState.photos[lightboxState.activeIndex] || lightboxState.photos[0]
-    : null;
+  /* ==========================================================================
+   * IN-APP LIGHTBOX SLIDER MULTI-FOTO (SWIPE HP + KEYBOARD DESKTOP + THUMBNAIL)
+   * ========================================================================== */
+
+  const openLightbox = useCallback((urlOrUrls, title = 'Bukti Lampiran', subtitle = '', initialIndex = 0) => {
+    let list = [];
+    if (Array.isArray(urlOrUrls)) {
+      list = urlOrUrls.filter((u) => u && u !== '-');
+    } else if (typeof urlOrUrls === 'string' && urlOrUrls !== '-') {
+      list = urlOrUrls
+        .split('|')
+        .map((u) => u.trim())
+        .filter((u) => u && u !== '-');
+    }
+    if (list.length === 0) return;
+
+    const safeIndex = Math.max(0, Math.min(Number(initialIndex) || 0, list.length - 1));
+    setLightbox({
+      isOpen: true,
+      urls: list,
+      index: safeIndex,
+      title: title || 'Pratinjau Foto',
+      subtitle: subtitle || '',
+      fallbackMap: {}
+    });
+  }, []);
+
+  const closeLightbox = useCallback(() => {
+    setLightbox((prev) => ({ ...prev, isOpen: false }));
+  }, []);
+
+  const stepLightbox = useCallback((delta) => {
+    setLightbox((prev) => {
+      if (!prev.urls.length) return prev;
+      const nextIdx = (prev.index + delta + prev.urls.length) % prev.urls.length;
+      return { ...prev, index: nextIdx };
+    });
+  }, []);
+
+  // Navigasi Keyboard untuk Lightbox di Desktop
+  useEffect(() => {
+    if (!lightbox.isOpen) return;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') closeLightbox();
+      if (e.key === 'ArrowRight' && lightbox.urls.length > 1) stepLightbox(1);
+      if (e.key === 'ArrowLeft' && lightbox.urls.length > 1) stepLightbox(-1);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [lightbox.isOpen, lightbox.urls.length, closeLightbox, stepLightbox]);
+
+  const activeLightboxRawUrl = lightbox.urls[lightbox.index] || '';
+  const activeLightboxSrc = toDirectImageUrl(
+    activeLightboxRawUrl,
+    Boolean(lightbox.fallbackMap[lightbox.index])
+  );
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-800 pb-10">
-      {/* DASHBOARD UTAMA PUBLIK WARGA & SECURITY */}
-      <PublicDashboard
-        data={dashboardData}
-        isLoading={isLoading}
-        isRefreshing={isRefreshing}
+    <>
+      <AppShellNav
+        activeTab={activeTab}
+        onSelectTab={handleSelectTab}
+        onOpenQris={handleOpenQris}
+        onOpenAdmin={handleOpenAdmin}
+        onRefresh={() => fetchDashboard(selectedMonth, selectedYear, { background: false })}
+        isRefreshing={isRefreshing || isSyncingBackground}
         isOnline={isOnline}
-        hasServerData={hasServerData}
+        isAdminLoggedIn={isAdminLoggedIn}
+        isAdminViewActive={isAdminViewActive}
         backendVersion={backendVersion}
         expectedBackendVersion={EXPECTED_BACKEND_VERSION}
         isBackendOutdated={isBackendOutdated}
-        activeGasUrlBadge={activeGasUrlBadge}
         liveClock={liveClock}
         lastSyncTime={lastSyncTime}
+        packageCount={waitingPackagesCount}
+        pendingValidationCount={pendingValidationCount}
+        logoUrl={dashboardData.logo_url || '/assets/logo-cmoney.png'}
+        appName={dashboardData.app_name || 'C-Money'}
+        clusterSubtitle="Mutiara Residence"
+      >
+        {isAdminViewActive && isAdminLoggedIn ? (
+          <AdminWorkspace
+            dashboardData={dashboardData}
+            selectedMonth={selectedMonth}
+            selectedYear={selectedYear}
+            onChangePeriod={handleChangePeriod}
+            onBackToHome={() => {
+              setIsAdminViewActive(false);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            onLogout={handleLogoutAdmin}
+            onSaveTransaction={handleSaveTransaction}
+            onValidateIpl={handleValidateIpl}
+            onCloseMonthWa={handleCloseMonthWa}
+            onRefresh={() => fetchDashboard(selectedMonth, selectedYear, { background: false })}
+            onOpenLightbox={openLightbox}
+            onOpenPwaInstall={() => setIsPwaSheetOpen(true)}
+            isRefreshing={isRefreshing}
+            isSyncingBackground={isSyncingBackground}
+            isOnline={isOnline}
+            backendVersion={backendVersion || EXPECTED_BACKEND_VERSION}
+            expectedBackendVersion={EXPECTED_BACKEND_VERSION}
+            isBackendOutdated={isBackendOutdated}
+            gasUrlPreview={gasUrlPreview}
+            lastSyncTime={lastSyncTime}
+            logoUrl={dashboardData.logo_url || '/assets/logo-cmoney.png'}
+          />
+        ) : (
+          <PublicDashboard
+            data={dashboardData}
+            hasServerData={hasServerData}
+            selectedMonth={selectedMonth}
+            selectedYear={selectedYear}
+            onChangePeriod={handleChangePeriod}
+            activeTab={activeTab}
+            setActiveTab={handleSelectTab}
+            onOpenQris={handleOpenQris}
+            onOpenAdmin={handleOpenAdmin}
+            onInputSecurityLog={handleInputSecurityLog}
+            onUpdateParkingSlot={handleUpdateParkingSlot}
+            onOpenLightbox={openLightbox}
+            onOpenPwaInstall={() => setIsPwaSheetOpen(true)}
+            isPwaInstalled={isPwaInstalled}
+            formatHouseIdentity={formatHouseIdentity}
+          />
+        )}
+      </AppShellNav>
+
+      {/* BOTTOM SHEET / MODAL BAYAR QRIS WARGA */}
+      <QrisPaymentModal
+        isOpen={isQrisModalOpen}
+        onClose={() => {
+          setIsQrisModalOpen(false);
+          setQrisPreselectedHouse(null);
+        }}
+        houses={dashboardData.houses || FALLBACK_HOUSES}
+        selectedHouse={qrisPreselectedHouse}
         selectedMonth={selectedMonth}
         selectedYear={selectedYear}
-        onChangePeriod={(bulan, tahun) => {
-          if (bulan) setSelectedMonth(bulan);
-          if (tahun) setSelectedYear(Number(tahun));
-        }}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        onRefresh={() => fetchDashboard(selectedMonth, selectedYear, false)}
-        onOpenQris={handleOpenQris}
-        onOpenAdmin={handleAdminButtonClick}
-        isAdminLoggedIn={isAdminLoggedIn}
-        onInputSecurityLog={handleInputSecurityLog}
-        onUpdateParkingSlot={handleUpdateParkingSlot}
-        onOpenLightbox={handleOpenLightbox}
-        formatHouseIdentity={(hOrId) => formatHouseIdentity(hOrId, housesList)}
+        defaultIplAmount={dashboardData.default_ipl_amount || 200000}
+        cutoffDay={
+          dashboardData.parking_config?.cutoff_day_ipl ||
+          dashboardData.smart_period?.cutoff_day ||
+          25
+        }
+        qrisImageUrl={dashboardData.qris_image_url || '/assets/qris-cmr-statis.png'}
+        qrisMerchantName={dashboardData.qris_merchant_name || 'Cluster Mutiara Residence'}
+        qrisNmid={dashboardData.qris_nmid || 'ID1026000000CMR'}
+        logoUrl={dashboardData.logo_url || '/assets/logo-cmoney.png'}
+        onSubmitProof={handleUploadQrisProof}
+        onOpenLightbox={openLightbox}
       />
 
-      {/* MODAL PEMBAYARAN QRIS WARGA (FOTO OPSIONAL) */}
-      {isQrisModalOpen && (
-        <QrisPaymentModal
-          isOpen={isQrisModalOpen}
-          onClose={() => setIsQrisModalOpen(false)}
-          houses={activeHousesList}
-          selectedHouse={selectedHouseForQris}
-          defaultMonth={smartPeriod.bookMonth}
-          defaultYear={smartPeriod.bookYear}
-          qrisImageUrl={dashboardData?.qris_image_url || '/assets/qris-cmr-statis.png'}
-          qrisMerchantName={dashboardData?.qris_merchant_name || 'Cluster Mutiara Residence'}
-          onUploadProof={handlePublicUploadIplProof}
-          onConfirmQrisProof={handlePublicUploadIplProof}
-          onOpenLightbox={handleOpenLightbox}
-          formatHouseIdentity={(hOrId) => formatHouseIdentity(hOrId, housesList)}
-        />
-      )}
+      {/* BOTTOM SHEET / MODAL LOGIN PENGURUS */}
+      <AdminLoginSheet
+        isOpen={isLoginSheetOpen}
+        onClose={() => {
+          setIsLoginSheetOpen(false);
+          setAuthError('');
+        }}
+        onSubmitLogin={handleAdminLogin}
+        isSubmitting={isLoggingIn}
+        authError={authError}
+        logoUrl={dashboardData.logo_url || '/assets/logo-cmoney.png'}
+      />
 
-      {/* MODAL IN-APP LIGHTBOX SLIDER V6.3 (MENDUKUNG MULTI-FOTO, PANAH, THUMBNAIL, & SWIPE HP) */}
-      {lightboxState && activeLightboxPhoto && (
+      {/* BOTTOM SHEET PANDUAN & INSTALASI PWA UNIVERSAL (ANDROID & IOS) */}
+      <PwaInstallSheet
+        isOpen={isPwaSheetOpen}
+        onClose={() => setIsPwaSheetOpen(false)}
+        deferredPrompt={deferredPwaPrompt}
+        onTriggerNativeInstall={handleTriggerNativePwaInstall}
+        isInstalled={isPwaInstalled}
+        logoUrl={dashboardData.logo_url || '/assets/logo-cmoney.png'}
+      />
+      
+      {/* ====================================================================
+          IN-APP LIGHTBOX SLIDER MULTI-FOTO (SWIPE HP + THUMBNAIL + DRIVE LINK)
+      ==================================================================== */}
+      {lightbox.isOpen && (
         <div
-          className="fixed inset-0 z-[90] bg-slate-900/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5"
-          onClick={() => setLightboxState(null)}
+          onClick={closeLightbox}
+          className="fixed inset-0 z-[70] bg-slate-950/92 backdrop-blur-sm flex flex-col justify-between p-3 sm:p-5 animate-fade-in"
         >
+          {/* Bar Atas Lightbox */}
           <div
-            className="bg-white rounded-3xl max-w-2xl w-full overflow-hidden shadow-2xl border border-slate-200 flex flex-col max-h-[92vh]"
             onClick={(e) => e.stopPropagation()}
+            className="max-w-4xl w-full mx-auto flex items-center justify-between gap-3 text-white"
           >
-            {/* Header Lightbox */}
-            <div className="px-5 py-3.5 bg-teal-900 text-white flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h3 className="font-bold text-sm truncate">{lightboxState.title}</h3>
-                  {lightboxState.photos.length > 1 && (
-                    <span className="text-[11px] font-black bg-emerald-400 text-slate-950 px-2 py-0.5 rounded-full shrink-0">
-                      Foto {lightboxState.activeIndex + 1} / {lightboxState.photos.length}
-                    </span>
-                  )}
-                </div>
-                {lightboxState.subtitle && (
-                  <p className="text-xs text-teal-200 mt-0.5 truncate">{lightboxState.subtitle}</p>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-extrabold truncate">{lightbox.title}</p>
+                {lightbox.urls.length > 1 && (
+                  <span className="px-2 py-0.5 rounded-full bg-white/15 text-[11px] font-black shrink-0">
+                    Foto {lightbox.index + 1} / {lightbox.urls.length}
+                  </span>
                 )}
               </div>
-              <button
-                type="button"
-                onClick={() => setLightboxState(null)}
-                className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center font-bold text-sm shrink-0 cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Area Gambar Utama + Navigasi Slide & Swipe */}
-            <div
-              className="relative p-4 bg-slate-950 flex items-center justify-center min-h-[280px] sm:min-h-[360px] max-h-[60vh] overflow-hidden select-none"
-              onTouchStart={handleLightboxTouchStart}
-              onTouchEnd={handleLightboxTouchEnd}
-            >
-              {lightboxState.photos.length > 1 && (
-                <button
-                  type="button"
-                  onClick={handlePrevLightbox}
-                  aria-label="Foto sebelumnya"
-                  className="absolute left-3 z-10 w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 text-white border border-white/20 flex items-center justify-center font-black text-base shadow-lg cursor-pointer transition"
-                >
-                  ◀
-                </button>
-              )}
-
-              <img
-                key={activeLightboxPhoto.imageUrl}
-                src={activeLightboxPhoto.imageUrl}
-                alt={`${lightboxState.title} (${lightboxState.activeIndex + 1})`}
-                className="max-w-full max-h-[55vh] object-contain rounded-xl"
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = '/assets/logo-cmoney.png';
-                }}
-              />
-
-              {lightboxState.photos.length > 1 && (
-                <button
-                  type="button"
-                  onClick={handleNextLightbox}
-                  aria-label="Foto berikutnya"
-                  className="absolute right-3 z-10 w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 text-white border border-white/20 flex items-center justify-center font-black text-base shadow-lg cursor-pointer transition"
-                >
-                  ▶
-                </button>
+              {lightbox.subtitle && (
+                <p className="text-xs text-slate-300 truncate mt-0.5">{lightbox.subtitle}</p>
               )}
             </div>
 
-            {/* Barisan Thumbnail (Muncul otomatis jika jumlah foto > 1) */}
-            {lightboxState.photos.length > 1 && (
-              <div className="px-4 py-2.5 bg-slate-900 border-t border-slate-800 flex items-center justify-center gap-2 overflow-x-auto">
-                {lightboxState.photos.map((p, idx) => {
-                  const isActive = idx === lightboxState.activeIndex;
-                  return (
-                    <button
-                      key={`${p.rawUrl}-${idx}`}
-                      type="button"
-                      onClick={() =>
-                        setLightboxState((prev) => (prev ? { ...prev, activeIndex: idx } : null))
-                      }
-                      className={`relative w-12 h-12 rounded-xl overflow-hidden border-2 shrink-0 transition cursor-pointer ${
-                        isActive
-                          ? 'border-emerald-400 scale-105 shadow-md'
-                          : 'border-slate-700 opacity-60 hover:opacity-100'
-                      }`}
-                    >
-                      <img
-                        src={p.imageUrl}
-                        alt={`Thumbnail ${idx + 1}`}
-                        className="w-full h-full object-cover"
-                      />
-                      <span className="absolute bottom-0 right-0 bg-black/70 text-white text-[9px] font-bold px-1">
-                        {idx + 1}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* Footer Lightbox */}
-            <div className="px-5 py-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-2 flex-wrap">
-              <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 shrink-0">
+              {activeLightboxRawUrl && !activeLightboxRawUrl.startsWith('data:image') && (
                 <a
-                  href={activeLightboxPhoto.rawUrl}
+                  href={activeLightboxRawUrl}
                   target="_blank"
-                  rel="noreferrer"
-                  className="text-xs font-semibold text-teal-700 hover:underline"
+                  rel="noopener noreferrer"
+                  title="Buka Resolusi Penuh"
+                  className="h-9 px-3 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-bold inline-flex items-center gap-1.5 transition"
                 >
-                  🔗 Buka Resolusi Penuh di Google Drive
+                  <IconDownload size={15} />
+                  <span className="hidden sm:inline">Buka Asli</span>
                 </a>
-                {lightboxState.photos.length > 1 && (
-                  <span className="hidden sm:inline text-[11px] text-slate-400">
-                    (Geser / klik ◀ ▶ untuk foto lainnya)
-                  </span>
-                )}
-              </div>
+              )}
+
               <button
                 type="button"
-                onClick={() => setLightboxState(null)}
-                className="px-4 py-1.5 rounded-xl bg-slate-800 text-white text-xs font-bold hover:bg-slate-700 cursor-pointer"
+                onClick={closeLightbox}
+                aria-label="Tutup Pratinjau"
+                className="w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition cursor-pointer"
               >
-                Tutup Gambar
+                <IconClose size={18} />
               </button>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* MODAL LOGIN PENGURUS (1 AKUN TUNGGAL) */}
-      {isLoginModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-lg font-extrabold text-slate-800">🔒 Akses Pengurus CMR</h3>
-                <p className="text-xs text-slate-500">Login Bendahara & Pengurus Cluster</p>
-              </div>
+          {/* Area Gambar Utama (Mendukung Swipe Kanan/Kiri di HP) */}
+          <div
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => {
+              touchStartXRef.current = e.touches?.[0]?.clientX ?? null;
+            }}
+            onTouchEnd={(e) => {
+              if (touchStartXRef.current === null || lightbox.urls.length <= 1) return;
+              const endX = e.changedTouches?.[0]?.clientX ?? touchStartXRef.current;
+              const diff = endX - touchStartXRef.current;
+              if (diff > 45) stepLightbox(-1);
+              else if (diff < -45) stepLightbox(1);
+              touchStartXRef.current = null;
+            }}
+            className="flex-1 my-3 flex items-center justify-center relative max-w-4xl w-full mx-auto min-h-0"
+          >
+            {lightbox.urls.length > 1 && (
               <button
                 type="button"
-                onClick={() => setIsLoginModalOpen(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-600 font-bold cursor-pointer"
+                onClick={() => stepLightbox(-1)}
+                aria-label="Foto sebelumnya"
+                className="absolute left-1 sm:left-2 z-10 w-10 h-10 rounded-full bg-black/50 hover:bg-black/75 text-white flex items-center justify-center transition cursor-pointer"
               >
-                ✕
+                <IconArrowLeft size={18} />
               </button>
-            </div>
-
-            {loginError && (
-              <div className="mb-3 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 font-medium">
-                {loginError}
-              </div>
             )}
 
-            <form onSubmit={handleLoginSubmit} className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">Username</label>
-                <input
-                  type="text"
-                  required
-                  value={adminUser.username}
-                  onChange={(e) => setAdminUser({ ...adminUser, username: e.target.value })}
-                  placeholder="Username pengurus"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1">Password</label>
-                <input
-                  type="password"
-                  required
-                  value={adminUser.password}
-                  onChange={(e) => setAdminUser({ ...adminUser, password: e.target.value })}
-                  placeholder="••••••••"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-teal-600"
-                />
-              </div>
+            <img
+              key={`${lightbox.index}-${lightbox.fallbackMap[lightbox.index] ? 'fb' : 'main'}`}
+              src={activeLightboxSrc}
+              alt={lightbox.title}
+              onError={() => {
+                if (!lightbox.fallbackMap[lightbox.index]) {
+                  setLightbox((prev) => ({
+                    ...prev,
+                    fallbackMap: { ...prev.fallbackMap, [prev.index]: true }
+                  }));
+                }
+              }}
+              className="max-h-[72vh] max-w-full object-contain rounded-2xl shadow-2xl select-none"
+            />
+
+            {lightbox.urls.length > 1 && (
               <button
-                type="submit"
-                disabled={isSubmittingAdmin}
-                className="w-full py-3 rounded-xl bg-teal-800 hover:bg-teal-900 text-white font-bold text-sm transition shadow-md cursor-pointer"
+                type="button"
+                onClick={() => stepLightbox(1)}
+                aria-label="Foto berikutnya"
+                className="absolute right-1 sm:right-2 z-10 w-10 h-10 rounded-full bg-black/50 hover:bg-black/75 text-white flex items-center justify-center transition cursor-pointer"
               >
-                {isSubmittingAdmin ? 'Memverifikasi...' : 'Masuk Panel Pengurus'}
+                <IconChevronRight size={20} />
               </button>
-            </form>
+            )}
           </div>
-        </div>
-      )}
 
-      {/* PANEL KENDALI PENGURUS V6.3 (DIAGNOSTIK GAS URL + 3 FORM UTAMA BENDAHARA) */}
-      {isAdminModalOpen && isAdminLoggedIn && (
-        <div className="fixed inset-0 z-50 bg-slate-900/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[92vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden my-auto">
-            {/* Header Panel Pengurus + Badge Diagnostik Versi & Ujung Link GAS */}
-            <div className="px-5 py-4 bg-gradient-to-r from-teal-900 to-emerald-800 text-white flex items-center justify-between gap-2">
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-[10px] uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full font-bold">
-                    Panel Pengurus V6.3
-                  </span>
-                  <span
-                    className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-bold border ${
-                      isBackendOutdated
-                        ? 'bg-amber-400 text-slate-950 border-amber-300'
-                        : 'bg-emerald-400/25 border-emerald-300/40 text-emerald-100'
-                    }`}
-                  >
-                    GAS API: {backendVersion || 'lama'}
-                  </span>
-                  <span
-                    title="Potongan ujung URL Web App dari src/config/gasConfig.js"
-                    className="text-[10px] font-mono bg-black/25 border border-white/15 px-2 py-0.5 rounded-full text-teal-100"
-                  >
-                    URL: {activeGasUrlBadge}
-                  </span>
-                </div>
-                <h2 className="text-base sm:text-lg font-extrabold mt-1">
-                  Bendahara & Operasional CMR
-                </h2>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
+          {/* Strip Thumbnail (Muncul Jika > 1 Foto) */}
+          {lightbox.urls.length > 1 ? (
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+              className="max-w-4xl w-full mx-auto flex items-center justify-center gap-2 overflow-x-auto py-1"
+            >
+              {lightbox.urls.map((u, idx) => (
                 <button
+                  key={idx}
                   type="button"
-                  onClick={() => setIsAdminModalOpen(false)}
-                  className="px-3 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-xs font-bold flex items-center gap-1 cursor-pointer"
-                >
-                  ← Layar Utama
-                </button>
-                <button
-                  type="button"
-                  onClick={handleLogoutAdmin}
-                  className="px-3 py-1.5 rounded-xl bg-rose-500/80 hover:bg-rose-600 text-xs font-bold cursor-pointer"
-                >
-                  Logout
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsAdminModalOpen(false)}
-                  className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center font-bold cursor-pointer"
-                >
-                  ✕
-                </button>
-              </div>
-            </div>
-
-            {/* Peringatan Otomatis di Panel Pengurus Jika API GAS Belum v6.3 */}
-            {isBackendOutdated && (
-              <div className="px-5 py-2.5 bg-amber-50 border-b border-amber-200 text-xs text-amber-950 font-semibold">
-                ⚠️ Server GAS terdeteksi <strong>{backendVersion || 'versi lama'}</strong> (seharusnya{' '}
-                <strong>{EXPECTED_BACKEND_VERSION}</strong>). Cocokkan link di{' '}
-                <code className="bg-amber-100 px-1 rounded">src/config/gasConfig.js</code> dengan URL
-                Web App pada <em>Manage deployments</em> Apps Script.
-              </div>
-            )}
-
-            {/* Bar Pintasan Navigasi ke Layar Utama */}
-            <div className="px-5 py-2 bg-slate-100 border-b border-slate-200 flex items-center justify-between flex-wrap gap-2 text-xs">
-              <span className="font-semibold text-slate-500">Buka Cepat Menu Utama:</span>
-              <div className="flex items-center gap-1.5 flex-wrap">
-                {[
-                  { id: 'beranda', label: '🏠 Beranda' },
-                  { id: 'rumah', label: '🏘️ Warga' },
-                  { id: 'mutasi', label: '📑 Buku Kas' },
-                  { id: 'parkir', label: '🅿️ Parkir' },
-                  { id: 'keamanan', label: '🛡️ Pos Security' }
-                ].map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => {
-                      setActiveTab(t.id);
-                      setIsAdminModalOpen(false);
-                    }}
-                    className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:border-teal-600 text-slate-700 font-semibold cursor-pointer"
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* 3 Tab Tugas Utama Bendahara */}
-            <div className="grid grid-cols-3 gap-1 p-2 bg-slate-50 border-b border-slate-200">
-              <button
-                type="button"
-                onClick={() => {
-                  setAdminActiveSection('mutasi');
-                  setAdminStatusMsg({ type: '', text: '' });
-                }}
-                className={`py-2.5 px-3 rounded-xl text-xs font-extrabold transition cursor-pointer ${
-                  adminActiveSection === 'mutasi'
-                    ? 'bg-teal-800 text-white shadow'
-                    : 'text-slate-600 hover:bg-slate-200/70'
-                }`}
-              >
-                1. Input Mutasi Kas
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAdminActiveSection('ipl');
-                  setAdminStatusMsg({ type: '', text: '' });
-                }}
-                className={`py-2.5 px-3 rounded-xl text-xs font-extrabold transition cursor-pointer ${
-                  adminActiveSection === 'ipl'
-                    ? 'bg-teal-800 text-white shadow'
-                    : 'text-slate-600 hover:bg-slate-200/70'
-                }`}
-              >
-                2. Validasi Lunas Warga
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAdminActiveSection('closing');
-                  setAdminStatusMsg({ type: '', text: '' });
-                }}
-                className={`py-2.5 px-3 rounded-xl text-xs font-extrabold transition cursor-pointer ${
-                  adminActiveSection === 'closing'
-                    ? 'bg-teal-800 text-white shadow'
-                    : 'text-slate-600 hover:bg-slate-200/70'
-                }`}
-              >
-                3. Tutup Buku & Gaji
-              </button>
-            </div>
-
-            {/* Isi Form Pengurus */}
-            <div className="p-5 overflow-y-auto space-y-4">
-              {adminStatusMsg.text && (
-                <div
-                  className={`p-3.5 rounded-2xl text-xs font-bold border ${
-                    adminStatusMsg.type === 'success'
-                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                      : 'bg-rose-50 border-rose-200 text-rose-700'
+                  onClick={() => setLightbox((prev) => ({ ...prev, index: idx }))}
+                  className={`w-14 h-14 rounded-xl overflow-hidden border-2 shrink-0 transition cursor-pointer ${
+                    idx === lightbox.index
+                      ? 'border-emerald-400 ring-2 ring-emerald-400/50 scale-105'
+                      : 'border-white/25 opacity-65 hover:opacity-100'
                   }`}
                 >
-                  {adminStatusMsg.text}
-                </div>
-              )}
-
-              {/* FORM 1: INPUT MUTASI KAS (UANG NYATA — ATOMIK / FAIL-SAFE) */}
-              {adminActiveSection === 'mutasi' && (
-                <form onSubmit={handleSubmitTransaction} className="space-y-3.5">
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1">
-                        Tanggal Transaksi
-                      </label>
-                      <input
-                        type="date"
-                        required
-                        value={txForm.tanggal}
-                        onChange={(e) => setTxForm({ ...txForm, tanggal: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1">
-                        Periode Bulan Buku
-                      </label>
-                      <select
-                        value={txForm.periode_bulan}
-                        onChange={(e) => setTxForm({ ...txForm, periode_bulan: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold"
-                      >
-                        {MONTH_NAMES.map((m) => (
-                          <option key={m} value={m}>
-                            {m} 2026
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1">
-                        Jenis Mutasi
-                      </label>
-                      <select
-                        value={txForm.tipe}
-                        onChange={(e) => setTxForm({ ...txForm, tipe: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold"
-                      >
-                        <option value="OUT">🔴 Pengeluaran (OUT)</option>
-                        <option value="IN">🟢 Pemasukan (IN)</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1">
-                        Kategori Transaksi
-                      </label>
-                      <select
-                        value={txForm.kategori}
-                        onChange={(e) => setTxForm({ ...txForm, kategori: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold"
-                      >
-                        <option value="Perawatan Pos">Perawatan Pos & Lingkungan</option>
-                        <option value="Gaji">Gaji & Kasbon Security</option>
-                        <option value="Sampah">Uang Sampah</option>
-                        <option value="Listrik">Listrik Pos</option>
-                        <option value="Air">Air Galon Pos</option>
-                        <option value="Konsumsi">Konsumsi Pos</option>
-                        <option value="Sosial">Dana Sosial</option>
-                        <option value="Iuran Warga (IPL)">Iuran Warga (IPL)</option>
-                        <option value="Parkir Fasum">Parkir Fasum</option>
-                        <option value="Proyek">Proyek / Perbaikan Cluster</option>
-                        <option value="Lainnya">Lainnya</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1">
-                        Nominal Uang Nyata (Rp)
-                      </label>
-                      <input
-                        type="number"
-                        required
-                        min="1"
-                        placeholder="Contoh: 150000"
-                        value={txForm.nominal}
-                        onChange={(e) => setTxForm({ ...txForm, nominal: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1">
-                        Rumah Terkait (Opsional)
-                      </label>
-                      <select
-                        value={txForm.house_id}
-                        onChange={(e) => setTxForm({ ...txForm, house_id: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold"
-                      >
-                        <option value="-">-- Umum / Operasional Cluster --</option>
-                        {housesList.map((h) => (
-                          <option key={h.id} value={h.id}>
-                            {h.display_label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="flex items-end pb-1">
-                      <label className="flex items-center gap-2 text-xs font-bold text-slate-700 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={txForm.is_proyek}
-                          onChange={(e) => setTxForm({ ...txForm, is_proyek: e.target.checked })}
-                          className="rounded text-teal-700"
-                        />
-                        Termasuk Pengeluaran Proyek Khusus?
-                      </label>
-                    </div>
-                  </div>
-
-                  {txForm.is_proyek && (
-                    <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1">
-                        Nama Proyek
-                      </label>
-                      <input
-                        type="text"
-                        placeholder="Contoh: Perbaikan Roda Pagar / Lampu Sorot"
-                        value={txForm.nama_proyek}
-                        onChange={(e) => setTxForm({ ...txForm, nama_proyek: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs"
-                      />
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1">
-                      Rincian Keterangan Transaksi
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="Contoh: Beli token listrik pos & air galon"
-                      value={txForm.keterangan}
-                      onChange={(e) => setTxForm({ ...txForm, keterangan: e.target.value })}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs"
-                    />
-                  </div>
-
-                  {/* Upload Foto Nota / Struk Bukti (Fail-Safe) */}
-                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-dashed border-slate-300 space-y-2">
-                    <label className="block text-xs font-bold text-slate-700">
-                      📷 Upload Foto Nota / Kuitansi Bukti (Masuk ke Drive{' '}
-                      {txForm.tipe === 'IN' ? 'Bukti_Iuran_Warga' : 'Struk_Pengeluaran_Kas'})
-                    </label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleTxPhotoChange}
-                      className="w-full text-xs text-slate-600"
-                    />
-
-                    {isCompressingTxPhoto && (
-                      <p className="text-[11px] font-bold text-amber-700">
-                        ⏳ Mengompresi foto bukti... harap tunggu sebelum menekan Simpan.
-                      </p>
-                    )}
-
-                    {txPhotoError && (
-                      <p className="text-[11px] font-bold text-rose-600">⚠️ {txPhotoError}</p>
-                    )}
-
-                    {txForm.file_base64 && !isCompressingTxPhoto && (
-                      <div className="flex items-center gap-3 pt-1">
-                        <img
-                          src={txForm.file_base64}
-                          alt="Preview Nota"
-                          onClick={() =>
-                            handleOpenLightbox(
-                              txForm.file_base64,
-                              'Pratinjau Nota Transaksi',
-                              txForm.file_name
-                            )
-                          }
-                          className="w-14 h-14 object-cover rounded-xl border border-emerald-300 cursor-pointer"
-                        />
-                        <div className="text-xs">
-                          <p className="font-bold text-emerald-700">
-                            ✓ Foto siap diunggah (~
-                            {Math.round((txForm.file_base64.length * 3) / 4 / 1024)} KB)
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setTxForm((prev) => ({ ...prev, file_base64: '', file_name: '' }));
-                              setTxPhotoError('');
-                            }}
-                            className="text-rose-600 font-semibold hover:underline mt-0.5 cursor-pointer"
-                          >
-                            Hapus Foto
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isSubmittingAdmin || isCompressingTxPhoto}
-                    className="w-full py-3 rounded-xl bg-teal-800 hover:bg-teal-900 disabled:opacity-60 text-white font-extrabold text-xs sm:text-sm shadow-md transition cursor-pointer"
-                  >
-                    {isCompressingTxPhoto
-                      ? '⏳ Memproses Foto...'
-                      : isSubmittingAdmin
-                      ? 'Menyimpan ke Drive & Spreadsheet...'
-                      : '💾 Simpan Transaksi ke Buku Kas'}
-                  </button>
-                </form>
-              )}
-
-              {/* FORM 2: VALIDASI LUNAS IPL & PARKIR WARGA (NETRAL + FAIL-SAFE + AUTO-JURNAL) */}
-              {adminActiveSection === 'ipl' && (
-                <form onSubmit={handleSubmitIplUpdate} className="space-y-3.5">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1">
-                        Pilih No. Rumah / Nama Warga (21 Unit Aktif)
-                      </label>
-                      <select
-                        value={iplForm.house_id}
-                        onChange={(e) => setIplForm({ ...iplForm, house_id: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold"
-                      >
-                        {activeHousesList.map((h) => (
-                          <option key={h.id} value={h.id}>
-                            {h.display_label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1">
-                        Periode Bulan Buku IPL
-                      </label>
-                      <select
-                        value={iplForm.periode_bulan}
-                        onChange={(e) => setIplForm({ ...iplForm, periode_bulan: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold"
-                      >
-                        {MONTH_NAMES.map((m) => (
-                          <option key={m} value={m}>
-                            Buku {m} 2026
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1">
-                        Paket Pembayaran (Uang Kas Nyata)
-                      </label>
-                      <select
-                        value={iplForm.paket_id}
-                        onChange={(e) => handleSelectPaymentPackage(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold"
-                      >
-                        {PAYMENT_PACKAGES_V6.map((pkg) => (
-                          <option key={pkg.id} value={pkg.id}>
-                            {pkg.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1">
-                        Nominal Uang Masuk Riil (Rp)
-                      </label>
-                      <input
-                        type="number"
-                        required
-                        value={iplForm.nominal_bayar}
-                        onChange={(e) =>
-                          setIplForm({ ...iplForm, nominal_bayar: Number(e.target.value) })
-                        }
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-extrabold text-teal-900 bg-teal-50/50"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1">
-                        Status Pembayaran
-                      </label>
-                      <select
-                        value={iplForm.status_bayar}
-                        onChange={(e) => setIplForm({ ...iplForm, status_bayar: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold"
-                      >
-                        <option value="Lunas">✅ Lunas</option>
-                        <option value="Menunggu Validasi">⏳ Menunggu Validasi</option>
-                        <option value="Belum Bayar">❌ Belum Bayar</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1">
-                        Tanggal Bayar Riil
-                      </label>
-                      <input
-                        type="date"
-                        value={iplForm.tanggal_bayar}
-                        onChange={(e) => setIplForm({ ...iplForm, tanggal_bayar: e.target.value })}
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200">
-                    <label className="flex items-center gap-2 text-xs font-bold text-emerald-900 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={iplForm.auto_jurnal_kas}
-                        onChange={(e) =>
-                          setIplForm({ ...iplForm, auto_jurnal_kas: e.target.checked })
-                        }
-                        className="rounded text-teal-700"
-                      />
-                      Otomatis catat Rp {Number(iplForm.nominal_bayar || 0).toLocaleString('id-ID')}{' '}
-                      ke Buku Kas ({iplForm.periode_bulan}) saat status Lunas
-                    </label>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1">
-                      Catatan Validasi
-                    </label>
-                    <input
-                      type="text"
-                      value={iplForm.catatan}
-                      onChange={(e) => setIplForm({ ...iplForm, catatan: e.target.value })}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs"
-                    />
-                  </div>
-
-                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-dashed border-slate-300 space-y-2">
-                    <label className="block text-xs font-bold text-slate-700">
-                      📷 Upload Bukti Transfer / QRIS Warga (Masuk ke Drive Bukti_Iuran_Warga)
-                    </label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleIplPhotoChange}
-                      className="w-full text-xs text-slate-600"
-                    />
-
-                    {isCompressingIplPhoto && (
-                      <p className="text-[11px] font-bold text-amber-700">
-                        ⏳ Mengompresi foto bukti transfer...
-                      </p>
-                    )}
-
-                    {iplPhotoError && (
-                      <p className="text-[11px] font-bold text-rose-600">⚠️ {iplPhotoError}</p>
-                    )}
-
-                    {iplForm.file_base64 && !isCompressingIplPhoto && (
-                      <div className="flex items-center gap-3 pt-1">
-                        <img
-                          src={iplForm.file_base64}
-                          alt="Preview Bukti IPL"
-                          onClick={() =>
-                            handleOpenLightbox(
-                              iplForm.file_base64,
-                              'Pratinjau Bukti IPL Warga',
-                              iplForm.file_name
-                            )
-                          }
-                          className="w-14 h-14 object-cover rounded-xl border border-emerald-300 cursor-pointer"
-                        />
-                        <div className="text-xs">
-                          <p className="font-bold text-emerald-700">
-                            ✓ Bukti siap disimpan (~
-                            {Math.round((iplForm.file_base64.length * 3) / 4 / 1024)} KB)
-                          </p>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIplForm((prev) => ({ ...prev, file_base64: '', file_name: '' }));
-                              setIplPhotoError('');
-                            }}
-                            className="text-rose-600 font-semibold hover:underline mt-0.5 cursor-pointer"
-                          >
-                            Hapus Foto
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isSubmittingAdmin || isCompressingIplPhoto}
-                    className="w-full py-3 rounded-xl bg-teal-800 hover:bg-teal-900 disabled:opacity-60 text-white font-extrabold text-xs sm:text-sm shadow-md transition cursor-pointer"
-                  >
-                    {isCompressingIplPhoto
-                      ? '⏳ Memproses Foto...'
-                      : isSubmittingAdmin
-                      ? 'Memvalidasi & Mencatat Kas...'
-                      : `✅ Simpan Status (${formatHouseIdentity(
-                          iplForm.house_id,
-                          housesList
-                        )})`}
-                  </button>
-                </form>
-              )}
-
-              {/* FORM 3: TUTUP BUKU WA & REKAP GAJI SECURITY */}
-              {adminActiveSection === 'closing' && (
-                <div className="space-y-6">
-                  <form
-                    onSubmit={handleSubmitClosingWa}
-                    className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3"
-                  >
-                    <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">
-                      📲 A. Tutup Buku Bulanan & Kirim WA Grup (Fonnte)
-                    </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-bold text-slate-600 mb-1">
-                          Periode Laporan
-                        </label>
-                        <select
-                          value={closingForm.periode_bulan}
-                          onChange={(e) =>
-                            setClosingForm({ ...closingForm, periode_bulan: e.target.value })
-                          }
-                          className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold bg-white"
-                        >
-                          {MONTH_NAMES.map((m) => (
-                            <option key={m} value={m}>
-                              {m} 2026
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-600 mb-1">
-                          Target Nomor / ID Grup WA (Opsional)
-                        </label>
-                        <input
-                          type="text"
-                          placeholder="Kosongkan untuk default Sheet"
-                          value={closingForm.target_wa}
-                          onChange={(e) =>
-                            setClosingForm({ ...closingForm, target_wa: e.target.value })
-                          }
-                          className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white"
-                        />
-                      </div>
-                    </div>
-                    <button
-                      type="submit"
-                      disabled={isSubmittingAdmin}
-                      className="w-full py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow cursor-pointer"
-                    >
-                      {isSubmittingAdmin
-                        ? 'Mengirim Laporan...'
-                        : '🚀 Proses Tutup Buku & Kirim Laporan WA'}
-                    </button>
-                  </form>
-
-                  <form
-                    onSubmit={handleSubmitPayroll}
-                    className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3"
-                  >
-                    <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">
-                      👮 B. Pencatatan Slip Gaji & Kasbon Security
-                    </h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-bold text-slate-600 mb-1">
-                          Personel Security
-                        </label>
-                        <select
-                          value={payrollForm.nama_security}
-                          onChange={(e) =>
-                            setPayrollForm({ ...payrollForm, nama_security: e.target.value })
-                          }
-                          className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold bg-white"
-                        >
-                          <option value="Pak Eko">Pak Eko</option>
-                          <option value="Pak Mulyadi">Pak Mulyadi</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-600 mb-1">
-                          Periode Gaji
-                        </label>
-                        <select
-                          value={payrollForm.periode_bulan}
-                          onChange={(e) =>
-                            setPayrollForm({ ...payrollForm, periode_bulan: e.target.value })
-                          }
-                          className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold bg-white"
-                        >
-                          {MONTH_NAMES.map((m) => (
-                            <option key={m} value={m}>
-                              {m} 2026
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div>
-                        <label className="block text-xs font-bold text-slate-600 mb-1">
-                          Gaji Pokok (Rp)
-                        </label>
-                        <input
-                          type="number"
-                          value={payrollForm.gaji_pokok}
-                          onChange={(e) =>
-                            setPayrollForm({ ...payrollForm, gaji_pokok: Number(e.target.value) })
-                          }
-                          className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white font-semibold"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-600 mb-1">
-                          Tambahan / Konsumsi
-                        </label>
-                        <input
-                          type="number"
-                          value={payrollForm.uang_konsumsi}
-                          onChange={(e) =>
-                            setPayrollForm({
-                              ...payrollForm,
-                              uang_konsumsi: Number(e.target.value)
-                            })
-                          }
-                          className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white font-semibold"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-600 mb-1">
-                          Potongan Kasbon (Rp)
-                        </label>
-                        <input
-                          type="number"
-                          value={payrollForm.potongan_kasbon}
-                          onChange={(e) =>
-                            setPayrollForm({
-                              ...payrollForm,
-                              potongan_kasbon: Number(e.target.value)
-                            })
-                          }
-                          className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs bg-white font-semibold"
-                        />
-                      </div>
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={isSubmittingAdmin}
-                      className="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs shadow cursor-pointer"
-                    >
-                      💾 Simpan Slip Gaji Security
-                    </button>
-                  </form>
-                </div>
-              )}
+                  <img
+                    src={toDirectImageUrl(u, true)}
+                    alt={`Thumb ${idx + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                </button>
+              ))}
             </div>
-          </div>
+          ) : (
+            <div style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }} />
+          )}
         </div>
       )}
-    </div>
+    </>
   );
 }
