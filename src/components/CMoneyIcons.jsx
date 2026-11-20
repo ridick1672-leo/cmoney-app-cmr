@@ -981,3 +981,83 @@ export function IconPillTheme({ dark = false, size = 18, className = '' }) {
     </svg>
   );
 }
+
+/* ============================================================================
+ * 6. IKON V7.2 — LOGIN PENGURUS, PENGATURAN GEAR, PANDUAN, & MOBIL MINI PARKIR
+ * ============================================================================ */
+
+/** Ikon Masuk / Login (Untuk tombol "Masuk Pengurus" saat belum login) */
+export function IconLogin({ size = 18, className = '' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+      <path
+        d="M14 4H17C18.66 4 20 5.34 20 7V17C20 18.66 18.66 20 17 20H14"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <path
+        d="M4 12H15M15 12L11 8M15 12L11 16"
+        stroke="currentColor"
+        strokeWidth="2.1"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** Ikon Gear Pengaturan Warga (Untuk tombol Pengaturan di Top Bar & Sidebar) */
+export function IconSettings({ size = 18, className = '' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+      <path
+        d="M19.4 15A1.65 1.65 0 0 0 19.73 16.82L19.79 16.88A2 2 0 1 1 16.96 19.71L16.9 19.65A1.65 1.65 0 0 0 15.08 19.32A1.65 1.65 0 0 0 14.08 20.83V21A2 2 0 1 1 10.08 21V20.91A1.65 1.65 0 0 0 9 19.4A1.65 1.65 0 0 0 7.18 19.73L7.12 19.79A2 2 0 1 1 4.29 16.96L4.35 16.9A1.65 1.65 0 0 0 4.68 15.08A1.65 1.65 0 0 0 3.17 14.08H3A2 2 0 1 1 3 10.08H3.09A1.65 1.65 0 0 0 4.6 9A1.65 1.65 0 0 0 4.27 7.18L4.21 7.12A2 2 0 1 1 7.04 4.29L7.1 4.35A1.65 1.65 0 0 0 8.92 4.68H9A1.65 1.65 0 0 0 10 3.17V3A2 2 0 1 1 14 3V3.09A1.65 1.65 0 0 0 15 4.6A1.65 1.65 0 0 0 16.82 4.27L16.88 4.21A2 2 0 1 1 19.71 7.04L19.65 7.1A1.65 1.65 0 0 0 19.32 8.92V9A1.65 1.65 0 0 0 20.83 10H21A2 2 0 1 1 21 14H20.91A1.65 1.65 0 0 0 19.4 15Z"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** Ikon Buku Terbuka (Untuk Pusat Panduan & FAQ) */
+export function IconGuideBook({ size = 18, className = '' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+      <path
+        d="M3.5 6.5C3.5 5.4 4.4 4.5 5.5 4.5H9.5C10.9 4.5 12 5.6 12 7V19.5C12 18.4 11.1 17.5 10 17.5H5.5C4.4 17.5 3.5 16.6 3.5 15.5V6.5Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M20.5 6.5C20.5 5.4 19.6 4.5 18.5 4.5H14.5C13.1 4.5 12 5.6 12 7V19.5C12 18.4 12.9 17.5 14 17.5H18.5C19.6 17.5 20.5 16.6 20.5 15.5V6.5Z"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** Ikon Mobil Mini Kompak (Untuk Denah 6 Slot Parkir Menyamping di Mobile) */
+export function IconCarMini({ size = 20, className = '' }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className}>
+      <path
+        d="M5 11.5L6.7 7.4C7.1 6.5 7.9 6 8.9 6H15.1C16.1 6 16.9 6.5 17.3 7.4L19 11.5"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <rect x="3.5" y="11" width="17" height="6.5" rx="2.5" stroke="currentColor" strokeWidth="2" />
+      <circle cx="7.2" cy="14.2" r="1.1" fill="currentColor" />
+      <circle cx="16.8" cy="14.2" r="1.1" fill="currentColor" />
+      <path d="M6 17.5V19.2M18 17.5V19.2" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" />
+    </svg>
+  );
+}

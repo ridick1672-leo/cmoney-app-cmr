@@ -9,16 +9,19 @@ import {
   IconPillQris,
   IconRefresh,
   IconAlert,
-  IconChevronRight
+  IconChevronRight,
+  IconLogin,
+  IconSettings
 } from './CMoneyIcons';
 
 /**
  * ============================================================================
- * C-MONEY V7 — ADAPTIVE APP SHELL & NAVIGATION (MOBILE BOTTOM NAV <-> SLIM SIDEBAR)
+ * C-MONEY V7.2 — ADAPTIVE APP SHELL & NAVIGATION
  * ============================================================================
  * - Mobile (< 1024px)  : Micro Top Bar + Bottom Nav 5 Slot (Tombol Tengah Bayar QRIS)
- * - Desktop (>= 1024px): Slim Sidebar Kiri (bisa dilipat) + Top Status Bar Ringkas
- * - Aman untuk iOS lama s/d terbaru (env safe-area-inset-bottom fallback 0px)
+ * - Desktop (>= 1024px): Fixed Full-Height Slim Sidebar (anti terpotong scroll) +
+ *                        Tombol lipat di tepi kanan (logo 100% anti gepeng)
+ * - Pemisahan tegas tombol Pengaturan Warga (Gear) vs Masuk/Ruang Pengurus (Login)
  */
 
 const MAIN_NAV_ITEMS = [
@@ -33,6 +36,7 @@ export default function AppShellNav({
   onSelectTab,
   onOpenQris,
   onOpenAdmin,
+  onOpenSettings,
   onRefresh,
   isRefreshing = false,
   isOnline = true,
@@ -59,28 +63,53 @@ export default function AppShellNav({
   };
 
   // Di Mobile, sembunyikan Micro Top Bar & Bottom Nav saat layar penuh Ruang Pengurus aktif
-  // agar halaman Ruang Pengurus tampil bersih 1 panah (←) persis halaman Profilku Gojek.
   const hideMobileChrome = Boolean(isAdminViewActive);
 
   return (
-    <div className="min-h-screen bg-[#F4F7F6] text-slate-800 flex flex-col lg:flex-row">
+    <div className="min-h-screen bg-[#F4F7F6] text-slate-800">
       {/* ====================================================================
-          1. DESKTOP SLIM SIDEBAR (TAMPIL HANYA DI >= 1024px)
+          1. DESKTOP FIXED FULL-HEIGHT SLIM SIDEBAR (>= 1024px)
       ==================================================================== */}
       <aside
-        className={`hidden lg:flex lg:flex-col lg:sticky lg:top-0 lg:h-screen bg-white border-r border-slate-200/85 shrink-0 z-30 transition-all duration-200 ${
+        className={`hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:left-0 bg-white border-r border-slate-200/85 z-40 transition-all duration-200 ${
           sidebarCollapsed ? 'w-[80px]' : 'w-[232px]'
         }`}
       >
+        {/* Tombol Lipat / Lebarkan Menempel di Garis Tepi Kanan (Logo 100% Anti Gepeng) */}
+        <button
+          type="button"
+          onClick={() => setSidebarCollapsed((prev) => !prev)}
+          title={sidebarCollapsed ? 'Lebarkan Sidebar' : 'Lipat Sidebar'}
+          aria-label={sidebarCollapsed ? 'Lebarkan Sidebar' : 'Lipat Sidebar'}
+          className="absolute -right-3.5 top-5 z-50 w-7 h-7 rounded-full bg-white hover:bg-emerald-50 border border-slate-200 text-slate-500 hover:text-emerald-700 shadow-sm flex items-center justify-center transition cursor-pointer"
+        >
+          <IconChevronRight
+            size={14}
+            className={`transition-transform duration-200 ${
+              sidebarCollapsed ? 'rotate-0' : 'rotate-180'
+            }`}
+          />
+        </button>
+
         {/* Brand Header Sidebar */}
-        <div className="h-16 px-4 flex items-center justify-between border-b border-slate-100">
+        <div
+          className={`h-16 border-b border-slate-100 flex items-center ${
+            sidebarCollapsed ? 'justify-center px-2' : 'px-4'
+          }`}
+        >
           <button
             type="button"
             onClick={() => handleNavClick('beranda')}
-            className="flex items-center gap-2.5 min-w-0 cursor-pointer text-left"
+            className={`flex items-center cursor-pointer text-left ${
+              sidebarCollapsed ? 'justify-center' : 'gap-2.5 min-w-0'
+            }`}
             title="Kembali ke Beranda"
           >
-            <CMoneyLogo src={logoUrl} size={36} className="shadow-sm ring-1 ring-emerald-100" />
+            <CMoneyLogo
+              src={logoUrl}
+              size={36}
+              className="aspect-square shrink-0 shadow-sm ring-1 ring-emerald-100"
+            />
             {!sidebarCollapsed && (
               <div className="min-w-0 leading-tight">
                 <p className="text-sm font-black text-slate-900 tracking-tight truncate">
@@ -91,20 +120,6 @@ export default function AppShellNav({
                 </p>
               </div>
             )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setSidebarCollapsed((prev) => !prev)}
-            title={sidebarCollapsed ? 'Lebarkan Sidebar' : 'Lipat Sidebar'}
-            className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200/80 text-slate-500 flex items-center justify-center shrink-0 transition cursor-pointer"
-          >
-            <IconChevronRight
-              size={15}
-              className={`transition-transform duration-200 ${
-                sidebarCollapsed ? 'rotate-0' : 'rotate-180'
-              }`}
-            />
           </button>
         </div>
 
@@ -163,23 +178,51 @@ export default function AppShellNav({
           })}
         </nav>
 
-        {/* Area Bawah Sidebar: Ruang Pengurus & Info Versi */}
+        {/* Area Bawah Sidebar: Pengaturan Warga (Gear) & Masuk/Ruang Pengurus */}
         <div className="p-3 border-t border-slate-100 space-y-2">
+          {/* Tombol Pengaturan Warga (Gear) */}
+          {typeof onOpenSettings === 'function' && (
+            <button
+              type="button"
+              onClick={onOpenSettings}
+              title={sidebarCollapsed ? 'Pengaturan & Panduan' : undefined}
+              className={`w-full flex items-center rounded-2xl transition cursor-pointer bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold border border-slate-200/80 ${
+                sidebarCollapsed ? 'justify-center h-11 px-0' : 'gap-2.5 px-3.5 py-2.5'
+              }`}
+            >
+              <IconSettings size={19} className="shrink-0" />
+              {!sidebarCollapsed && <span className="text-xs truncate">Pengaturan</span>}
+            </button>
+          )}
+
+          {/* Tombol Masuk Pengurus / Ruang Pengurus */}
           <button
             type="button"
             onClick={() => typeof onOpenAdmin === 'function' && onOpenAdmin()}
-            title={sidebarCollapsed ? 'Ruang Pengurus' : undefined}
+            title={
+              sidebarCollapsed
+                ? isAdminLoggedIn
+                  ? 'Ruang Pengurus'
+                  : 'Masuk Pengurus'
+                : undefined
+            }
             className={`w-full flex items-center rounded-2xl transition cursor-pointer relative ${
               sidebarCollapsed ? 'justify-center h-11 px-0' : 'justify-between px-3.5 py-2.5'
             } ${
               isAdminViewActive
                 ? 'bg-teal-900 text-white font-extrabold shadow-sm'
+                : isAdminLoggedIn
+                ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-extrabold border border-emerald-200/80'
                 : 'bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold border border-slate-200/80'
             }`}
           >
             <span className="flex items-center gap-2.5 min-w-0">
               <span className="relative shrink-0">
-                <NavIconAdmin active={isAdminViewActive} size={19} />
+                {isAdminLoggedIn ? (
+                  <NavIconAdmin active={isAdminViewActive} size={19} />
+                ) : (
+                  <IconLogin size={19} />
+                )}
                 {isAdminLoggedIn && !isAdminViewActive && (
                   <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white" />
                 )}
@@ -206,7 +249,7 @@ export default function AppShellNav({
 
           {!sidebarCollapsed && (
             <div className="px-2 pt-0.5 flex items-center justify-between text-[10px] font-semibold text-slate-400">
-              <span>C-Money V7</span>
+              <span>C-Money V7.2</span>
               <span className="font-mono">API {backendVersion || expectedBackendVersion}</span>
             </div>
           )}
@@ -214,9 +257,13 @@ export default function AppShellNav({
       </aside>
 
       {/* ====================================================================
-          2. AREA KONTEN KANAN (MICRO TOP BAR + HALAMAN AKTIF)
+          2. AREA KONTEN KANAN (DENGAN OFFSET DINAMIS UNTUK FIXED SIDEBAR)
       ==================================================================== */}
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div
+        className={`min-h-screen flex flex-col transition-all duration-200 ${
+          sidebarCollapsed ? 'lg:pl-[80px]' : 'lg:pl-[232px]'
+        }`}
+      >
         {/* MICRO TOP BAR — Ringkas, Cerah, & Menyatu dengan Latar Halaman */}
         <header
           className={`sticky top-0 z-30 transition-colors ${
@@ -232,7 +279,11 @@ export default function AppShellNav({
                 onClick={() => handleNavClick('beranda')}
                 className="flex lg:hidden items-center gap-2 min-w-0 cursor-pointer text-left"
               >
-                <CMoneyLogo src={logoUrl} size={32} className="ring-1 ring-emerald-100 shadow-xs" />
+                <CMoneyLogo
+                  src={logoUrl}
+                  size={32}
+                  className="aspect-square shrink-0 ring-1 ring-emerald-100 shadow-xs"
+                />
                 <div className="min-w-0 leading-tight">
                   <div className="flex items-center gap-1.5">
                     <span className="text-sm font-black text-slate-900 tracking-tight">
@@ -286,7 +337,7 @@ export default function AppShellNav({
               </div>
             </div>
 
-            {/* Kanan: Jam Real-Time (Desktop), Tombol Refresh, & Tombol Pengurus */}
+            {/* Kanan: Jam Real-Time, Refresh, Pengaturan (Gear), & Masuk Pengurus (Login) */}
             <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               {liveClock && (
                 <span className="hidden md:inline-flex items-center px-2.5 py-1 rounded-xl bg-slate-100/90 text-[11px] font-bold text-slate-600 font-mono">
@@ -307,11 +358,26 @@ export default function AppShellNav({
                 <span className="hidden sm:inline">Refresh</span>
               </button>
 
-              {/* Tombol Akses Pengurus (Selalu mudah dijangkau di Mobile; Desktop juga punya di Sidebar) */}
+              {/* Tombol Pengaturan Warga (Gear — Buka Mode Gelap, Panduan, PWA) */}
+              {typeof onOpenSettings === 'function' && (
+                <button
+                  type="button"
+                  onClick={onOpenSettings}
+                  title="Pengaturan & Pusat Panduan"
+                  aria-label="Pengaturan & Pusat Panduan"
+                  className="h-9 w-9 sm:w-auto sm:px-2.5 rounded-xl bg-slate-100 hover:bg-slate-200/80 text-slate-600 flex items-center justify-center gap-1.5 text-xs font-bold transition cursor-pointer"
+                >
+                  <IconSettings size={17} />
+                  <span className="hidden xl:inline">Pengaturan</span>
+                </button>
+              )}
+
+              {/* Tombol Masuk Pengurus / Ruang Pengurus */}
               <button
                 type="button"
                 onClick={() => typeof onOpenAdmin === 'function' && onOpenAdmin()}
                 title={isAdminLoggedIn ? 'Buka Ruang Pengurus' : 'Masuk Mode Pengurus'}
+                aria-label={isAdminLoggedIn ? 'Buka Ruang Pengurus' : 'Masuk Mode Pengurus'}
                 className={`relative h-9 px-2.5 sm:px-3 rounded-xl flex items-center gap-1.5 text-xs font-extrabold transition cursor-pointer ${
                   isAdminViewActive
                     ? 'bg-teal-900 text-white shadow-sm'
@@ -320,8 +386,19 @@ export default function AppShellNav({
                     : 'bg-slate-100 hover:bg-slate-200/80 text-slate-700'
                 }`}
               >
-                <NavIconAdmin active={isAdminViewActive} size={17} />
-                <span className="hidden sm:inline">Pengurus</span>
+                <span className="relative flex items-center">
+                  {isAdminLoggedIn ? (
+                    <NavIconAdmin active={isAdminViewActive} size={17} />
+                  ) : (
+                    <IconLogin size={17} />
+                  )}
+                  {isAdminLoggedIn && !isAdminViewActive && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white" />
+                  )}
+                </span>
+                <span className="hidden sm:inline">
+                  {isAdminLoggedIn ? 'Pengurus' : 'Masuk'}
+                </span>
                 {Number(pendingValidationCount) > 0 && (
                   <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-black flex items-center justify-center">
                     {pendingValidationCount}
@@ -346,7 +423,7 @@ export default function AppShellNav({
           )}
         </header>
 
-        {/* KONTEN UTAMA HALAMAN (Alur scroll alami + bantalan bawah aman di Mobile) */}
+        {/* KONTEN UTAMA HALAMAN */}
         <main
           className={`flex-1 w-full max-w-6xl mx-auto ${
             hideMobileChrome ? 'pb-6 lg:pb-10' : 'pb-28 lg:pb-10'
@@ -366,21 +443,18 @@ export default function AppShellNav({
           className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 shadow-[0_-6px_24px_rgba(15,23,42,0.07)]"
         >
           <div className="max-w-lg mx-auto grid grid-cols-5 items-end h-[66px] px-1">
-            {/* Slot 1: Beranda */}
             <MobileNavButton
               item={MAIN_NAV_ITEMS[0]}
               isActive={activeTab === 'beranda'}
               onClick={() => handleNavClick('beranda')}
             />
-
-            {/* Slot 2: Buku Kas */}
             <MobileNavButton
               item={MAIN_NAV_ITEMS[1]}
               isActive={activeTab === 'mutasi'}
               onClick={() => handleNavClick('mutasi')}
             />
 
-            {/* Slot 3 (Tengah): Tombol Bulat Menonjol Bayar QRIS ala Gojek */}
+            {/* Slot 3 (Tengah): Tombol Bulat Menonjol Bayar QRIS */}
             <div className="flex flex-col items-center justify-end pb-1.5 relative">
               <button
                 type="button"
@@ -393,14 +467,11 @@ export default function AppShellNav({
               </button>
             </div>
 
-            {/* Slot 4: Warga */}
             <MobileNavButton
               item={MAIN_NAV_ITEMS[2]}
               isActive={activeTab === 'rumah'}
               onClick={() => handleNavClick('rumah')}
             />
-
-            {/* Slot 5: Pos Security (dengan dot/angka paket) */}
             <MobileNavButton
               item={MAIN_NAV_ITEMS[3]}
               isActive={activeTab === 'keamanan'}
@@ -414,9 +485,6 @@ export default function AppShellNav({
   );
 }
 
-/**
- * Tombol Satuan Bottom Navigation Mobile (Dual-State Filled vs Outline)
- */
 function MobileNavButton({ item, isActive, badgeCount = 0, onClick }) {
   const { Icon, mobileLabel, label } = item;
   const hasBadge = Number(badgeCount) > 0;
@@ -431,7 +499,6 @@ function MobileNavButton({ item, isActive, badgeCount = 0, onClick }) {
         isActive ? 'text-emerald-600' : 'text-slate-400 hover:text-slate-600'
       }`}
     >
-      {/* Garis indikator aktif halus di tepi atas */}
       {isActive && (
         <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-[3px] rounded-b-full bg-emerald-600" />
       )}

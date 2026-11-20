@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import './index.css';
 import PwaInstallSheet from './components/PwaInstallSheet';
+import { SettingsSheet, GuideCenterSheet } from './components/HelpAndSettingsSheets';
 import { CMoneyAPI } from './services/apiService';
 import * as apiModule from './services/apiService';
 import * as gasConfigModule from './config/gasConfig';
@@ -256,6 +257,8 @@ export default function App() {
   const [isPwaInstalled, setIsPwaInstalled] = useState(false);
   const [deferredPwaPrompt, setDeferredPwaPrompt] = useState(null);
   const [isPwaSheetOpen, setIsPwaSheetOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [guideSheet, setGuideSheet] = useState({ isOpen: false, initialTab: 'cara_pakai' });
 
   useEffect(() => {
     try {
@@ -624,6 +627,7 @@ export default function App() {
         onSelectTab={handleSelectTab}
         onOpenQris={handleOpenQris}
         onOpenAdmin={handleOpenAdmin}
+        onOpenSettings={() => setIsSettingsOpen(true)}
         onRefresh={() => fetchDashboard(selectedMonth, selectedYear, { background: false })}
         isRefreshing={isRefreshing || isSyncingBackground}
         isOnline={isOnline}
@@ -686,6 +690,9 @@ export default function App() {
             onOpenPwaInstall={() => setIsPwaSheetOpen(true)}
             isDarkMode={isDarkMode}
             onToggleDarkMode={handleToggleDarkMode}
+            onOpenGuide={(tab = 'cara_pakai') =>
+              setGuideSheet({ isOpen: true, initialTab: tab })
+            }
             isPwaInstalled={isPwaInstalled}
             formatHouseIdentity={formatHouseIdentity}
           />
@@ -738,6 +745,34 @@ export default function App() {
         onTriggerNativeInstall={handleTriggerNativePwaInstall}
         isInstalled={isPwaInstalled}
         logoUrl={dashboardData.logo_url || '/assets/logo-cmoney.png'}
+      />
+      
+      {/* BOTTOM SHEET PENGATURAN WARGA (DIKLIK DARI IKON GEAR) */}
+      <SettingsSheet
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        isDarkMode={isDarkMode}
+        onToggleDarkMode={handleToggleDarkMode}
+        onOpenGuide={(tab = 'cara_pakai') =>
+          setGuideSheet({ isOpen: true, initialTab: tab })
+        }
+        onOpenPwaInstall={() => setIsPwaSheetOpen(true)}
+        isPwaInstalled={isPwaInstalled}
+        isOnline={isOnline}
+        backendVersion={backendVersion || EXPECTED_BACKEND_VERSION}
+        lastSyncTime={lastSyncTime}
+        logoUrl={dashboardData.logo_url || '/assets/logo-cmoney.png'}
+      />
+
+      {/* BOTTOM SHEET PUSAT PANDUAN & FAQ (4 TAB) */}
+      <GuideCenterSheet
+        isOpen={guideSheet.isOpen}
+        initialTab={guideSheet.initialTab}
+        onClose={() => setGuideSheet((prev) => ({ ...prev, isOpen: false }))}
+        onOpenPwaInstall={() => setIsPwaSheetOpen(true)}
+        onToggleDarkMode={handleToggleDarkMode}
+        isDarkMode={isDarkMode}
+        isPwaInstalled={isPwaInstalled}
       />
       
       {/* ====================================================================

@@ -14,6 +14,7 @@ import {
   Icon3DRules,
   Icon3DInstallApp,
   Icon3DTheme,
+  IconCarMini,
   Icon3DSos,
   Icon3DCctv,
   IconPillLedger,
@@ -256,6 +257,7 @@ export default function PublicDashboard({
   isPwaInstalled = false,
   isDarkMode = false,
   onToggleDarkMode,
+  onOpenGuide,
   formatHouseIdentity
 }) {
   const sourceData = data || dashboardData || {};
@@ -1104,18 +1106,38 @@ export default function PublicDashboard({
     setSosProgress(0);
   };
 
-  // Kartu Slot Parkir Horizontal
+  // Kartu Slot Parkir Dinamis (Kompak Menyamping di Mobile <-> Detail Penuh di Desktop)
   const renderParkingSlotCard = (slot) => {
     const isEmpty = slot.status_slot === 'Kosong';
     const isWeekend = slot.status_slot === 'Weekend';
     const isTamu = slot.status_slot === 'Tamu';
+
+    const shortNum = String(slot.slot_number || slot.slot_id || '')
+      .replace(/[^0-9]/g, '')
+      .padStart(2, '0');
+
+    const shortMobileLabel = isEmpty
+      ? 'Kosong'
+      : slot.house_id && slot.house_id !== '-'
+      ? `No. ${extractCleanNum(slot.house_id)}`
+      : isTamu
+      ? 'Tamu'
+      : 'Terisi';
+
+    const statusDotClass = isEmpty
+      ? 'bg-slate-300'
+      : isWeekend
+      ? 'bg-amber-500'
+      : isTamu
+      ? 'bg-sky-500'
+      : 'bg-emerald-500';
 
     return (
       <button
         key={slot.slot_id}
         type="button"
         onClick={() => openParkingSlotModal(slot)}
-        className={`w-full text-left p-3.5 rounded-2xl border-2 transition flex flex-col justify-between min-h-[116px] cursor-pointer hover:shadow-md ${
+        className={`w-full text-left p-2 sm:p-3.5 rounded-xl sm:rounded-2xl border-2 transition flex flex-col justify-between min-h-[78px] sm:min-h-[116px] cursor-pointer hover:shadow-md active:scale-[0.98] ${
           isEmpty
             ? 'bg-slate-50/90 border-dashed border-slate-300 hover:border-sky-500 hover:bg-sky-50/30'
             : isWeekend
@@ -1125,50 +1147,86 @@ export default function PublicDashboard({
             : 'bg-emerald-50 border-emerald-400 hover:border-emerald-600'
         }`}
       >
-        <div className="flex items-center justify-between gap-2 w-full">
-          <span className="font-black text-xs text-slate-900">
-            {slot.nama_slot || slot.slot_id}
-          </span>
+        {/* TAMPILAN KOMPAK KHUSUS MOBILE (< 640px) — MUAT 6 SLOT MENYAMPING 1 LAYAR */}
+        <div className="sm:hidden flex flex-col justify-between h-full w-full gap-1">
+          <div className="flex items-center justify-between gap-1 w-full">
+            <span className="font-black text-[11px] text-slate-900 leading-none">{shortNum}</span>
+            <span className={`w-2 h-2 rounded-full shrink-0 ${statusDotClass}`} />
+          </div>
+
+          <div className="flex items-center justify-center py-0.5">
+            {isEmpty ? (
+              <span className="text-base font-black text-slate-400 leading-none">+</span>
+            ) : (
+              <IconCarMini
+                size={19}
+                className={
+                  isWeekend
+                    ? 'text-amber-700'
+                    : isTamu
+                    ? 'text-sky-700'
+                    : 'text-emerald-700'
+                }
+              />
+            )}
+          </div>
+
           <span
-            className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full shrink-0 ${
-              isEmpty
-                ? 'bg-slate-200 text-slate-600'
-                : isWeekend
-                ? 'bg-amber-200 text-amber-900'
-                : isTamu
-                ? 'bg-sky-200 text-sky-900'
-                : 'bg-emerald-200 text-emerald-900'
+            className={`text-[10px] font-extrabold text-center truncate w-full leading-tight ${
+              isEmpty ? 'text-slate-400' : 'text-slate-900'
             }`}
           >
-            {slot.status_slot}
+            {shortMobileLabel}
           </span>
         </div>
 
-        <div className="my-2">
-          {isEmpty ? (
-            <p className="text-xs font-bold text-slate-400">+ Ketuk untuk Check-In</p>
-          ) : (
-            <>
-              <p className="font-extrabold text-xs sm:text-sm text-slate-900 line-clamp-1">
-                {slot.house_id && slot.house_id !== '-'
-                  ? getHouseLabel(slot.house_id)
-                  : slot.nama_pemilik}
-              </p>
-              <p className="text-[11px] font-semibold text-slate-600 mt-0.5 line-clamp-1">
-                {slot.nomor_polisi && slot.nomor_polisi !== '-' ? `${slot.nomor_polisi} • ` : ''}
-                {slot.jenis_paket}
-              </p>
-            </>
-          )}
-        </div>
+        {/* TAMPILAN DETAIL PENUH KHUSUS TABLET & DESKTOP (>= 640px) */}
+        <div className="hidden sm:flex sm:flex-col sm:justify-between h-full w-full">
+          <div className="flex items-center justify-between gap-2 w-full">
+            <span className="font-black text-xs text-slate-900">
+              {slot.nama_slot || slot.slot_id}
+            </span>
+            <span
+              className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full shrink-0 ${
+                isEmpty
+                  ? 'bg-slate-200 text-slate-600'
+                  : isWeekend
+                  ? 'bg-amber-200 text-amber-900'
+                  : isTamu
+                  ? 'bg-sky-200 text-sky-900'
+                  : 'bg-emerald-200 text-emerald-900'
+              }`}
+            >
+              {slot.status_slot}
+            </span>
+          </div>
 
-        <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1.5 border-t border-slate-200/70 w-full">
-          <span className="truncate">
-            {isEmpty ? 'Tersedia' : `Masuk: ${slot.waktu_masuk || '-'}`}
-          </span>
-          <span className="font-extrabold text-teal-700 shrink-0 ml-2">
-            {isEmpty ? 'Check-In →' : 'Kelola →'}
-          </span>
+          <div className="my-2">
+            {isEmpty ? (
+              <p className="text-xs font-bold text-slate-400">+ Ketuk untuk Check-In</p>
+            ) : (
+              <>
+                <p className="font-extrabold text-xs sm:text-sm text-slate-900 line-clamp-1">
+                  {slot.house_id && slot.house_id !== '-'
+                    ? getHouseLabel(slot.house_id)
+                    : slot.nama_pemilik}
+                </p>
+                <p className="text-[11px] font-semibold text-slate-600 mt-0.5 line-clamp-1">
+                  {slot.nomor_polisi && slot.nomor_polisi !== '-' ? `${slot.nomor_polisi} • ` : ''}
+                  {slot.jenis_paket}
+                </p>
+              </>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1.5 border-t border-slate-200/70 w-full">
+            <span className="truncate">
+              {isEmpty ? 'Tersedia' : `Masuk: ${slot.waktu_masuk || '-'}`}
+            </span>
+            <span className="font-extrabold text-teal-700 shrink-0 ml-2">
+              {isEmpty ? 'Check-In →' : 'Kelola →'}
+            </span>
+          </div>
         </div>
       </button>
     );
@@ -1339,12 +1397,13 @@ export default function PublicDashboard({
                       }
                     },
                     {
-                      id: 'tatib',
-                      label: 'Tata Tertib',
+                      id: 'panduan',
+                      label: 'Panduan',
                       icon: <Icon3DRules size={30} />,
                       onClick: () => {
                         setShowMoreMenu(false);
-                        setInfoSheet('rules');
+                        if (typeof onOpenGuide === 'function') onOpenGuide('cara_pakai');
+                        else setInfoSheet('rules');
                       }
                     }
                   ];
@@ -2167,7 +2226,7 @@ export default function PublicDashboard({
       )}
 
       {/* ======================================================================
-          TAB 4: DENAH HORIZONTAL 6 SLOT PARKIR FASUM (DIAKSES DARI BERANDA)
+          TAB 4: DENAH HORIZONTAL 6 SLOT PARKIR FASUM (MENYAMPING DI MOBILE & DESKTOP)
       ====================================================================== */}
       {activeTab === 'parkir' && (
         <section className="px-3.5 sm:px-5 lg:px-6 pt-4 space-y-4">
@@ -2191,59 +2250,126 @@ export default function PublicDashboard({
             </div>
           </div>
 
-          <div className="bg-white rounded-3xl p-4 sm:p-5 shadow-xs border border-slate-200/85 space-y-4">
+          <div className="bg-white rounded-3xl p-3.5 sm:p-5 shadow-xs border border-slate-200/85 space-y-3.5">
             <div>
               <h1 className="text-base sm:text-lg font-black text-slate-900">
                 Denah 6 Slot Parkir Fasum CMR
               </h1>
               <p className="text-xs text-slate-500">
-                Seluruh slot dinamis & bebas • Petugas Security cukup ketuk kotak slot untuk
-                Check-In / Check-Out kendaraan
+                Ketuk langsung nomor slot untuk Check-In / Check-Out kendaraan oleh Security
               </p>
             </div>
 
-            <div className="p-3.5 sm:p-5 rounded-3xl bg-slate-100/90 border border-slate-200 space-y-4">
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
-                <div className="lg:col-span-7 bg-white rounded-2xl p-3.5 border border-slate-200 space-y-2.5">
-                  <div className="flex items-center justify-between text-[11px]">
+            {/* Legenda 4 Warna Mini (Langsung Jelas di HP & Desktop) */}
+            <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1.5 text-[11px] font-bold text-slate-600">
+              <span className="inline-flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-slate-300 border border-slate-400" />
+                Kosong
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                Warga
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                Weekend
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-sky-500" />
+                Tamu
+              </span>
+            </div>
+
+            {/* Peta Denah 12 Kolom — Menyamping Sejak Layar Mobile */}
+            <div className="p-2 sm:p-4 rounded-2xl sm:rounded-3xl bg-slate-100/90 border border-slate-200 space-y-3.5">
+              <div className="grid grid-cols-12 gap-1.5 sm:gap-3.5 items-stretch">
+                {/* AREA KIRI: 7 Kolom (Grid 2x2 Slot 01 - 04) */}
+                <div className="col-span-7 bg-white rounded-xl sm:rounded-2xl p-2 sm:p-3.5 border border-slate-200 space-y-2">
+                  <div className="flex items-center justify-between text-[10px] sm:text-[11px]">
                     <span className="font-extrabold text-slate-700 uppercase tracking-wider">
-                      Area Kiri Fasum (Slot 01 – 04)
+                      <span className="sm:hidden">Kiri (01–04)</span>
+                      <span className="hidden sm:inline">Area Kiri Fasum (Slot 01 – 04)</span>
                     </span>
-                    <span className="text-slate-400">Ketuk slot</span>
+                    <span className="hidden sm:inline text-slate-400">Ketuk slot</span>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div className="grid grid-cols-2 gap-1.5 sm:gap-2.5">
                     {parkingSlots.slice(0, 4).map((slot) => renderParkingSlotCard(slot))}
                   </div>
                 </div>
 
-                <div className="lg:col-span-1 flex lg:flex-col items-center justify-center py-2 lg:py-0 rounded-2xl bg-slate-200/80 border border-dashed border-slate-300 text-slate-500 text-[10px] font-extrabold tracking-widest uppercase">
-                  <span className="lg:-rotate-90 whitespace-nowrap">Jalur Akses Mobil</span>
+                {/* JALUR AKSES TENGAH: 1 Kolom Vertikal */}
+                <div className="col-span-1 flex items-center justify-center rounded-xl sm:rounded-2xl bg-slate-200/80 border border-dashed border-slate-300 text-slate-500 text-[9px] sm:text-[10px] font-extrabold tracking-widest uppercase overflow-hidden">
+                  <span className="-rotate-90 whitespace-nowrap">
+                    <span className="sm:hidden">AKSES</span>
+                    <span className="hidden sm:inline">Jalur Akses Mobil</span>
+                  </span>
                 </div>
 
-                <div className="lg:col-span-4 bg-white rounded-2xl p-3.5 border border-slate-200 flex flex-col justify-between space-y-2.5">
-                  <div className="flex items-center justify-between text-[11px]">
+                {/* AREA KANAN: 4 Kolom (Tumpuk 1x2 Slot 05 - 06) */}
+                <div className="col-span-4 bg-white rounded-xl sm:rounded-2xl p-2 sm:p-3.5 border border-slate-200 flex flex-col justify-between space-y-2">
+                  <div className="flex items-center justify-between text-[10px] sm:text-[11px]">
                     <span className="font-extrabold text-slate-700 uppercase tracking-wider">
-                      Area Kanan (Slot 05 – 06)
+                      <span className="sm:hidden">Kanan</span>
+                      <span className="hidden sm:inline">Area Kanan (05–06)</span>
                     </span>
-                    <span className="text-slate-400">Atas & Bawah</span>
                   </div>
-                  <div className="grid grid-cols-1 gap-2.5 flex-1">
+                  <div className="grid grid-cols-1 gap-1.5 sm:gap-2.5 flex-1">
                     {parkingSlots.slice(4, 6).map((slot) => renderParkingSlotCard(slot))}
                   </div>
                 </div>
               </div>
 
+              {/* Strip Detail Kendaraan Terparkir Khusus Mobile (Otomatis Sembunyi Jika 0 Terisi) */}
+              {occupiedParkingCount > 0 && (
+                <div className="sm:hidden rounded-2xl bg-white border border-slate-200 p-3 space-y-2">
+                  <p className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">
+                    Mobil Terparkir Saat Ini ({occupiedParkingCount})
+                  </p>
+                  <div className="divide-y divide-slate-100">
+                    {parkingSlots
+                      .filter((s) => s.status_slot !== 'Kosong')
+                      .map((slot) => (
+                        <button
+                          key={slot.slot_id}
+                          type="button"
+                          onClick={() => openParkingSlotModal(slot)}
+                          className="w-full py-2 flex items-center justify-between gap-2 text-left cursor-pointer"
+                        >
+                          <div className="min-w-0 text-xs">
+                            <p className="font-extrabold text-slate-900 truncate">
+                              {slot.nama_slot || slot.slot_id} •{' '}
+                              {slot.house_id && slot.house_id !== '-'
+                                ? getHouseLabel(slot.house_id)
+                                : slot.nama_pemilik}
+                            </p>
+                            <p className="text-[11px] text-slate-500 truncate">
+                              {slot.nomor_polisi && slot.nomor_polisi !== '-'
+                                ? `${slot.nomor_polisi} • `
+                                : ''}
+                              {slot.jenis_paket}
+                              {slot.waktu_masuk && slot.waktu_masuk !== '-'
+                                ? ` • Masuk ${slot.waktu_masuk}`
+                                : ''}
+                            </p>
+                          </div>
+                          <IconChevronRight size={15} className="text-slate-400 shrink-0" />
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              )}
+
               <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600 px-1">
                 <span>
-                  <strong>Kontribusi Parkir Fasum:</strong> 1 Mobil Rp 150.000/bln • 2 Mobil Rp
-                  300.000/bln • Weekend Rp 50.000/bln
+                  <strong>Tarif Fasum:</strong> 1 Mobil Rp 150rb • 2 Mobil Rp 300rb • Weekend Rp
+                  50rb
                 </span>
                 <button
                   type="button"
                   onClick={() => onOpenQris && onOpenQris(null)}
                   className="font-extrabold text-sky-700 hover:underline cursor-pointer"
                 >
-                  Bayar Parkir via QRIS →
+                  Bayar Parkir QRIS →
                 </button>
               </div>
             </div>
