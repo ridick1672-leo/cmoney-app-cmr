@@ -1317,66 +1317,6 @@ export default function PublicDashboard({
                   />
                 </div>
 
-                {/* Area Expand Menu Tambahan (Mulus saat "Lainnya" diklik) */}
-                {showMoreMenu && (
-                  <div className="border-t border-slate-100 bg-slate-50/70 px-3 py-3 grid grid-cols-4 sm:grid-cols-6 gap-2 text-center animate-fade-in">
-                    <CapsuleMenuButton
-                      icon={<Icon3DArchive size={30} />}
-                      label="Arsip Kas"
-                      onClick={() => {
-                        setShowMoreMenu(false);
-                        monthlyClosingsRef.current?.scrollIntoView({ behavior: 'smooth' });
-                      }}
-                    />
-                    <CapsuleMenuButton
-                      icon={<Icon3DReport size={30} />}
-                      label="Log Pos"
-                      onClick={() => {
-                        setShowMoreMenu(false);
-                        jumpToSecuritySub('riwayat');
-                      }}
-                    />
-                    <CapsuleMenuButton
-                      icon={<Icon3DRules size={30} />}
-                      label="Tata Tertib"
-                      onClick={() => {
-                        setShowMoreMenu(false);
-                        setInfoSheet('rules');
-                      }}
-                    />
-                    {!isPwaInstalled && typeof onOpenPwaInstall === 'function' && (
-                      <CapsuleMenuButton
-                        icon={<Icon3DInstallApp size={30} />}
-                        label="Pasang App"
-                        onClick={() => {
-                          setShowMoreMenu(false);
-                          onOpenPwaInstall();
-                        }}
-                      />
-                    )}
-                    {SHOW_SOS_BUTTON && (
-                      <CapsuleMenuButton
-                        icon={<Icon3DSos size={30} />}
-                        label="Darurat SOS"
-                        onClick={() => {
-                          setShowMoreMenu(false);
-                          jumpToSecuritySub('riwayat');
-                        }}
-                      />
-                    )}
-                    {SHOW_CCTV_PANEL && (
-                      <CapsuleMenuButton
-                        icon={<Icon3DCctv size={30} />}
-                        label="CCTV Pos"
-                        onClick={() => {
-                          setShowMoreMenu(false);
-                          jumpToSecuritySub('riwayat');
-                        }}
-                      />
-                    )}
-                  </div>
-                )}
-
                 {/* Area Expand Menu Tambahan — Grid Dinamis 100% Simetris Mobile & Desktop */}
                 {showMoreMenu && (() => {
                   const moreItems = [
